@@ -100,7 +100,7 @@ struct NodePattern {
 };
 
 // Edge direction
-enum class Direction {
+enum class EdgeDirection {
   Left,
   Right,
   Undirected
@@ -110,7 +110,7 @@ enum class Direction {
 struct EdgePattern {
   std::string alias;
   std::vector<std::string> labels;
-  Direction direction;
+  EdgeDirection direction;
 
   size_t line = 0;
   size_t col = 0;
@@ -118,31 +118,28 @@ struct EdgePattern {
   std::string Debug() const;
 };
 
-// Node + optional edges
+// Node or Edge pattern element
 struct PatternElement {
-  NodePattern node;
-  std::optional<EdgePattern> edge_to_next;
+  std::variant<NodePattern, EdgePattern> element;
+
+  bool IsNode() const;
+  bool IsEdge() const;
+  const NodePattern& AsNode() const;
+  const EdgePattern& AsEdge() const;
 
   std::string Debug() const;
 };
 
 // Full graph pattern
 struct Pattern {
-  // Node, (Edge->Node), (Edge->Node) ...
   std::vector<PatternElement> elements;
-
-  size_t node_count() const;
-  size_t edge_count() const;
-
-  // Map alias -> node index
-  std::unordered_map<std::string, size_t> alias_to_node_index() const;
 
   std::string Debug() const;
 };
 
 // MATCH clause
 struct MatchClause {
-  Pattern pattern;
+  std::vector<Pattern> patterns;
 
   std::string Debug() const;
 };
@@ -211,6 +208,13 @@ struct LimitClause {
   std::string Debug() const;
 };
 
+// CREATE clause
+struct CreateClause {
+  std::vector<Pattern> patterns;
+
+  std::string Debug() const;
+};
+
 // AST for query
 struct QueryAST {
   std::unique_ptr<MatchClause> match;
@@ -222,6 +226,8 @@ struct QueryAST {
 
   std::unique_ptr<OrderClause> order;
   std::unique_ptr<LimitClause> limit;
+
+  std::unique_ptr<CreateClause> create;
 
   std::string Debug() const;
 };
