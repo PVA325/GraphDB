@@ -11,8 +11,23 @@
 #include <set>
 #include <unordered_map>
 #include <numeric>
-#include "tmp_folder/ast.hpp"
-#include "tmp_folder/store.hpp"
+#include "ast.hpp"
+#include "store.hpp"
+
+namespace graph {
+  namespace frontend {
+    using ast::Expr;
+    using ast::ReturnItem;
+    using ast::QueryAST;
+    using ast::MatchClause;
+    using store::GraphDB;
+    using ast::Pattern;
+    using ast::PatternElement;
+    using ast::NodePattern;
+    using ast::EdgePattern;
+    using ast::Direction;
+  }
+};
 
 namespace graph {
   using Int = int64_t;
@@ -21,7 +36,7 @@ namespace graph {
   using Bool = bool;
   using NodeId = uint64_t;
   using EdgeId = uint64_t;
-  enum class EdgeDirection { Outgoing, Incoming, Undirected };
+//  enum class EdgeDirection { Outgoing, Incoming, Undirected };
 
   using Value = std::variant<Int, Double, String, Bool>;
 
@@ -43,22 +58,9 @@ namespace graph {
     String toString(const Value& val);
     String ConcatStrVector(const std::vector<String>& v);
     String ConcatProperties(const std::vector<std::pair<const String, Value>>& v);
-    String EdgeStrByDirection(EdgeDirection dir);
+    String EdgeStrByDirection(frontend::Direction dir);
   }
 }
-
-namespace graph {
-  namespace frontend {
-    using ast::Expr;
-    using ast::ReturnItem;
-    using ast::QueryAST;
-    using ast::MatchClause;
-    using store::GraphDB;
-    using ast::Pattern;
-    using ast::PatternElement;
-    using ast::NodePattern;
-  }
-};
 
 namespace graph {
   namespace planner {
@@ -70,15 +72,18 @@ namespace graph {
       virtual String DebugString() const  = 0;
     };
     struct LogicalScan : public LogicalOp {
-      /// Scan Nodes that has specified labels(and fit by property filters \
+      /// Scan Nodes that has specified labels
       /// and write out in row with slot name alias
       std::vector<String> labels;
       String alias;
       std::vector<std::pair<const String, Value> > property_filters;
 
       LogicalScan() = delete;
-      LogicalScan(std::vector<String> labels, String  alias,
-                  std::vector<std::pair<const String, Value>> property_filters);
+      LogicalScan(const LogicalScan& other) = default;
+      LogicalScan(LogicalScan&& other) = default;
+
+      LogicalScan(std::vector<String> labels, String alias): labels(std::move(labels)), alias(std::move(alias)) {}
+      LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<const String, Value> > property_filters);
       String DebugString() const override;
       ~LogicalScan() override = default;
     };
@@ -88,11 +93,12 @@ namespace graph {
       String dst_alias;
       /// bool optional; can add for Optional match
       std::optional<std::vector<String>> edge_labels;
-      EdgeDirection direction;
+      frontend::Direction direction;
+      LogicalOpPtr child;
 
       LogicalExpand() = delete;
-      LogicalExpand(String src_alias, String dst_alias, EdgeDirection direction = EdgeDirection::Outgoing);
-      LogicalExpand(String src_alias, String dst_alias, std::vector<String> edge_labels, EdgeDirection direction = EdgeDirection::Outgoing);
+      LogicalExpand(String src_alias, String dst_alias, LogicalOpPtr child, frontend::Direction direction);
+      LogicalExpand(String src_alias, String dst_alias, LogicalOpPtr child, std::vector<String> edge_labels, frontend::Direction direction);
       String DebugString() const override;
       ~LogicalExpand() override = default;
     };
@@ -100,8 +106,14 @@ namespace graph {
     struct LogicalFilter : public LogicalOp {
       /// Filter - not include int answer all values that do not satisfy predicate
       std::unique_ptr<frontend::Expr> predicate;
+      LogicalOpPtr child;
+
       LogicalFilter() = delete;
-      explicit LogicalFilter(std::unique_ptr<frontend::Expr> predicate): predicate(std::move(predicate)) {}
+      explicit LogicalFilter(std::unique_ptr<frontend::Expr> predicate, LogicalOpPtr child):
+        predicate(std::move(predicate)),
+        child(std::move(child))
+      {}
+
       String DebugString() const override;
       ~LogicalFilter() override = default;
     };
@@ -109,8 +121,13 @@ namespace graph {
     struct LogicalProject : public LogicalOp {
       /// Project of values to items(can be field - string or Expression)
       std::vector<frontend::ReturnItem> items;
+      LogicalOpPtr child;
+
       LogicalProject() = delete;
-      LogicalProject(std::vector<frontend::ReturnItem> items): items(std::move(items)) {}
+      LogicalProject(std::vector<frontend::ReturnItem> items, LogicalOpPtr child):
+        items(std::move(items)),
+        child(std::move(child))
+      {}
       String DebugString() const override;
       ~LogicalProject() override = default;
     };
@@ -118,8 +135,13 @@ namespace graph {
     struct LogicalLimit : public LogicalOp {
       /// Logical Limit - nothing to comment
       Int limit_size;
+      LogicalOpPtr child;
+
       LogicalLimit() = delete;
-      explicit LogicalLimit(size_t limit_size): limit_size(limit_size) {}
+      explicit LogicalLimit(size_t limit_size, LogicalOpPtr child):
+        limit_size(limit_size),
+        child(std::move(child))
+      {}
       String DebugString() const override;
       ~LogicalLimit() override = default;
     };
@@ -134,8 +156,14 @@ namespace graph {
         } and sort if by expr1 and if they are equal by expr2
        */
       std::vector<std::pair<std::unique_ptr<frontend::Expr>, bool> > keys;
+      LogicalOpPtr child;
+
       LogicalSort() = delete;
-      explicit LogicalSort(std::vector<std::pair<std::unique_ptr<frontend::Expr>, bool> > keys): keys(std::move(keys)) {}
+      explicit LogicalSort(std::vector<std::pair<std::unique_ptr<frontend::Expr>, bool> > keys,
+                           LogicalOpPtr child) :
+           keys(std::move(keys)),
+           child(std::move(child))
+      {}
       String DebugString() const override;
       ~LogicalSort() override = default;
     };
