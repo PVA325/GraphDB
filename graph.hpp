@@ -26,6 +26,8 @@ namespace graph {
     using ast::NodePattern;
     using ast::EdgePattern;
     using ast::Direction;
+    using ast::OrderItem;
+    using ast::OrderDirection;
   }
 };
 
@@ -71,26 +73,28 @@ namespace graph {
       virtual ~LogicalOp() = default;
       virtual String DebugString() const  = 0;
     };
-    struct LogicalScan : public LogicalOp {
+    struct AliasedLogicalOp: public LogicalOp {
+      std::string dst_alias;
+      AliasedLogicalOp(std::string dst_alias): dst_alias(std::move(dst_alias)) {}
+    };
+    struct LogicalScan : public AliasedLogicalOp {
       /// Scan Nodes that has specified labels
       /// and write out in row with slot name alias
       std::vector<String> labels;
-      String alias;
       std::vector<std::pair<const String, Value> > property_filters;
 
       LogicalScan() = delete;
       LogicalScan(const LogicalScan& other) = default;
       LogicalScan(LogicalScan&& other) = default;
 
-      LogicalScan(std::vector<String> labels, String alias): labels(std::move(labels)), alias(std::move(alias)) {}
+      LogicalScan(std::vector<String> labels, String dst_alias): AliasedLogicalOp(std::move(dst_alias)), labels(std::move(labels)) {}
       LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<const String, Value> > property_filters);
       String DebugString() const override;
       ~LogicalScan() override = default;
     };
-    struct LogicalExpand : public LogicalOp {
+    struct LogicalExpand : public AliasedLogicalOp {
       /// Expand Nodes that are located in row by $src_alias slot name and move to $dst_alias
       String src_alias;
-      String dst_alias;
       /// bool optional; can add for Optional match
       std::optional<std::vector<String>> edge_labels;
       frontend::Direction direction;
@@ -155,11 +159,11 @@ namespace graph {
           {expr2, false}   // DESC
         } and sort if by expr1 and if they are equal by expr2
        */
-      std::vector<std::pair<std::unique_ptr<frontend::Expr>, bool> > keys;
+      std::vector<frontend::OrderItem> keys;
       LogicalOpPtr child;
 
       LogicalSort() = delete;
-      explicit LogicalSort(std::vector<std::pair<std::unique_ptr<frontend::Expr>, bool> > keys,
+      explicit LogicalSort(std::vector<frontend::OrderItem> keys,
                            LogicalOpPtr child) :
            keys(std::move(keys)),
            child(std::move(child))
