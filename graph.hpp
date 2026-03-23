@@ -11,8 +11,8 @@
 #include <set>
 #include <unordered_map>
 #include <numeric>
-//#include "ast.hpp"
-//#include "store.hpp"
+#include "tmp_folder/ast.hpp"
+#include "tmp_folder/store.hpp"
 
 namespace graph {
   using Int = int64_t;
@@ -49,43 +49,16 @@ namespace graph {
 
 namespace graph {
   namespace frontend {
-    /// Expr
-    /// ReturnItem
-//    using Expr=;
-//    using ReturnItem=;
-//    using QueryAST = ast::QueryAST;
-    struct Expr {
-      String DebugString() const {}
-    };
-    struct ReturnItem {
-      ReturnItem(ReturnItem&&) {}
-      String DebugString() const {};
-    };
-    struct QueryAST {};
-    struct MatchClause {};
-    struct GraphDB {};
-  };
-}
-
-// namespace graph {
-//   namespace catalog { // should be done by stas
-//     struct Catalog {
-//       virtual ~Catalog() = default;
-
-//       virtual size_t node_count() const = 0;
-
-//       virtual size_t node_count_with_label(const std::string &label) const = 0;
-
-//       virtual std::optional <size_t> property_distinct_count(const std::string &label,
-//                                                              const std::string &property) const = 0;
-//       virtual double avg_out_degree(const std::string &label) const = 0;
-
-//       virtual double avg_in_degree(const std::string &label) const = 0;
-
-//       virtual bool has_property_index(const std::string &label, const std::string &property) const = 0;
-//     };
-//   };
-// }
+    using ast::Expr;
+    using ast::ReturnItem;
+    using ast::QueryAST;
+    using ast::MatchClause;
+    using store::GraphDB;
+    using ast::Pattern;
+    using ast::PatternElement;
+    using ast::NodePattern;
+  }
+};
 
 namespace graph {
   namespace planner {
@@ -185,6 +158,8 @@ namespace graph {
       /// Container logical plan
       LogicalOpPtr root;
       LogicalPlan(): root(nullptr) {}
+      LogicalPlan(LogicalPlan&& other): root(std::move(other.root)) {}
+
       explicit LogicalPlan(LogicalOpPtr r): root(std::move(r)) {}
       String DebugString() const override;
       ~LogicalPlan() override = default;
@@ -193,13 +168,10 @@ namespace graph {
 };
 
 
-
 namespace graph {
   namespace exec {
-//    using Node=Stas::Node;
-//    using Edge=Stas::Edge;
-    struct Node;
-    struct Edge;
+    using store::Node;
+    using store::Edge;
     struct PhysicalOp;
 
     using RowSlot = std::variant<Node*, Edge*, Value>;
@@ -209,8 +181,6 @@ namespace graph {
     struct ExecOptions {
       /// options of execution; mymory, in future parallelism and spill
       size_t memory_budget_bytes = 256ULL * 1024 * 1024;
-//      size_t parallelism = 1; maybe in future
-//      std::string spill_directory; maybe in future
     };
     struct SlotMapping {
       std::unordered_map<std::string, size_t> alias_to_slot;
@@ -220,10 +190,8 @@ namespace graph {
     struct ExecContext {
       /// Context of execution db
       frontend::GraphDB* db;
-      const catalog::Catalog &catalog;
       ExecOptions options;
       SlotMapping slots;
-//      std::unique_ptr<catalog::TxHandle> begin_read_tx() const; maybe in future
     };
 
     struct Row {
@@ -326,7 +294,7 @@ namespace graph {
       /// do join for 2 expressions based on predicate
       PhysicalOpPtr left;
       PhysicalOpPtr right;
-      std::unique_ptr<graph::frontend::Expr> predicate;
+      std::unique_ptr<frontend::Expr> predicate;
       bool left_outer = false; //
       NestedLoopJoinOp(std::unique_ptr<PhysicalOp> l, std::unique_ptr<PhysicalOp> r,
                        std::unique_ptr<frontend::Expr> pred, bool left_outer_);
@@ -367,7 +335,7 @@ namespace graph {
 
     // (Planner->Executor glue)
     std::unique_ptr<ResultCursor> execute_query_ast(const frontend::QueryAST &ast,
-                                                    const catalog::Catalog &cat,
+                                                    const frontend::GraphDB &cat,
                                                     graph::exec::ExecOptions opts);
   }
 }
@@ -393,11 +361,11 @@ namespace graph {
     struct CostModel {
       virtual ~CostModel() = default;
       // estimate cost for scanning label with optional property predicate
-      virtual CostEstimate estimate_scan(const catalog::Catalog &cat,
+      virtual CostEstimate estimate_scan(const store::GraphDB &cat,
                                          const LogicalScan &scan) const = 0;
 
       // estimate for expand
-      virtual CostEstimate estimate_expand(const catalog::Catalog &cat,
+      virtual CostEstimate estimate_expand(const store::GraphDB &cat,
                                            const LogicalExpand &expand,
                                            const CostEstimate &input) const = 0;
 
@@ -407,12 +375,12 @@ namespace graph {
                                          const frontend::Expr *pred) const = 0;
     };
 
-    // Default cost model (signature only)
+    // Default cost model
     struct DefaultCostModel : public CostModel {
       DefaultCostModel();
-      CostEstimate estimate_scan(const catalog::Catalog &cat,
+      CostEstimate estimate_scan(const store::GraphDB &cat,
                                  const LogicalScan &scan) const override;
-      CostEstimate estimate_expand(const catalog::Catalog &cat,
+      CostEstimate estimate_expand(const store::GraphDB &cat,
                                    const LogicalExpand &expand,
                                    const CostEstimate &input) const override;
       CostEstimate estimate_join(const CostEstimate &left,
@@ -425,14 +393,14 @@ namespace graph {
       virtual ~JoinOrderStrategy() = default;
       // choose join order given list of logical scans/joins
       virtual std::vector<size_t> choose_order(const std::vector<LogicalOp*> &join_roots,
-                                               const catalog::Catalog &cat,
+                                               const store::GraphDB &cat,
                                                const CostModel &cost_model) = 0;
     };
     class GreedyJoinOrder : public JoinOrderStrategy {
     public:
       std::vector<size_t> choose_order(
         const std::vector<LogicalOp*>& joins,
-        const catalog::Catalog& cat,
+        const store::GraphDB& cat,
         const CostModel& cost_model) override {
 
         std::vector<size_t> order(joins.size());
@@ -443,7 +411,7 @@ namespace graph {
 
     class Planner {
     public:
-      Planner(const catalog::Catalog &cat,
+      Planner(const store::GraphDB &cat,
               PlannerConfig cfg = PlannerConfig(),
               std::unique_ptr<CostModel> cost_model = std::make_unique<DefaultCostModel>(),
               std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<GreedyJoinOrder>());
@@ -479,7 +447,7 @@ namespace graph {
       std::string explain_physical_plan(const exec::PhysicalPlan &plan) const;
 
     private:
-      const catalog::Catalog &cat_;
+      const store::GraphDB &cat_;
       PlannerConfig cfg_;
       std::unique_ptr<CostModel> cost_model_;
       std::unique_ptr<JoinOrderStrategy> join_strategy_;
@@ -490,8 +458,4 @@ namespace graph {
       LogicalOpPtr pattern_to_logical_ops(const frontend::MatchClause &match_clause) const;
     };
   }
-}
-
-int main() {
-  std::cout << "Hello\n";
-}
+};
