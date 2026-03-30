@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <numeric>
 #include "ast.hpp"
-#include "store.hpp"
+#include "storage.hpp"
 
 namespace graph {
   namespace frontend {
@@ -20,14 +20,16 @@ namespace graph {
     using ast::ReturnItem;
     using ast::QueryAST;
     using ast::MatchClause;
-    using store::GraphDB;
+    using storage::GraphDB;
     using ast::Pattern;
     using ast::PatternElement;
     using ast::NodePattern;
     using ast::EdgePattern;
-    using ast::Direction;
+    using ast::EdgeDirection;
     using ast::OrderItem;
     using ast::OrderDirection;
+    using ast::SetClause;
+    using ast::DeleteClause;
   }
 };
 
@@ -60,7 +62,7 @@ namespace graph {
     String toString(const Value& val);
     String ConcatStrVector(const std::vector<String>& v);
     String ConcatProperties(const std::vector<std::pair<const String, Value>>& v);
-    String EdgeStrByDirection(frontend::Direction dir);
+    String EdgeStrByDirection(frontend::EdgeDirection dir);
   }
 }
 
@@ -72,7 +74,21 @@ namespace graph {
     struct LogicalOp {
       virtual ~LogicalOp() = default;
       virtual String DebugString() const  = 0;
+      virtual String SubtreeDebugString() const  = 0;
     };
+
+    struct LogicalOpUnaryChild : LogicalOp {
+      LogicalOpPtr child;
+      explicit LogicalOpUnaryChild(LogicalOpPtr child);
+      String SubtreeDebugString() const override;
+    };
+    struct LogicalOpBinaryChild : LogicalOp {
+      LogicalOpPtr left;
+      LogicalOpPtr right;
+      LogicalOpBinaryChild(LogicalOpPtr left, LogicalOpPtr right);
+      String SubtreeDebugString() const override;
+    };
+
     struct AliasedLogicalOp: public LogicalOp {
       std::string dst_alias;
       AliasedLogicalOp(std::string dst_alias): dst_alias(std::move(dst_alias)) {}
@@ -87,70 +103,62 @@ namespace graph {
       LogicalScan(const LogicalScan& other) = default;
       LogicalScan(LogicalScan&& other) = default;
 
-      LogicalScan(std::vector<String> labels, String dst_alias): AliasedLogicalOp(std::move(dst_alias)), labels(std::move(labels)) {}
+      LogicalScan(std::vector<String> labels, String dst_alias);
       LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<const String, Value> > property_filters);
       String DebugString() const override;
+      virtual String SubtreeDebugString() const override;
       ~LogicalScan() override = default;
     };
     struct LogicalExpand : public AliasedLogicalOp {
       /// Expand Nodes that are located in row by $src_alias slot name and move to $dst_alias
       String src_alias;
+      String edge_alias;
       /// bool optional; can add for Optional match
       std::optional<std::vector<String>> edge_labels;
-      frontend::Direction direction;
+      std::optional<std::vector<String>> dst_vertex_labels;
+      frontend::EdgeDirection direction;
       LogicalOpPtr child;
 
       LogicalExpand() = delete;
-      LogicalExpand(String src_alias, String dst_alias, LogicalOpPtr child, frontend::Direction direction);
-      LogicalExpand(String src_alias, String dst_alias, LogicalOpPtr child, std::vector<String> edge_labels, frontend::Direction direction);
+      LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias, frontend::EdgeDirection direction);
+      LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias, std::vector<String> edge_labels, std::vector<String> dst_vertex_labels, frontend::EdgeDirection direction);
       String DebugString() const override;
+      virtual String SubtreeDebugString() const override;
       ~LogicalExpand() override = default;
     };
 
-    struct LogicalFilter : public LogicalOp {
+    struct LogicalFilter : public LogicalOpUnaryChild {
       /// Filter - not include int answer all values that do not satisfy predicate
       std::unique_ptr<frontend::Expr> predicate;
-      LogicalOpPtr child;
 
       LogicalFilter() = delete;
-      explicit LogicalFilter(std::unique_ptr<frontend::Expr> predicate, LogicalOpPtr child):
-        predicate(std::move(predicate)),
-        child(std::move(child))
-      {}
+      explicit LogicalFilter(LogicalOpPtr child, std::unique_ptr<frontend::Expr> predicate);
 
       String DebugString() const override;
       ~LogicalFilter() override = default;
     };
 
-    struct LogicalProject : public LogicalOp {
+    struct LogicalProject : public LogicalOpUnaryChild {
       /// Project of values to items(can be field - string or Expression)
       std::vector<frontend::ReturnItem> items;
-      LogicalOpPtr child;
 
       LogicalProject() = delete;
-      LogicalProject(std::vector<frontend::ReturnItem> items, LogicalOpPtr child):
-        items(std::move(items)),
-        child(std::move(child))
-      {}
+      LogicalProject(LogicalOpPtr child, std::vector<frontend::ReturnItem> items);
       String DebugString() const override;
       ~LogicalProject() override = default;
     };
 
-    struct LogicalLimit : public LogicalOp {
+    struct LogicalLimit : public LogicalOpUnaryChild {
       /// Logical Limit - nothing to comment
       Int limit_size;
-      LogicalOpPtr child;
 
       LogicalLimit() = delete;
-      explicit LogicalLimit(size_t limit_size, LogicalOpPtr child):
-        limit_size(limit_size),
-        child(std::move(child))
-      {}
+      explicit LogicalLimit(LogicalOpPtr child, size_t limit_size);
       String DebugString() const override;
       ~LogicalLimit() override = default;
     };
 
-    struct LogicalSort : LogicalOp {
+    struct LogicalSort : LogicalOpUnaryChild {
       /// Logical Sort - sort by expression in keys
       /// for example
       /*
@@ -160,28 +168,20 @@ namespace graph {
         } and sort if by expr1 and if they are equal by expr2
        */
       std::vector<frontend::OrderItem> keys;
-      LogicalOpPtr child;
 
       LogicalSort() = delete;
-      explicit LogicalSort(std::vector<frontend::OrderItem> keys,
-                           LogicalOpPtr child) :
-           keys(std::move(keys)),
-           child(std::move(child))
-      {}
+      explicit LogicalSort(LogicalOpPtr child, std::vector<frontend::OrderItem> keys);
       String DebugString() const override;
       ~LogicalSort() override = default;
     };
 
-    struct LogicalJoin : LogicalOp {
+    struct LogicalJoin : LogicalOpBinaryChild {
       /// Logical Joint for 2 results with predicate(optional)
-      LogicalOpPtr left;
-      LogicalOpPtr right;
+
       std::optional<std::unique_ptr<frontend::Expr>> predicate;
       LogicalJoin() = delete;
-      LogicalJoin(LogicalOpPtr left, LogicalOpPtr right):
-        left(std::move(left)), right(std::move(right)) {}
-      LogicalJoin(LogicalOpPtr left, LogicalOpPtr right, std::unique_ptr<frontend::Expr> predicate) :
-        left(std::move(left)), right(std::move(right)), predicate(std::move(predicate)) {}
+      LogicalJoin(LogicalOpPtr left, LogicalOpPtr right);
+      LogicalJoin(LogicalOpPtr left, LogicalOpPtr right, std::unique_ptr<frontend::Expr> predicate);
       String DebugString() const override;
       ~LogicalJoin() override = default;
     };
@@ -194,7 +194,39 @@ namespace graph {
 
       explicit LogicalPlan(LogicalOpPtr r): root(std::move(r)) {}
       String DebugString() const override;
+      String SubtreeDebugString() const override;
+
       ~LogicalPlan() override = default;
+    };
+
+    struct LogicalSet : LogicalOpUnaryChild {
+      /// Create LogicalSet; can set only 1 parameter through execution
+      struct Assignment {
+        String alias;
+        String key;
+        Value value;
+      };
+      Assignment assignment;
+
+      LogicalSet(const LogicalSet&) = delete;
+      LogicalSet(LogicalSet&& other) = default;
+
+      LogicalSet(LogicalOpPtr child, String alias, String key, Value value);
+      String DebugString() const override;
+
+      ~LogicalSet() = default;
+    };
+
+    struct LogicalDelete : LogicalOpUnaryChild {
+      /// Create logical operation in a tree to delete a target
+      std::vector<String> target;
+      LogicalDelete(const LogicalDelete&) = delete;
+      LogicalDelete(LogicalDelete&& other) = default;
+
+      LogicalDelete(LogicalOpPtr child, std::vector<String> target);
+      String DebugString() const override;
+
+      ~LogicalDelete() = default;
     };
   };
 };
@@ -202,8 +234,8 @@ namespace graph {
 
 namespace graph {
   namespace exec {
-    using store::Node;
-    using store::Edge;
+    using storage::Node;
+    using storage::Edge;
     struct PhysicalOp;
 
     using RowSlot = std::variant<Node*, Edge*, Value>;
@@ -252,12 +284,14 @@ namespace graph {
     struct LabelIndexSeekOp : public PhysicalOp {
       /// used for node filtering(for more optimized by label we dont need to do all node scan)
       String label;
-      std::vector<String> property_keys; /// vector or just value, discuss with team
-      std::vector<String> property_vals;
+      std::vector<String> property_keys;
+      std::vector<Value> property_vals;
       String out_alias;
-      LabelIndexSeekOp(const String& lbl, const String& key, const Value& v, const String& alias);
-      LabelIndexSeekOp(const std::vector<String>& labels, const std::vector<String>& keys,
-                       const std::vector<Value>& vals, const String& alias);
+      PhysicalOpPtr child;
+
+      LabelIndexSeekOp(String label, std::vector<String> keys,
+                       std::vector<Value> vals, String alias,
+                       PhysicalOpPtr child);
       std::unique_ptr<RowCursor> open(ExecContext& ctx) override;
       String DebugString() const override;
       ~LabelIndexSeekOp() override;
@@ -295,6 +329,7 @@ namespace graph {
       /// do Filter operation with predicate on Child like while (!predicate(child)) { child.next(row) }
       std::unique_ptr<frontend::Expr> predicate;
       PhysicalOpPtr child;
+
       FilterOp(std::unique_ptr<frontend::Expr> pred, PhysicalOpPtr ch);
 
       std::unique_ptr<RowCursor> open(ExecContext& ctx) override;
@@ -393,11 +428,11 @@ namespace graph {
     struct CostModel {
       virtual ~CostModel() = default;
       // estimate cost for scanning label with optional property predicate
-      virtual CostEstimate estimate_scan(const store::GraphDB &cat,
+      virtual CostEstimate estimate_scan(const storage::GraphDB &cat,
                                          const LogicalScan &scan) const = 0;
 
       // estimate for expand
-      virtual CostEstimate estimate_expand(const store::GraphDB &cat,
+      virtual CostEstimate estimate_expand(const storage::GraphDB &cat,
                                            const LogicalExpand &expand,
                                            const CostEstimate &input) const = 0;
 
@@ -410,9 +445,9 @@ namespace graph {
     // Default cost model
     struct DefaultCostModel : public CostModel {
       DefaultCostModel();
-      CostEstimate estimate_scan(const store::GraphDB &cat,
+      CostEstimate estimate_scan(const storage::GraphDB &cat,
                                  const LogicalScan &scan) const override;
-      CostEstimate estimate_expand(const store::GraphDB &cat,
+      CostEstimate estimate_expand(const storage::GraphDB &cat,
                                    const LogicalExpand &expand,
                                    const CostEstimate &input) const override;
       CostEstimate estimate_join(const CostEstimate &left,
@@ -425,14 +460,14 @@ namespace graph {
       virtual ~JoinOrderStrategy() = default;
       // choose join order given list of logical scans/joins
       virtual std::vector<size_t> choose_order(const std::vector<LogicalOp*> &join_roots,
-                                               const store::GraphDB &cat,
+                                               const storage::GraphDB &cat,
                                                const CostModel &cost_model) = 0;
     };
     class GreedyJoinOrder : public JoinOrderStrategy {
     public:
       std::vector<size_t> choose_order(
         const std::vector<LogicalOp*>& joins,
-        const store::GraphDB& cat,
+        const storage::GraphDB& cat,
         const CostModel& cost_model) override {
 
         std::vector<size_t> order(joins.size());
@@ -443,7 +478,7 @@ namespace graph {
 
     class Planner {
     public:
-      Planner(const store::GraphDB &cat,
+      Planner(const storage::GraphDB &cat,
               PlannerConfig cfg = PlannerConfig(),
               std::unique_ptr<CostModel> cost_model = std::make_unique<DefaultCostModel>(),
               std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<GreedyJoinOrder>());
@@ -479,7 +514,7 @@ namespace graph {
       std::string explain_physical_plan(const exec::PhysicalPlan &plan) const;
 
     private:
-      const store::GraphDB &cat_;
+      const storage::GraphDB &cat_;
       PlannerConfig cfg_;
       std::unique_ptr<CostModel> cost_model_;
       std::unique_ptr<JoinOrderStrategy> join_strategy_;
