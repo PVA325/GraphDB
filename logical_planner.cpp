@@ -1,364 +1,364 @@
 #include "graph.hpp"
 
 namespace graph::planner {
-  String LogicalOpUnaryChild::SubtreeDebugString() const {
-    return child->SubtreeDebugString() + "\n" + DebugString() + "\n";
-  }
-  LogicalOpUnaryChild::LogicalOpUnaryChild(LogicalOpPtr child):
-    child(std::move(child))
-  {}
+String LogicalOpUnaryChild::SubtreeDebugString() const {
+  return child->SubtreeDebugString() + "\n" + DebugString() + "\n";
+}
+LogicalOpUnaryChild::LogicalOpUnaryChild(LogicalOpPtr child):
+  child(std::move(child))
+{}
 
-  LogicalOpBinaryChild::LogicalOpBinaryChild(LogicalOpPtr left, LogicalOpPtr right):
-    left(std::move(left)),
-    right(std::move(right))
-  {}
-  String LogicalOpBinaryChild::SubtreeDebugString() const {
-    return "1) BINARY OP:\n " + left->DebugString() + "\n2)\n" + right->DebugString() + "\n";
-  }
+LogicalOpBinaryChild::LogicalOpBinaryChild(LogicalOpPtr left, LogicalOpPtr right):
+  left(std::move(left)),
+  right(std::move(right))
+{}
+String LogicalOpBinaryChild::SubtreeDebugString() const {
+  return "1) BINARY OP:\n " + left->DebugString() + "\n2)\n" + right->DebugString() + "\n";
+}
 
-  LogicalScan::LogicalScan(std::vector<String> labels, String dst_alias, std::vector<std::pair<String, Value> > property_filters):
-    AliasedLogicalOp(std::move(dst_alias)),
-    labels(std::move(labels)),
-    property_filters(std::move(property_filters))
-  {}
-  LogicalScan::LogicalScan(std::vector<String> labels, String dst_alias):
-    AliasedLogicalOp(std::move(dst_alias)),
-    labels(std::move(labels))
-  {}
-  String LogicalScan::DebugString() const {
-    String ans = "LogicalScan(" + dst_alias + ":";
-    if (!labels.empty()) {
-      ans += PlannerUtils::ConcatStrVector(labels);
+LogicalScan::LogicalScan(std::vector<String> labels, String dst_alias, std::vector<std::pair<String, Value> > property_filters):
+  AliasedLogicalOp(std::move(dst_alias)),
+  labels(std::move(labels)),
+  property_filters(std::move(property_filters))
+{}
+LogicalScan::LogicalScan(std::vector<String> labels, String dst_alias):
+  AliasedLogicalOp(std::move(dst_alias)),
+  labels(std::move(labels))
+{}
+String LogicalScan::DebugString() const {
+  String ans = "LogicalScan(" + dst_alias + ":";
+  if (!labels.empty()) {
+    ans += PlannerUtils::ConcatStrVector(labels);
+  }
+  if (!property_filters.empty()) {
+    ans += "{ " + PlannerUtils::ConcatProperties(property_filters) + "}";
+  }
+  return ans;
+}
+String LogicalScan::SubtreeDebugString() const {
+  return DebugString();
+}
+
+
+LogicalExpand::LogicalExpand(
+  LogicalOpPtr child, String src_alias, String edge_alias,
+  String dst_alias, frontend::EdgeDirection direction
+):
+  AliasedLogicalOp(std::move(dst_alias)),
+  src_alias(std::move(src_alias)),
+  edge_alias(std::move(edge_alias)),
+  child(std::move(child)),
+  direction(direction)
+{}
+LogicalExpand::LogicalExpand(
+  LogicalOpPtr child, String src_alias, String edge_alias,
+  String dst_alias, std::vector<String> edge_labels,
+  std::vector<String> dst_vertex_labels, frontend::EdgeDirection direction
+):
+  AliasedLogicalOp(std::move(dst_alias)),
+  src_alias(std::move(src_alias)),
+  edge_alias(std::move(edge_alias)),
+  edge_labels(std::move(edge_labels)),
+  dst_vertex_labels(std::move(dst_vertex_labels)),
+  direction(direction),
+  child(std::move(child))
+{}
+String LogicalExpand::DebugString() const {
+  String ans = "Expand(" + src_alias + PlannerUtils::EdgeStrByDirection(direction) + dst_alias + ")";
+  return ans;
+}
+String LogicalExpand::SubtreeDebugString() const {
+  return child->SubtreeDebugString() + "\n" + DebugString();
+}
+
+
+LogicalFilter::LogicalFilter(LogicalOpPtr child, std::unique_ptr<frontend::Expr> predicate):
+  LogicalOpUnaryChild(std::move(child)),
+  predicate(std::move(predicate))
+{}
+String LogicalFilter::DebugString() const {
+  String ans = "LogicalFilter(" + predicate->DebugString() + ")";
+  return ans;
+}
+
+LogicalProject::LogicalProject(LogicalOpPtr child, std::vector<frontend::ReturnItem> items):
+  LogicalOpUnaryChild(std::move(child)),
+  items(std::move(items))
+{}
+String LogicalProject::DebugString() const {
+  String ans = "Project(";
+  const size_t initial_size = ans.size();
+  for (const auto& cur : items) {
+    if (ans.size() > initial_size) {
+      ans += ", ";
     }
-    if (!property_filters.empty()) {
-      ans += "{ " + PlannerUtils::ConcatProperties(property_filters) + "}";
-    }
-    return ans;
+    ans += cur.DebugString();
   }
-  String LogicalScan::SubtreeDebugString() const {
-    return DebugString();
+  ans += ")";
+  return ans;
+}
+
+LogicalLimit::LogicalLimit(LogicalOpPtr child, size_t limit_size):
+  LogicalOpUnaryChild(std::move(child)),
+  limit_size(limit_size)
+{}
+String LogicalLimit::DebugString() const {
+  return "Limit(" + std::to_string(limit_size) + ")";
+}
+
+LogicalSort::LogicalSort(LogicalOpPtr child, std::vector<frontend::OrderItem> keys) :
+  LogicalOpUnaryChild(std::move(child)),
+  keys(std::move(keys))
+{}
+String LogicalSort::DebugString() const {
+  String ans = "Sort(";
+  for (const auto& [f, s] : keys) {
+    ans += f.DebugString() + (s == frontend::OrderDirection::Asc ? "ASC" : "DESC") + "\n";
   }
+  ans += ")";
+  return ans;
+}
 
-
-  LogicalExpand::LogicalExpand(
-    LogicalOpPtr child, String src_alias, String edge_alias,
-    String dst_alias, frontend::EdgeDirection direction
-  ):
-    AliasedLogicalOp(std::move(dst_alias)),
-    src_alias(std::move(src_alias)),
-    edge_alias(std::move(edge_alias)),
-    child(std::move(child)),
-    direction(direction)
-  {}
-  LogicalExpand::LogicalExpand(
-    LogicalOpPtr child, String src_alias, String edge_alias,
-    String dst_alias, std::vector<String> edge_labels,
-    std::vector<String> dst_vertex_labels, frontend::EdgeDirection direction
-  ):
-    AliasedLogicalOp(std::move(dst_alias)),
-    src_alias(std::move(src_alias)),
-    edge_alias(std::move(edge_alias)),
-    edge_labels(std::move(edge_labels)),
-    dst_vertex_labels(std::move(dst_vertex_labels)),
-    direction(direction),
-    child(std::move(child))
-  {}
-  String LogicalExpand::DebugString() const {
-    String ans = "Expand(" + src_alias + PlannerUtils::EdgeStrByDirection(direction) + dst_alias + ")";
-    return ans;
-  }
-  String LogicalExpand::SubtreeDebugString() const {
-    return child->SubtreeDebugString() + "\n" + DebugString();
-  }
-
-
-  LogicalFilter::LogicalFilter(LogicalOpPtr child, std::unique_ptr<frontend::Expr> predicate):
-    LogicalOpUnaryChild(std::move(child)),
-    predicate(std::move(predicate))
-  {}
-  String LogicalFilter::DebugString() const {
-    String ans = "LogicalFilter(" + predicate->DebugString() + ")";
-    return ans;
-  }
-
-  LogicalProject::LogicalProject(LogicalOpPtr child, std::vector<frontend::ReturnItem> items):
-    LogicalOpUnaryChild(std::move(child)),
-    items(std::move(items))
-  {}
-  String LogicalProject::DebugString() const {
-    String ans = "Project(";
-    const size_t initial_size = ans.size();
-    for (const auto& cur : items) {
-      if (ans.size() > initial_size) {
-        ans += ", ";
-      }
-      ans += cur.DebugString();
-    }
+LogicalJoin::LogicalJoin(LogicalOpPtr left, LogicalOpPtr right):
+  LogicalOpBinaryChild(std::move(left), std::move(right))
+{}
+LogicalJoin::LogicalJoin(
+  LogicalOpPtr left, LogicalOpPtr right,
+  std::unique_ptr<frontend::Expr> predicate):
+  LogicalOpBinaryChild(std::move(left), std::move(right)),
+  predicate(std::move(predicate))
+{}
+String LogicalJoin::DebugString() const {
+  String ans;
+  ans += "Join(" + left->DebugString() + ", " + right->DebugString();
+  if (predicate.has_value()) {
+    ans += "on predicate " + predicate.value()->DebugString() + ")";
+  } else {
     ans += ")";
-    return ans;
   }
+  return ans;
+}
 
-  LogicalLimit::LogicalLimit(LogicalOpPtr child, size_t limit_size):
-    LogicalOpUnaryChild(std::move(child)),
-    limit_size(limit_size)
-  {}
-  String LogicalLimit::DebugString() const {
-    return "Limit(" + std::to_string(limit_size) + ")";
+LogicalSet::LogicalSet(LogicalOpPtr child, String alias, String key, Value value):
+  LogicalOpUnaryChild(std::move(child)),
+  assignment{std::move(alias), std::move(key), std::move(value)}
+{}
+String LogicalSet::DebugString() const {
+  String ans = "LogicalSet(" + assignment.alias + ", key=" +
+      assignment.key + ", value=" + PlannerUtils::toString(assignment.value);
+  return ans;
+}
+
+LogicalDelete::LogicalDelete(LogicalOpPtr child, std::vector<String> target):
+  LogicalOpUnaryChild(std::move(child)),
+  target(std::move(target))
+{}
+
+String LogicalDelete::DebugString() const {
+  std::string ans = "LogicalDelete(" + PlannerUtils::ConcatStrVector(target) + ")";
+  return ans;
+}
+
+LogicalCreateNode::LogicalCreateNode(LogicalOpPtr child,
+  std::optional<std::vector<String>> labels,
+  std::optional<std::vector<std::pair<String, Value>>> properties):
+  LogicalOpUnaryChild(std::move(child)),
+  labels(std::move(labels)),
+  properties(std::move(properties))
+{}
+String LogicalCreateNode::DebugString() const {
+  String ans = "CreateNodes(";
+  if (labels.has_value()) {
+    ans += PlannerUtils::ConcatStrVector(labels.value());
   }
-
-  LogicalSort::LogicalSort(LogicalOpPtr child, std::vector<frontend::OrderItem> keys) :
-    LogicalOpUnaryChild(std::move(child)),
-    keys(std::move(keys))
-  {}
-  String LogicalSort::DebugString() const {
-    String ans = "Sort(";
-    for (const auto& [f, s] : keys) {
-      ans += f.DebugString() + (s == frontend::OrderDirection::Asc ? "ASC" : "DESC") + "\n";
-    }
-    ans += ")";
-    return ans;
+  if (properties.has_value()) {
+    ans += ", " + PlannerUtils::ConcatProperties(properties.value()) + ")";
   }
+  return ans;
+}
 
-  LogicalJoin::LogicalJoin(LogicalOpPtr left, LogicalOpPtr right):
-    LogicalOpBinaryChild(std::move(left), std::move(right))
-  {}
-  LogicalJoin::LogicalJoin(
-    LogicalOpPtr left, LogicalOpPtr right,
-    std::unique_ptr<frontend::Expr> predicate):
-    LogicalOpBinaryChild(std::move(left), std::move(right)),
-    predicate(std::move(predicate))
-  {}
-  String LogicalJoin::DebugString() const {
-    String ans;
-    ans += "Join(" + left->DebugString() + ", " + right->DebugString();
-    if (predicate.has_value()) {
-      ans += "on predicate " + predicate.value()->DebugString() + ")";
-    } else {
-      ans += ")";
-    }
-    return ans;
+
+LogicalCreateEdge::LogicalCreateEdge(LogicalOpPtr child, String src_alias, String dst_alias, std::optional<std::vector<String>> labels, frontend::EdgeDirection direction):
+  LogicalOpUnaryChild(std::move(child)),
+  src_alias(std::move(src_alias)),
+  dst_alias(std::move(dst_alias)),
+  labels(std::move(labels)),
+  direction(direction)
+{}
+String LogicalCreateEdge::DebugString() const {
+  String ans = "CreateEdge(" + src_alias + PlannerUtils::EdgeStrByDirection(direction) + dst_alias;
+  if (labels.has_value()) {
+    ans += ", " + PlannerUtils::ConcatStrVector(labels.value());
   }
+  ans += ")";
+  return ans;
+}
 
-  LogicalSet::LogicalSet(LogicalOpPtr child, String alias, String key, Value value):
-    LogicalOpUnaryChild(std::move(child)),
-    assignment{std::move(alias), std::move(key), std::move(value)}
-  {}
-  String LogicalSet::DebugString() const {
-    String ans = "LogicalSet(" + assignment.alias + ", key=" +
-        assignment.key + ", value=" + PlannerUtils::toString(assignment.value);
-    return ans;
+
+
+
+
+String LogicalPlan::DebugString() const {
+  String ans = (root ? root->SubtreeDebugString() : "No Plan yet:(");
+  return ans;
+}
+String LogicalPlan::SubtreeDebugString() const {
+  return DebugString();
+}
+
+void ApplyLogicalMatchImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
+  if (!ast.match) {
+    return;
   }
+  using frontend::Pattern;
+  using frontend::PatternElement;
+  using frontend::NodePattern;
+  using frontend::EdgePattern;
+  for (const Pattern& pattern_vec: ast.match->patterns) {
 
-  LogicalDelete::LogicalDelete(LogicalOpPtr child, std::vector<String> target):
-    LogicalOpUnaryChild(std::move(child)),
-    target(std::move(target))
-  {}
-
-  String LogicalDelete::DebugString() const {
-    std::string ans = "LogicalDelete(" + PlannerUtils::ConcatStrVector(target) + ")";
-    return ans;
-  }
-
-  LogicalCreateNode::LogicalCreateNode(LogicalOpPtr child,
-    std::optional<std::vector<String>> labels,
-    std::optional<std::vector<std::pair<String, Value>>> properties):
-    LogicalOpUnaryChild(std::move(child)),
-    labels(std::move(labels)),
-    properties(std::move(properties))
-  {}
-  String LogicalCreateNode::DebugString() const {
-    String ans = "CreateNodes(";
-    if (labels.has_value()) {
-      ans += PlannerUtils::ConcatStrVector(labels.value());
-    }
-    if (properties.has_value()) {
-      ans += ", " + PlannerUtils::ConcatProperties(properties.value()) + ")";
-    }
-    return ans;
-  }
-
-
-  LogicalCreateEdge::LogicalCreateEdge(LogicalOpPtr child, String src_alias, String dst_alias, std::optional<std::vector<String>> labels, frontend::EdgeDirection direction):
-    LogicalOpUnaryChild(std::move(child)),
-    src_alias(std::move(src_alias)),
-    dst_alias(std::move(dst_alias)),
-    labels(std::move(labels)),
-    direction(direction)
-  {}
-  String LogicalCreateEdge::DebugString() const {
-    String ans = "CreateEdge(" + src_alias + PlannerUtils::EdgeStrByDirection(direction) + dst_alias;
-    if (labels.has_value()) {
-      ans += ", " + PlannerUtils::ConcatStrVector(labels.value());
-    }
-    ans += ")";
-    return ans;
-  }
-  
-  
-
-
-
-  String LogicalPlan::DebugString() const {
-    String ans = (root ? root->SubtreeDebugString() : "No Plan yet:(");
-    return ans;
-  }
-  String LogicalPlan::SubtreeDebugString() const {
-    return DebugString();
-  }
-
-  void ApplyLogicalMatchImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
-    if (!ast.match) {
-      return;
-    }
-    using frontend::Pattern;
-    using frontend::PatternElement;
-    using frontend::NodePattern;
-    using frontend::EdgePattern;
-    for (const Pattern& pattern_vec: ast.match->patterns) {
-
-      std::unique_ptr<AliasedLogicalOp> cur_root = nullptr;
-      for (size_t idx = 0; idx < pattern_vec.elements.size(); ++idx) {
-        const PatternElement& pattern = pattern_vec.elements[idx];
-        // now we cant do like many matches in one
-        if (pattern.element.index() == 0) {
-          const NodePattern &node_pattern = std::get<NodePattern>(pattern.element);
-          std::unique_ptr<LogicalScan> node_scan = std::make_unique<LogicalScan>(
-            node_pattern.labels,
-            node_pattern.alias
-          );
-          if (cur_root) {
-            throw std::runtime_error("Error in Apply match, invalid syntax");
-          }
-          cur_root = std::move(node_scan);
-          continue;
-        } else {
-          const EdgePattern &edge_pattern = std::get<EdgePattern>(pattern.element);
-          if (idx + 1 >= ast.match->patterns.size() || pattern_vec.elements[idx + 1].element.index() != 0) {
-            throw std::runtime_error("Invalid syntax in match");
-          }
-          ++idx;
-          const NodePattern& node_pattern = std::get<NodePattern>(pattern_vec.elements[idx].element);
-          cur_root = std::move(std::make_unique<LogicalExpand>(
-            std::move(cur_root),
-            cur_root->dst_alias,
-            edge_pattern.alias, /// in edge alias must me alias of vertexes where to expand: (a)-(:Person)>(b) in edge should be alias b
-            node_pattern.alias,
-            edge_pattern.labels,
-            node_pattern.labels,
-            edge_pattern.direction
-          ));
+    std::unique_ptr<AliasedLogicalOp> cur_root = nullptr;
+    for (size_t idx = 0; idx < pattern_vec.elements.size(); ++idx) {
+      const PatternElement& pattern = pattern_vec.elements[idx];
+      // now we cant do like many matches in one
+      if (pattern.element.index() == 0) {
+        const NodePattern &node_pattern = std::get<NodePattern>(pattern.element);
+        std::unique_ptr<LogicalScan> node_scan = std::make_unique<LogicalScan>(
+          node_pattern.labels,
+          node_pattern.alias
+        );
+        if (cur_root) {
+          throw std::runtime_error("Error in Apply match, invalid syntax");
         }
-      }
-      if (!plan.root) {
-        plan.root = std::move(cur_root);
+        cur_root = std::move(node_scan);
         continue;
+      } else {
+        const EdgePattern &edge_pattern = std::get<EdgePattern>(pattern.element);
+        if (idx + 1 >= ast.match->patterns.size() || pattern_vec.elements[idx + 1].element.index() != 0) {
+          throw std::runtime_error("Invalid syntax in match");
+        }
+        ++idx;
+        const NodePattern& node_pattern = std::get<NodePattern>(pattern_vec.elements[idx].element);
+        cur_root = std::move(std::make_unique<LogicalExpand>(
+          std::move(cur_root),
+          cur_root->dst_alias,
+          edge_pattern.alias, /// in edge alias must me alias of vertexes where to expand: (a)-(:Person)>(b) in edge should be alias b
+          node_pattern.alias,
+          edge_pattern.labels,
+          node_pattern.labels,
+          edge_pattern.direction
+        ));
       }
-      plan.root = std::make_unique<LogicalJoin>(
-        std::move(plan.root),
-        std::move(cur_root)
-      );
     }
-  }
-
-  void ApplyLogicalWhereImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
-    if (!ast.where) {
-      return;
+    if (!plan.root) {
+      plan.root = std::move(cur_root);
+      continue;
     }
-    plan.root = std::make_unique<LogicalFilter>(
+    plan.root = std::make_unique<LogicalJoin>(
       std::move(plan.root),
-      std::move(ast.where->expression) /// grab from artem, mb make expression shared_ptr?
+      std::move(cur_root)
     );
   }
+}
 
-  void ApplyLogicalProjectImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
-    if (!ast.return_clause) {
-      return;
-    }
-    plan.root = std::make_unique<LogicalProject>(
+void ApplyLogicalWhereImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
+  if (!ast.where) {
+    return;
+  }
+  plan.root = std::make_unique<LogicalFilter>(
+    std::move(plan.root),
+    std::move(ast.where->expression) /// grab from artem, mb make expression shared_ptr?
+  );
+}
+
+void ApplyLogicalProjectImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
+  if (!ast.return_clause) {
+    return;
+  }
+  plan.root = std::make_unique<LogicalProject>(
+    std::move(plan.root),
+    ast.return_clause->items
+  );
+}
+void ApplyLogicalSortImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
+  if (!ast.order) {
+    return;
+  }
+  plan.root = std::make_unique<LogicalSort>(
+    std::move(plan.root),
+    ast.order->items
+  );
+}
+void ApplyLogicalLimitImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
+  if (!ast.limit) {
+    return;
+  }
+  plan.root = std::make_unique<LogicalLimit>(
+    std::move(plan.root),
+    ast.limit->limit
+  );
+}
+void ApplyLogicalSetImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
+  using frontend::SetClause;
+  if (!ast.set_clause) {
+    return;
+  }
+
+  plan.root = std::make_unique<LogicalSet>(
+    std::move(plan.root),
+    ast.set_clause->target.alias,
+    ast.set_clause->target.property,
+    ast.set_clause->value.value
+  );
+}
+
+void ApplyLogicalDeleteImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
+  using frontend::DeleteClause;
+  if (!ast.delete_clause) {
+    return;
+  }
+  plan.root = std::make_unique<LogicalDelete>(
+    std::move(plan.root),
+    ast.delete_clause->aliases
+  );
+}
+
+void ApplyLogicalCreateImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
+  const auto& create_item = ast.create->item;
+
+  if (create_item.index() == 0) {
+    const auto& create_node = std::get<0>(create_item);
+    plan.root = std::make_unique<LogicalCreateNode>(
       std::move(plan.root),
-      ast.return_clause->items
+      create_node.labels,
+      create_node.properties
+    );
+  } else {
+    const auto& create_edge = std::get<1>(create_item);
+    plan.root = std::make_unique<LogicalCreateEdge>(
+      std::move(plan.root),
+      create_edge.from_alias,
+      create_edge.to_alias,
+      create_edge.labels,
+      create_edge.direction
     );
   }
-  void ApplyLogicalSortImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
-    if (!ast.order) {
-      return;
-    }
-    plan.root = std::make_unique<LogicalSort>(
-      std::move(plan.root),
-      ast.order->items
-    );
-  }
-  void ApplyLogicalLimitImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
-    if (!ast.limit) {
-      return;
-    }
-    plan.root = std::make_unique<LogicalLimit>(
-      std::move(plan.root),
-      ast.limit->limit
-    );
-  }
-  void ApplyLogicalSetImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
-    using frontend::SetClause;
-    if (!ast.set_clause) {
-      return;
-    }
+}
 
-    plan.root = std::make_unique<LogicalSet>(
-      std::move(plan.root),
-      ast.set_clause->target.alias,
-      ast.set_clause->target.property,
-      ast.set_clause->value.value
-    );
-  }
+planner::LogicalPlan Planner::build_logical_plan(const frontend::QueryAST &ast) const {
+  using QueryAST = frontend::QueryAST;
+  LogicalPlan plan;
 
-  void ApplyLogicalDeleteImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
-    using frontend::DeleteClause;
-    if (!ast.delete_clause) {
-      return;
-    }
-    plan.root = std::make_unique<LogicalDelete>(
-      std::move(plan.root),
-      ast.delete_clause->aliases
-    );
-  }
+  ApplyLogicalMatchImpl(plan, ast);
+  ApplyLogicalWhereImpl(plan, ast);
+  ApplyLogicalProjectImpl(plan, ast);
+  ApplyLogicalSortImpl(plan, ast);
+  ApplyLogicalLimitImpl(plan, ast);
+  ApplyLogicalSetImpl(plan, ast);
+  ApplyLogicalDeleteImpl(plan, ast);
+  ApplyLogicalCreateImpl(plan, ast);
 
-  void ApplyLogicalCreateImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
-    const auto& create_item = ast.create->item;
-
-    if (create_item.index() == 0) {
-      const auto& create_node = std::get<0>(create_item);
-      plan.root = std::make_unique<LogicalCreateNode>(
-        std::move(plan.root),
-        create_node.labels,
-        create_node.properties
-      );
-    } else {
-      const auto& create_edge = std::get<1>(create_item);
-      plan.root = std::make_unique<LogicalCreateEdge>(
-        std::move(plan.root),
-        create_edge.from_alias,
-        create_edge.to_alias,
-        create_edge.labels,
-        create_edge.direction
-      );
-    }
-  }
-
-  planner::LogicalPlan Planner::build_logical_plan(const frontend::QueryAST &ast) const {
-    using QueryAST = frontend::QueryAST;
-    LogicalPlan plan;
-
-    ApplyLogicalMatchImpl(plan, ast);
-    ApplyLogicalWhereImpl(plan, ast);
-    ApplyLogicalProjectImpl(plan, ast);
-    ApplyLogicalSortImpl(plan, ast);
-    ApplyLogicalLimitImpl(plan, ast);
-    ApplyLogicalSetImpl(plan, ast);
-    ApplyLogicalDeleteImpl(plan, ast);
-    ApplyLogicalCreateImpl(plan, ast);
-
-    return plan;
-  }
+  return plan;
+}
 }
 
 graph::String graph::PlannerUtils::EdgeStrByDirection(frontend::EdgeDirection dir) {
