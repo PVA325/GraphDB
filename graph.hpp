@@ -61,8 +61,9 @@ namespace graph {
     };
     String toString(const Value& val);
     String ConcatStrVector(const std::vector<String>& v);
-    String ConcatProperties(const std::vector<std::pair<const String, Value>>& v);
+    String ConcatProperties(const std::vector<std::pair<String, Value>>& v);
     String EdgeStrByDirection(frontend::EdgeDirection dir);
+
   }
 }
 
@@ -97,14 +98,14 @@ namespace graph {
       /// Scan Nodes that has specified labels
       /// and write out in row with slot name alias
       std::vector<String> labels;
-      std::vector<std::pair<const String, Value> > property_filters;
+      std::vector<std::pair<String, Value> > property_filters;
 
       LogicalScan() = delete;
       LogicalScan(const LogicalScan& other) = default;
       LogicalScan(LogicalScan&& other) = default;
 
       LogicalScan(std::vector<String> labels, String dst_alias);
-      LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<const String, Value> > property_filters);
+      LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<String, Value> > property_filters);
       String DebugString() const override;
       virtual String SubtreeDebugString() const override;
       ~LogicalScan() override = default;
@@ -227,6 +228,36 @@ namespace graph {
       String DebugString() const override;
 
       ~LogicalDelete() = default;
+    };
+
+    struct LogicalCreateNode : LogicalOpUnaryChild {
+      /// Create logical operation in a tree to create Nodes
+      std::optional<std::vector<String>> labels;
+      std::optional<std::vector<std::pair<String, Value> >> properties;
+
+      LogicalCreateNode(const LogicalCreateNode&) = delete;
+      LogicalCreateNode(LogicalCreateNode&& other) = default;
+      LogicalCreateNode(LogicalOpPtr child, std::optional<std::vector<String>> labels, std::optional<std::vector<std::pair<String, Value> >> properties);
+
+      String DebugString() const override;
+
+      ~LogicalCreateNode() = default;
+    };
+    struct LogicalCreateEdge : LogicalOpUnaryChild {
+      /// Create logical operation in a tree to create Nodes
+      std::optional<std::vector<String>> labels;
+      String src_alias;
+      String dst_alias;
+      frontend::EdgeDirection direction;
+      // mb add properties
+
+      LogicalCreateEdge(const LogicalCreateEdge&) = delete;
+      LogicalCreateEdge(LogicalCreateEdge&& other) = default;
+      LogicalCreateEdge(LogicalOpPtr child, String src_alias, String dst_alias, std::optional<std::vector<String>> labels, frontend::EdgeDirection direction);
+
+      String DebugString() const override;
+
+      ~LogicalCreateEdge() = default;
     };
   };
 };

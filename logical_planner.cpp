@@ -16,7 +16,7 @@ namespace graph::planner {
     return "1) BINARY OP:\n " + left->DebugString() + "\n2)\n" + right->DebugString() + "\n";
   }
 
-  LogicalScan::LogicalScan(std::vector<String> labels, String dst_alias, std::vector<std::pair<const String, Value> > property_filters):
+  LogicalScan::LogicalScan(std::vector<String> labels, String dst_alias, std::vector<std::pair<String, Value> > property_filters):
     AliasedLogicalOp(std::move(dst_alias)),
     labels(std::move(labels)),
     property_filters(std::move(property_filters))
@@ -159,6 +159,44 @@ namespace graph::planner {
     return ans;
   }
 
+  LogicalCreateNode::LogicalCreateNode(LogicalOpPtr child,
+    std::optional<std::vector<String>> labels,
+    std::optional<std::vector<std::pair<String, Value>>> properties):
+    LogicalOpUnaryChild(std::move(child)),
+    labels(std::move(labels)),
+    properties(std::move(properties))
+  {}
+  String LogicalCreateNode::DebugString() const {
+    String ans = "CreateNodes(";
+    if (labels.has_value()) {
+      ans += PlannerUtils::ConcatStrVector(labels.value());
+    }
+    if (properties.has_value()) {
+      ans += ", " + PlannerUtils::ConcatProperties(properties.value()) + ")";
+    }
+    return ans;
+  }
+
+
+  LogicalCreateEdge::LogicalCreateEdge(LogicalOpPtr child, String src_alias, String dst_alias, std::optional<std::vector<String>> labels, frontend::EdgeDirection direction):
+    LogicalOpUnaryChild(std::move(child)),
+    src_alias(std::move(src_alias)),
+    dst_alias(std::move(dst_alias)),
+    labels(std::move(labels)),
+    direction(direction)
+  {}
+  String LogicalCreateEdge::DebugString() const {
+    String ans = "CreateEdge(" + src_alias + PlannerUtils::EdgeStrByDirection(direction) + dst_alias;
+    if (labels.has_value()) {
+      ans += ", " + PlannerUtils::ConcatStrVector(labels.value());
+    }
+    ans += ")";
+    return ans;
+  }
+  
+  
+
+
 
   String LogicalPlan::DebugString() const {
     String ans = (root ? root->SubtreeDebugString() : "No Plan yet:(");
@@ -284,9 +322,27 @@ namespace graph::planner {
     );
   }
 
-//  void ApplyLogicalCreateImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
-//
-//  }
+  void ApplyLogicalCreateImpl(LogicalPlan& plan, const frontend::QueryAST &ast) {
+    const auto& create_item = ast.create->item;
+
+    if (create_item.index() == 0) {
+      const auto& create_node = std::get<0>(create_item);
+      plan.root = std::make_unique<LogicalCreateNode>(
+        std::move(plan.root),
+        create_node.labels,
+        create_node.properties
+      );
+    } else {
+      const auto& create_edge = std::get<1>(create_item);
+      plan.root = std::make_unique<LogicalCreateEdge>(
+        std::move(plan.root),
+        create_edge.from_alias,
+        create_edge.to_alias,
+        create_edge.labels,
+        create_edge.direction
+      );
+    }
+  }
 
   planner::LogicalPlan Planner::build_logical_plan(const frontend::QueryAST &ast) const {
     using QueryAST = frontend::QueryAST;
@@ -305,6 +361,16 @@ namespace graph::planner {
   }
 }
 
+graph::String graph::PlannerUtils::EdgeStrByDirection(frontend::EdgeDirection dir) {
+  if (dir == frontend::EdgeDirection::Right) {
+    return ">";
+  } else if (dir == frontend::EdgeDirection::Left) {
+    return "<";
+  } else {
+    return "-";
+  }
+}
+
 graph::String graph::PlannerUtils::toString(const graph::Value &val) {
   const auto visitor = overloads {
     [](Int cur) -> String { return std::to_string(cur); },
@@ -315,7 +381,7 @@ graph::String graph::PlannerUtils::toString(const graph::Value &val) {
   return std::visit(visitor, val);
 }
 
-graph::String graph::PlannerUtils::ConcatProperties(const std::vector<std::pair<const String, Value>> &v) {
+graph::String graph::PlannerUtils::ConcatProperties(const std::vector<std::pair<String, Value>> &v) {
   String ans = "";
   for (const auto& cur : v) {
     if (!ans.empty()) {
