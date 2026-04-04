@@ -11,6 +11,7 @@
 #include <set>
 #include <unordered_map>
 #include <numeric>
+#include <functional>
 #include "ast.hpp"
 #include "storage.hpp"
 
@@ -63,6 +64,7 @@ namespace PlannerUtils {
   String ConcatStrVector(const std::vector<String>& v);
   String ConcatProperties(const std::vector<std::pair<String, Value>>& v);
   String EdgeStrByDirection(frontend::EdgeDirection dir);
+  bool ValueToBool(Value val);
 
 }
 }
@@ -268,10 +270,11 @@ namespace exec {
 using storage::Node;
 using storage::Edge;
 struct PhysicalOp;
+struct RowCursor;
 
 using RowSlot = std::variant<Node*, Edge*, Value>;
 using PhysicalOpPtr = std::unique_ptr<PhysicalOp>;
-
+using RowCursorPtr = std::unique_ptr<RowCursor>;
 
 struct ExecOptions {
   /// options of execution; mymory, in future parallelism and spill
@@ -286,7 +289,7 @@ struct ExecContext {
   /// Context of execution db
   frontend::GraphDB* db;
   ExecOptions options;
-  SlotMapping slots;
+  SlotMapping slots_mapping;
 };
 
 struct Row {
@@ -308,62 +311,103 @@ struct PhysicalOp {
   virtual ~PhysicalOp() = default;
   /// open operator, return RowCursor
   /// tx may be required for storage access
-  virtual std::unique_ptr<RowCursor> open(ExecContext& ctx) = 0;
+  virtual RowCursorPtr open(ExecContext& ctx) = 0;
   virtual String DebugString() const = 0;
+};
+
+struct ScanNodeCursorPhysical : RowCursor {
+  std::unique_ptr<storage::NodeCursor> nodes_cursor;
+  size_t out_idx;
+
+  ScanNodeCursorPhysical(const ScanNodeCursorPhysical&) = delete;
+  ScanNodeCursorPhysical(ScanNodeCursorPhysical&&) = default;
+  ScanNodeCursorPhysical(std::unique_ptr<storage::NodeCursor> nodes_cursor, size_t out_idx);
+  bool next(Row& out) override;
+  void close() override;
+
+  ~ScanNodeCursorPhysical() override = default;
 };
 
 struct LabelIndexSeekOp : public PhysicalOp {
   /// used for node filtering(for more optimized by label we dont need to do all node scan)
   String label;
-  std::vector<String> property_keys;
-  std::vector<Value> property_vals;
   String out_alias;
-  PhysicalOpPtr child;
 
-  LabelIndexSeekOp(String label, std::vector<String> keys,
-                   std::vector<Value> vals, String alias,
-                   PhysicalOpPtr child);
-  std::unique_ptr<RowCursor> open(ExecContext& ctx) override;
+  LabelIndexSeekOp(String label,
+                   String alias);
+  RowCursorPtr open(ExecContext& ctx) override;
   String DebugString() const override;
-  ~LabelIndexSeekOp() override;
+  ~LabelIndexSeekOp() override = default;
 };
 
 struct NodeScanOp : public PhysicalOp {
   /// co complete Node scan and return Row to every Node
   String out_alias;
-  std::unique_ptr<RowCursor> open(ExecContext& ctx) override;
+  RowCursorPtr open(ExecContext& ctx) override;
   String DebugString() const override;
-  ~NodeScanOp() override;
+  ~NodeScanOp() override = default;
 };
 
-struct ExpandOutgoingOp : public PhysicalOp {
+template<bool edge_outgoing>
+struct ExpandNodeCursorPhysical : RowCursor {
+  enum class Direction { Outgoing, Ingoing };
+  RowCursorPtr nodes_cursor;
+  std::unique_ptr<storage::EdgeCursor> edge_cursor;
+  std::function<bool(Edge*)> label_predicate;
+  size_t src_idx;
+  size_t out_idx;
+  ExecContext ctx;
+
+  ExpandNodeCursorPhysical(const ExpandNodeCursorPhysical&) = delete;
+  ExpandNodeCursorPhysical(ExpandNodeCursorPhysical&&) = default;
+  ExpandNodeCursorPhysical(RowCursorPtr nodes_cursor, size_t src_idx, size_t out_idx, std::function<bool(Edge*)> label_predicate, ExecContext &ctx);
+  bool next(Row& out) override;
+  void close() override;
+
+  ~ExpandNodeCursorPhysical() override = default;
+};
+
+template<bool edge_outgoing>
+struct ExpandOp : public PhysicalOp {
   /// write do dst_alias outgoing edge of edge_type
   String src_alias;
   String dst_alias;
   std::optional<String> edge_type;
-
-  std::unique_ptr<RowCursor> open(ExecContext& ctx) override;
-  String DebugString() const override;
-};
-
-struct ExpandIngoingOp : public PhysicalOp {
-  /// write do dst_alias ingoing edge of edge_type
-  String src_alias;
-  String dst_alias;
-  std::optional<String> edge_type;
-
-  std::unique_ptr<RowCursor> open(ExecContext& ctx) override;
-  String DebugString() const override;
-};
-
-struct FilterOp : public PhysicalOp { /// add cursor?
-  /// do Filter operation with predicate on Child like while (!predicate(child)) { child.next(row) }
-  std::unique_ptr<frontend::Expr> predicate;
   PhysicalOpPtr child;
 
-  FilterOp(std::unique_ptr<frontend::Expr> pred, PhysicalOpPtr ch);
+  ExpandOp(String src_alias, String dst_alias, String edge_type, PhysicalOpPtr child);
+  RowCursorPtr open(ExecContext& ctx) override;
+  String DebugString() const override;
+  ~ExpandOp() override = default;
+};
 
-  std::unique_ptr<RowCursor> open(ExecContext& ctx) override;
+using ExpandOutgoingOp = ExpandOp<true>;
+using ExpandIngoingOp = ExpandOp<false>;
+
+struct FilterCursor : RowCursor {
+  RowCursorPtr nodes_cursor;
+  size_t out_idx;
+  ExecContext& ctx;
+  std::unique_ptr<frontend::Expr> predicate;
+
+  FilterCursor(const FilterCursor&) = delete;
+  FilterCursor(FilterCursor&&) = default;
+  FilterCursor(RowCursorPtr nodes_cursor, size_t out_idx, ExecContext& ctx, std::unique_ptr<frontend::Expr> predicate);
+  bool next(Row& out) override;
+  void close() override;
+
+  ~FilterCursor() override = default;
+};
+
+struct FilterOp : public PhysicalOp {
+  /// do Filter operation with predicate on Child like while (!predicate(child)) { child.next(row) }
+  std::unique_ptr<frontend::Expr> predicate;
+  String out_alias;
+  PhysicalOpPtr child;
+
+  FilterOp(std::unique_ptr<frontend::Expr> predicate, String out_alias, PhysicalOpPtr child);
+
+  RowCursorPtr open(ExecContext& ctx) override;
   String DebugString() const override;
 };
 
@@ -375,7 +419,7 @@ struct ProjectOp : public PhysicalOp {
   ProjectOp() = default;
   ProjectOp(const std::vector<frontend::ReturnItem>& items,
             const PhysicalOpPtr& child);
-  std::unique_ptr<RowCursor> open(ExecContext& ctx) override;
+  RowCursorPtr open(ExecContext& ctx) override;
   String DebugString() const override;
 };
 
@@ -384,7 +428,7 @@ struct LimitOp : public PhysicalOp {
   Int limit_size;
   PhysicalOpPtr child;
   LimitOp(Int limit_size, PhysicalOpPtr child);
-  std::unique_ptr<RowCursor> open(ExecContext& ctx) override;
+  RowCursorPtr open(ExecContext& ctx) override;
   String DebugString() const override;
 };
 
@@ -396,7 +440,7 @@ struct NestedLoopJoinOp : public PhysicalOp {
   bool left_outer = false; //
   NestedLoopJoinOp(std::unique_ptr<PhysicalOp> l, std::unique_ptr<PhysicalOp> r,
                    std::unique_ptr<frontend::Expr> pred, bool left_outer_);
-  std::unique_ptr<RowCursor> open(class ExecContext &ctx) override;
+  RowCursorPtr open(class ExecContext &ctx) override;
   std::string DebugString() const override;
 };
 
@@ -409,7 +453,7 @@ struct HashJoinOp : public PhysicalOp {
   bool left_outer = false;
   HashJoinOp(std::unique_ptr<PhysicalOp> build, std::unique_ptr<PhysicalOp> probe,
              std::vector<std::string> bkeys, std::vector<std::string> pkeys, bool left_outer_);
-  std::unique_ptr<RowCursor> open(class ExecContext &ctx) override;
+  RowCursorPtr open(class ExecContext &ctx) override;
   std::string DebugString() const override;
 };
 
@@ -556,4 +600,11 @@ private:
   LogicalOpPtr pattern_to_logical_ops(const frontend::MatchClause &match_clause) const;
 };
 }
-};
+}
+
+namespace ast {
+  struct EvalContext {
+    graph::exec::ExecContext& exec_ctx;
+    graph::exec::Row& row;
+  };
+}
