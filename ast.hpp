@@ -22,7 +22,7 @@ struct Expr {
   virtual Value operator()(const EvalContext& ctx) const = 0;
 
   // Debug string representation
-  virtual std::string Debug() const = 0;
+  virtual std::string DebugString() const = 0;
 };
 
 using ExprPtr = std::unique_ptr<Expr>;
@@ -31,7 +31,7 @@ using ExprPtr = std::unique_ptr<Expr>;
 struct Literal {
   Value value;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // Expression representing a literal
@@ -40,7 +40,7 @@ struct LiteralExpr : Expr {
 
   Value operator()(const EvalContext& ctx) const override;
 
-  std::string Debug() const override;
+  std::string DebugString() const override;
 };
 
 // Access to a property: alias.property
@@ -50,7 +50,7 @@ struct PropertyExpr : Expr {
 
   Value operator()(const EvalContext& ctx) const override;
 
-  std::string Debug() const override;
+  std::string DebugString() const override;
 };
 
 // Comparison operations
@@ -68,7 +68,7 @@ struct ComparisonExpr : Expr {
 
   Value operator()(const EvalContext& ctx) const override;
 
-  std::string Debug() const override;
+  std::string DebugString() const override;
 };
 
 // Logical operations
@@ -85,18 +85,21 @@ struct LogicalExpr : Expr {
 
   Value operator()(const EvalContext& ctx) const override;
 
-  std::string Debug() const override;
+  std::string DebugString() const override;
 };
+
+using PropertyMap = std::vector<std::pair<std::string, Literal>>;
 
 // Node pattern in MATCH clause
 struct NodePattern {
   std::string alias;
   std::vector<std::string> labels;
+  PropertyMap properties;
 
   size_t line = 0;
   size_t col = 0;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // Edge direction
@@ -107,69 +110,72 @@ enum class EdgeDirection {
 };
 
 // Edge pattern between nodes
-struct EdgePattern {
+struct MatchEdgePattern {
   std::string alias;
   std::vector<std::string> labels;
+  PropertyMap properties;
   EdgeDirection direction;
 
   size_t line = 0;
   size_t col = 0;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
+
+using MatchItem = std::variant<NodePattern, MatchEdgePattern>;
 
 // Node or Edge pattern element
 struct PatternElement {
-  std::variant<NodePattern, EdgePattern> element;
+  MatchItem element;
 
   bool IsNode() const;
   bool IsEdge() const;
   const NodePattern& AsNode() const;
-  const EdgePattern& AsEdge() const;
+  const MatchEdgePattern& AsEdge() const;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // Full graph pattern
 struct Pattern {
   std::vector<PatternElement> elements;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // MATCH clause
 struct MatchClause {
   std::vector<Pattern> patterns;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // WHERE clause
 struct WhereClause {
   ExprPtr expression;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // RETURN item: either alias or property
 struct ReturnItem {
   std::variant<std::string, PropertyExpr> item;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // RETURN clause
 struct ReturnClause {
   std::vector<ReturnItem> items;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // DELETE clause
 struct DeleteClause {
   std::vector<std::string> aliases;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // SET clause
@@ -177,7 +183,7 @@ struct SetClause {
   PropertyExpr target;
   Literal value;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // ORDER BY direction
@@ -191,28 +197,55 @@ struct OrderItem {
   PropertyExpr property;
   OrderDirection direction = OrderDirection::Asc;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // ORDER BY clause
 struct OrderClause {
   std::vector<OrderItem> items;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // LIMIT clause
 struct LimitClause {
   size_t limit;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
+
+// Node reference in CREATE clause
+struct CreateNodeRef {
+  std::string alias;
+
+  size_t line = 0;
+  size_t col = 0;
+
+  std::string DebugString() const;
+};
+
+// CREATE edge pattern
+struct CreateEdgePattern {
+  CreateNodeRef left_node;
+  std::string alias;
+  std::vector<std::string> labels;
+  PropertyMap properties;
+  EdgeDirection direction;
+  CreateNodeRef right_node;
+
+  size_t line = 0;
+  size_t col = 0;
+
+  std::string DebugString() const;
+};
+
+using CreateItem = std::variant<NodePattern, CreateEdgePattern>;
 
 // CREATE clause
 struct CreateClause {
-  std::vector<Pattern> patterns;
+  std::vector<CreateItem> created_items;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 // AST for query
@@ -229,7 +262,7 @@ struct QueryAST {
 
   std::unique_ptr<CreateClause> create;
 
-  std::string Debug() const;
+  std::string DebugString() const;
 };
 
 }  // namespace ast
