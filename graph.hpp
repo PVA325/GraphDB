@@ -307,19 +307,20 @@ struct ExecOptions {
 struct SlotMapping {
   std::unordered_map<std::string, size_t> alias_to_slot;
   size_t map(const std::string& key);
+  void add_map(const String& key, size_t idx);
 };
 
 struct ExecContext {
   /// Context of execution db
   frontend::GraphDB* db;
   ExecOptions options;
-  SlotMapping slots_mapping;
 };
 
 struct Row {
   /// store current row values and names
   std::vector<RowSlot> slots;
   std::vector<String> slots_names;
+  SlotMapping slots_mapping;
 };
 class RowCursor {
 public:
@@ -337,15 +338,16 @@ struct PhysicalOp {
   /// tx may be required for storage access
   virtual RowCursorPtr open(ExecContext& ctx) = 0;
   virtual String DebugString() const = 0;
+//  virtual String DebugSubtreeString() const = 0;
 };
 
 struct ScanNodeCursorPhysical : RowCursor {
   std::unique_ptr<storage::NodeCursor> nodes_cursor;
-  size_t out_idx;
+  String out_alias;
 
   ScanNodeCursorPhysical(const ScanNodeCursorPhysical&) = delete;
   ScanNodeCursorPhysical(ScanNodeCursorPhysical&&) = default;
-  ScanNodeCursorPhysical(std::unique_ptr<storage::NodeCursor> nodes_cursor, size_t out_idx);
+  ScanNodeCursorPhysical(std::unique_ptr<storage::NodeCursor> nodes_cursor, String out_alias);
   bool next(Row& out) override;
   void close() override;
 
@@ -375,16 +377,16 @@ struct NodeScanOp : public PhysicalOp {
 template<bool edge_outgoing>
 struct ExpandNodeCursorPhysical : RowCursor {
   enum class Direction { Outgoing, Ingoing };
-  RowCursorPtr nodes_cursor;
+  RowCursorPtr child_cursor;
   std::unique_ptr<storage::EdgeCursor> edge_cursor;
   std::function<bool(Edge*)> label_predicate;
-  size_t src_idx;
-  size_t out_idx;
-  ExecContext ctx;
+  String src_alias;
+  String dst_alias;
+  storage::GraphDB* db;
 
   ExpandNodeCursorPhysical(const ExpandNodeCursorPhysical&) = delete;
   ExpandNodeCursorPhysical(ExpandNodeCursorPhysical&&) = default;
-  ExpandNodeCursorPhysical(RowCursorPtr nodes_cursor, size_t src_idx, size_t out_idx, std::function<bool(Edge*)> label_predicate, ExecContext &ctx);
+  ExpandNodeCursorPhysical(RowCursorPtr child_cursor, String src_alias, String dst_alias, std::function<bool(Edge*)> label_predicate, storage::GraphDB* db);
   bool next(Row& out) override;
   void close() override;
 
@@ -402,6 +404,7 @@ struct ExpandOp : public PhysicalOp {
   ExpandOp(String src_alias, String dst_alias, String edge_type, PhysicalOpPtr child);
   RowCursorPtr open(ExecContext& ctx) override;
   String DebugString() const override;
+
   ~ExpandOp() override = default;
 };
 
@@ -409,14 +412,13 @@ using ExpandOutgoingOp = ExpandOp<true>;
 using ExpandIngoingOp = ExpandOp<false>;
 
 struct FilterCursor : RowCursor {
-  RowCursorPtr nodes_cursor;
-  size_t out_idx;
-  ExecContext& ctx;
+  RowCursorPtr child_cursor;
+  String out_alias;
   std::unique_ptr<frontend::Expr> predicate;
 
   FilterCursor(const FilterCursor&) = delete;
   FilterCursor(FilterCursor&&) = default;
-  FilterCursor(RowCursorPtr nodes_cursor, size_t out_idx, ExecContext& ctx, std::unique_ptr<frontend::Expr> predicate);
+  FilterCursor(RowCursorPtr child_cursor, String out_alias, std::unique_ptr<frontend::Expr> predicate);
   bool next(Row& out) override;
   void close() override;
 
@@ -433,16 +435,32 @@ struct FilterOp : public PhysicalOp {
 
   RowCursorPtr open(ExecContext& ctx) override;
   String DebugString() const override;
+
+private:
+  String debugString_;
 };
 
+struct ProjectCursor : RowCursor {
+  RowCursorPtr child_cursor;
+  std::vector<frontend::ReturnItem> items;
+
+  ProjectCursor(const ProjectCursor&) = delete;
+  ProjectCursor(ProjectCursor&&) = default;
+
+  ProjectCursor(RowCursorPtr child_cursor, std::vector<frontend::ReturnItem> items);
+  bool next(Row& out) override;
+  void close() override;
+
+  ~ProjectCursor() override = default;
+};
 struct ProjectOp : public PhysicalOp {
   /// child is next operator in the tree
   std::vector<frontend::ReturnItem> items;
   PhysicalOpPtr child;
 
   ProjectOp() = default;
-  ProjectOp(const std::vector<frontend::ReturnItem>& items,
-            const PhysicalOpPtr& child);
+  ProjectOp(std::vector<frontend::ReturnItem> items,
+            PhysicalOpPtr child);
   RowCursorPtr open(ExecContext& ctx) override;
   String DebugString() const override;
 };
@@ -628,7 +646,6 @@ private:
 
 namespace ast {
   struct EvalContext {
-    graph::exec::ExecContext& exec_ctx;
     graph::exec::Row& row;
   };
 }

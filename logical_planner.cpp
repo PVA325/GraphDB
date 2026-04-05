@@ -383,7 +383,6 @@ planner::LogicalPlan Planner::build_logical_plan(const frontend::QueryAST &ast) 
 }
 }
 
-
 graph::String graph::PlannerUtils::EdgeStrByDirection(frontend::EdgeDirection dir) {
   if (dir == frontend::EdgeDirection::Right) {
     return ">";
