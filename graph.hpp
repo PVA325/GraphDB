@@ -25,7 +25,7 @@ namespace frontend {
   using ast::Pattern;
   using ast::PatternElement;
   using ast::NodePattern;
-  using ast::EdgePattern;
+  using ast::MatchEdgePattern;
   using ast::EdgeDirection;
   using ast::OrderItem;
   using ast::OrderDirection;
@@ -64,8 +64,31 @@ namespace PlannerUtils {
   String ConcatStrVector(const std::vector<String>& v);
   String ConcatProperties(const std::vector<std::pair<String, Value>>& v);
   String EdgeStrByDirection(frontend::EdgeDirection dir);
-  bool ValueToBool(Value val);
+  template<typename PropertyM>
+  requires(std::is_same_v<std::decay_t<PropertyM>, ast::PropertyMap>)
+  void transferProperties(
+      std::vector<std::pair<String, Value>>& prop,
+      PropertyM&& other_prop) {
+    if (!prop.empty()) {
+      throw std::runtime_error("Properties transfer invariant violation");
+    }
+    prop.reserve(other_prop.size());
+    for (size_t i = 0; i < other_prop.size(); ++i) {
+      if constexpr (std::is_lvalue_reference_v<PropertyM>) {
+        prop.emplace_back(
+          other_prop[i].first,
+          other_prop[i].second.value
+        );
+      } else {
+        prop.emplace_back(
+          std::move(other_prop[i].first),
+          std::move(other_prop[i].second.value)
+        );
+      }
 
+    }
+  }
+  bool ValueToBool(Value val);
 }
 }
 
@@ -229,37 +252,38 @@ struct LogicalDelete : LogicalOpUnaryChild {
   LogicalDelete(LogicalOpPtr child, std::vector<String> target);
   String DebugString() const override;
 
-  ~LogicalDelete() = default;
+  ~LogicalDelete() override = default;
 };
 
-struct LogicalCreateNode : LogicalOpUnaryChild {
-  /// Create logical operation in a tree to create Nodes
-  std::optional<std::vector<String>> labels;
-  std::optional<std::vector<std::pair<String, Value> >> properties;
+struct CreateNodeSpec {
+  std::vector<String> labels;
+  std::vector<std::pair<String, Value>> properties;
 
-  LogicalCreateNode(const LogicalCreateNode&) = delete;
-  LogicalCreateNode(LogicalCreateNode&& other) = default;
-  LogicalCreateNode(LogicalOpPtr child, std::optional<std::vector<String>> labels, std::optional<std::vector<std::pair<String, Value> >> properties);
-
-  String DebugString() const override;
-
-  ~LogicalCreateNode() = default;
+  String DebugString() const;
+  CreateNodeSpec() = delete;
+  CreateNodeSpec(const ast::NodePattern& pattern);
+  CreateNodeSpec(ast::NodePattern&& pattern);
 };
-struct LogicalCreateEdge : LogicalOpUnaryChild {
-  /// Create logical operation in a tree to create Nodes
-  std::optional<std::vector<String>> labels;
+
+struct CreateEdgeSpec {
   String src_alias;
   String dst_alias;
+  std::vector<String> labels;
+  std::vector<std::pair<String, Value>> properties;
   frontend::EdgeDirection direction;
-  // mb add properties
+  String DebugString() const;
+  CreateEdgeSpec() = delete;
+  explicit CreateEdgeSpec(const ast::CreateEdgePattern& pattern);
+  explicit CreateEdgeSpec(ast::CreateEdgePattern&& pattern);
 
-  LogicalCreateEdge(const LogicalCreateEdge&) = delete;
-  LogicalCreateEdge(LogicalCreateEdge&& other) = default;
-  LogicalCreateEdge(LogicalOpPtr child, String src_alias, String dst_alias, std::optional<std::vector<String>> labels, frontend::EdgeDirection direction);
+};
 
+
+struct LogicalCreate : LogicalOpUnaryChild {
+  std::vector<std::variant<CreateNodeSpec, CreateEdgeSpec>> items;
+  LogicalCreate() = delete;
+  LogicalCreate(LogicalOpPtr child, const std::vector<ast::CreateItem>& items);
   String DebugString() const override;
-
-  ~LogicalCreateEdge() = default;
 };
 }
 }
