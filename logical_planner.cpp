@@ -361,6 +361,7 @@ planner::LogicalPlan Planner::build_logical_plan(const frontend::QueryAST &ast) 
 }
 }
 
+
 graph::String graph::PlannerUtils::EdgeStrByDirection(frontend::EdgeDirection dir) {
   if (dir == frontend::EdgeDirection::Right) {
     return ">";
@@ -377,6 +378,16 @@ graph::String graph::PlannerUtils::toString(const graph::Value &val) {
     [](Double cur) -> String { return std::to_string(cur); },
     [](Bool cur) -> String { return (cur ? "true" : "false"); },
     [](String cur) -> String { return std::move(cur); }
+  };
+  return std::visit(visitor, val);
+}
+
+bool graph::PlannerUtils::ValueToBool(graph::Value val) {
+  const auto visitor = overloads {
+    [](Int cur) -> bool { return cur; },
+    [](Double cur) -> bool { return cur; },
+    [](Bool cur) -> bool { return cur; },
+    [](String cur) -> bool { return (!cur.empty()); }
   };
   return std::visit(visitor, val);
 }
