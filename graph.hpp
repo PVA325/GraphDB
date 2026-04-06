@@ -15,8 +15,8 @@
 #include "ast.hpp"
 #include "storage.hpp"
 
-namespace graph {
-namespace frontend {
+
+namespace graph::frontend {
   using ast::Expr;
   using ast::ReturnItem;
   using ast::QueryAST;
@@ -32,26 +32,24 @@ namespace frontend {
   using ast::SetClause;
   using ast::DeleteClause;
 }
-};
+
 
 namespace graph {
 using Int = int64_t;
 using Double = double;
 using String = std::string;
 using Bool = bool;
-using NodeId = uint64_t;
-using EdgeId = uint64_t;
 //  enum class EdgeDirection { Outgoing, Incoming, Undirected };
 
 using Value = std::variant<Int, Double, String, Bool>;
 
 
 struct PlannerError : public std::runtime_error { // todo at the ened
-  PlannerError(const std::string &msg);
+  explicit PlannerError(const std::string &msg);
 };
 
 struct ExecutionError : public std::runtime_error { // todo at the ened
-  ExecutionError(const std::string &msg);
+  explicit ExecutionError(const std::string &msg);
 };
 
 
@@ -92,437 +90,593 @@ namespace PlannerUtils {
 }
 }
 
-namespace graph {
-namespace planner {
-struct LogicalOp;
-using LogicalOpPtr = std::unique_ptr<LogicalOp>;
 
-struct LogicalOp {
-  virtual ~LogicalOp() = default;
-  virtual String DebugString() const  = 0;
-  virtual String SubtreeDebugString() const  = 0;
-};
+namespace graph::planner {
+  struct LogicalOp;
+  using LogicalOpPtr = std::unique_ptr<LogicalOp>;
 
-struct LogicalOpUnaryChild : LogicalOp {
-  LogicalOpPtr child;
-  explicit LogicalOpUnaryChild(LogicalOpPtr child);
-  String SubtreeDebugString() const override;
-};
-struct LogicalOpBinaryChild : LogicalOp {
-  LogicalOpPtr left;
-  LogicalOpPtr right;
-  LogicalOpBinaryChild(LogicalOpPtr left, LogicalOpPtr right);
-  String SubtreeDebugString() const override;
-};
+  struct LogicalOp {
+    virtual ~LogicalOp() = default;
 
-struct AliasedLogicalOp: public LogicalOp {
-  std::string dst_alias;
-  AliasedLogicalOp(std::string dst_alias): dst_alias(std::move(dst_alias)) {}
-};
-struct LogicalScan : public AliasedLogicalOp {
-  /// Scan Nodes that has specified labels
-  /// and write out in row with slot name alias
-  std::vector<String> labels;
-  std::vector<std::pair<String, Value> > property_filters;
+    virtual String DebugString() const = 0;
 
-  LogicalScan() = delete;
-  LogicalScan(const LogicalScan& other) = default;
-  LogicalScan(LogicalScan&& other) = default;
-
-  LogicalScan(std::vector<String> labels, String dst_alias);
-  LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<String, Value> > property_filters);
-  String DebugString() const override;
-  virtual String SubtreeDebugString() const override;
-  ~LogicalScan() override = default;
-};
-struct LogicalExpand : public AliasedLogicalOp {
-  /// Expand Nodes that are located in row by $src_alias slot name and move to $dst_alias
-  String src_alias;
-  String edge_alias;
-  /// bool optional; can add for Optional match
-  std::optional<std::vector<String>> edge_labels;
-  std::optional<std::vector<String>> dst_vertex_labels;
-  frontend::EdgeDirection direction;
-  LogicalOpPtr child;
-
-  LogicalExpand() = delete;
-  LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias, frontend::EdgeDirection direction);
-  LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias, std::vector<String> edge_labels, std::vector<String> dst_vertex_labels, frontend::EdgeDirection direction);
-  String DebugString() const override;
-  virtual String SubtreeDebugString() const override;
-  ~LogicalExpand() override = default;
-};
-
-struct LogicalFilter : public LogicalOpUnaryChild {
-  /// Filter - not include int answer all values that do not satisfy predicate
-  std::unique_ptr<frontend::Expr> predicate;
-
-  LogicalFilter() = delete;
-  explicit LogicalFilter(LogicalOpPtr child, std::unique_ptr<frontend::Expr> predicate);
-
-  String DebugString() const override;
-  ~LogicalFilter() override = default;
-};
-
-struct LogicalProject : public LogicalOpUnaryChild {
-  /// Project of values to items(can be field - string or Expression)
-  std::vector<frontend::ReturnItem> items;
-
-  LogicalProject() = delete;
-  LogicalProject(LogicalOpPtr child, std::vector<frontend::ReturnItem> items);
-  String DebugString() const override;
-  ~LogicalProject() override = default;
-};
-
-struct LogicalLimit : public LogicalOpUnaryChild {
-  /// Logical Limit - nothing to comment
-  Int limit_size;
-
-  LogicalLimit() = delete;
-  explicit LogicalLimit(LogicalOpPtr child, size_t limit_size);
-  String DebugString() const override;
-  ~LogicalLimit() override = default;
-};
-
-struct LogicalSort : LogicalOpUnaryChild {
-  /// Logical Sort - sort by expression in keys
-  /// for example
-  /*
-    {
-      {expr1, true},   // ASC
-      {expr2, false}   // DESC
-    } and sort if by expr1 and if they are equal by expr2
-   */
-  std::vector<frontend::OrderItem> keys;
-
-  LogicalSort() = delete;
-  explicit LogicalSort(LogicalOpPtr child, std::vector<frontend::OrderItem> keys);
-  String DebugString() const override;
-  ~LogicalSort() override = default;
-};
-
-struct LogicalJoin : LogicalOpBinaryChild {
-  /// Logical Joint for 2 results with predicate(optional)
-
-  std::optional<std::unique_ptr<frontend::Expr>> predicate;
-  LogicalJoin() = delete;
-  LogicalJoin(LogicalOpPtr left, LogicalOpPtr right);
-  LogicalJoin(LogicalOpPtr left, LogicalOpPtr right, std::unique_ptr<frontend::Expr> predicate);
-  String DebugString() const override;
-  ~LogicalJoin() override = default;
-};
-
-struct LogicalPlan : LogicalOp {
-  /// Container logical plan
-  LogicalOpPtr root;
-  LogicalPlan(): root(nullptr) {}
-  LogicalPlan(LogicalPlan&& other): root(std::move(other.root)) {}
-
-  explicit LogicalPlan(LogicalOpPtr r): root(std::move(r)) {}
-  String DebugString() const override;
-  String SubtreeDebugString() const override;
-
-  ~LogicalPlan() override = default;
-};
-
-struct LogicalSet : LogicalOpUnaryChild {
-  /// Create LogicalSet; can set only 1 parameter through execution
-  struct Assignment {
-    String alias;
-    String key;
-    Value value;
+    virtual String SubtreeDebugString() const = 0;
   };
-  Assignment assignment;
 
-  LogicalSet(const LogicalSet&) = delete;
-  LogicalSet(LogicalSet&& other) = default;
+  struct LogicalOpUnaryChild : LogicalOp {
+    LogicalOpPtr child;
 
-  LogicalSet(LogicalOpPtr child, String alias, String key, Value value);
-  String DebugString() const override;
+    explicit LogicalOpUnaryChild(LogicalOpPtr child);
 
-  ~LogicalSet() = default;
-};
+    String SubtreeDebugString() const override;
+  };
 
-struct LogicalDelete : LogicalOpUnaryChild {
-  /// Create logical operation in a tree to delete a target
-  std::vector<String> target;
-  LogicalDelete(const LogicalDelete&) = delete;
-  LogicalDelete(LogicalDelete&& other) = default;
+  struct LogicalOpBinaryChild : LogicalOp {
+    LogicalOpPtr left;
+    LogicalOpPtr right;
 
-  LogicalDelete(LogicalOpPtr child, std::vector<String> target);
-  String DebugString() const override;
+    LogicalOpBinaryChild(LogicalOpPtr left, LogicalOpPtr right);
 
-  ~LogicalDelete() override = default;
-};
+    String SubtreeDebugString() const override;
+  };
 
-struct CreateNodeSpec {
-  std::vector<String> labels;
-  std::vector<std::pair<String, Value>> properties;
+  struct AliasedLogicalOp : public LogicalOp {
+    std::string dst_alias;
 
-  String DebugString() const;
-  CreateNodeSpec() = delete;
-  CreateNodeSpec(const ast::NodePattern& pattern);
-  CreateNodeSpec(ast::NodePattern&& pattern);
-};
+    AliasedLogicalOp(std::string dst_alias) : dst_alias(std::move(dst_alias)) {}
+  };
 
-struct CreateEdgeSpec {
-  String src_alias;
-  String dst_alias;
-  std::vector<String> labels;
-  std::vector<std::pair<String, Value>> properties;
-  frontend::EdgeDirection direction;
-  String DebugString() const;
-  CreateEdgeSpec() = delete;
-  explicit CreateEdgeSpec(const ast::CreateEdgePattern& pattern);
-  explicit CreateEdgeSpec(ast::CreateEdgePattern&& pattern);
+  struct LogicalScan : public AliasedLogicalOp {
+    /// Scan Nodes that has specified labels
+    /// and write out in row with slot name alias
+    std::vector<String> labels;
+    std::vector<std::pair<String, Value> > property_filters;
 
-};
+    LogicalScan() = delete;
+
+    LogicalScan(const LogicalScan &other) = default;
+
+    LogicalScan(LogicalScan &&other) = default;
+
+    LogicalScan(std::vector<String> labels, String dst_alias);
+
+    LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<String, Value> > property_filters);
+
+    String DebugString() const override;
+
+    virtual String SubtreeDebugString() const override;
+
+    ~LogicalScan() override = default;
+  };
+
+  struct LogicalExpand : public AliasedLogicalOp {
+    /// Expand Nodes that are located in row by $src_alias slot name and move to $dst_alias
+    String src_alias;
+    String edge_alias;
+    /// bool optional; can add for Optional match
+    std::optional<std::vector<String>> edge_labels;
+    std::optional<std::vector<String>> dst_vertex_labels;
+    frontend::EdgeDirection direction;
+    LogicalOpPtr child;
+
+    LogicalExpand() = delete;
+
+    LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
+                  frontend::EdgeDirection direction);
+
+    LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
+                  std::vector<String> edge_labels, std::vector<String> dst_vertex_labels,
+                  frontend::EdgeDirection direction);
+
+    String DebugString() const override;
+
+    virtual String SubtreeDebugString() const override;
+
+    ~LogicalExpand() override = default;
+  };
+
+  struct LogicalFilter : public LogicalOpUnaryChild {
+    /// Filter - not include int answer all values that do not satisfy predicate
+    std::unique_ptr<frontend::Expr> predicate;
+
+    LogicalFilter() = delete;
+
+    explicit LogicalFilter(LogicalOpPtr child, std::unique_ptr<frontend::Expr> predicate);
+
+    String DebugString() const override;
+
+    ~LogicalFilter() override = default;
+  };
+
+  struct LogicalProject : public LogicalOpUnaryChild {
+    /// Project of values to items(can be field - string or Expression)
+    std::vector<frontend::ReturnItem> items;
+
+    LogicalProject() = delete;
+
+    LogicalProject(LogicalOpPtr child, std::vector<frontend::ReturnItem> items);
+
+    String DebugString() const override;
+
+    ~LogicalProject() override = default;
+  };
+
+  struct LogicalLimit : public LogicalOpUnaryChild {
+    /// Logical Limit - nothing to comment
+    Int limit_size;
+
+    LogicalLimit() = delete;
+
+    explicit LogicalLimit(LogicalOpPtr child, size_t limit_size);
+
+    String DebugString() const override;
+
+    ~LogicalLimit() override = default;
+  };
+
+  struct LogicalSort : LogicalOpUnaryChild {
+    /// Logical Sort - sort by expression in keys
+    /// for example
+    /*
+      {
+        {expr1, true},   // ASC
+        {expr2, false}   // DESC
+      } and sort if by expr1 and if they are equal by expr2
+     */
+    std::vector<frontend::OrderItem> keys;
+
+    LogicalSort() = delete;
+
+    explicit LogicalSort(LogicalOpPtr child, std::vector<frontend::OrderItem> keys);
+
+    String DebugString() const override;
+
+    ~LogicalSort() override = default;
+  };
+
+  struct LogicalJoin : LogicalOpBinaryChild {
+    /// Logical Joint for 2 results with predicate(optional)
+
+    std::optional<std::unique_ptr<frontend::Expr>> predicate;
+
+    LogicalJoin() = delete;
+
+    LogicalJoin(LogicalOpPtr left, LogicalOpPtr right);
+
+    LogicalJoin(LogicalOpPtr left, LogicalOpPtr right, std::unique_ptr<frontend::Expr> predicate);
+
+    String DebugString() const override;
+
+    ~LogicalJoin() override = default;
+  };
+
+  struct LogicalPlan : LogicalOp {
+    /// Container logical plan
+    LogicalOpPtr root;
+
+    LogicalPlan() : root(nullptr) {}
+
+    LogicalPlan(LogicalPlan &&other) : root(std::move(other.root)) {}
+
+    explicit LogicalPlan(LogicalOpPtr r) : root(std::move(r)) {}
+
+    String DebugString() const override;
+
+    String SubtreeDebugString() const override;
+
+    ~LogicalPlan() override = default;
+  };
+
+  struct LogicalSet : LogicalOpUnaryChild {
+    /// Create LogicalSet; can set only 1 parameter through execution
+    struct Assignment {
+      String alias;
+      String key;
+      Value value;
+    };
+    Assignment assignment;
+
+    LogicalSet(const LogicalSet &) = delete;
+
+    LogicalSet(LogicalSet &&other) = default;
+
+    LogicalSet(LogicalOpPtr child, String alias, String key, Value value);
+
+    String DebugString() const override;
+
+    ~LogicalSet() = default;
+  };
+
+  struct LogicalDelete : LogicalOpUnaryChild {
+    /// Create logical operation in a tree to delete a target
+    std::vector<String> target;
+
+    LogicalDelete(const LogicalDelete &) = delete;
+
+    LogicalDelete(LogicalDelete &&other) = default;
+
+    LogicalDelete(LogicalOpPtr child, std::vector<String> target);
+
+    String DebugString() const override;
+
+    ~LogicalDelete() override = default;
+  };
+
+  struct CreateNodeSpec {
+    std::vector<String> labels;
+    std::vector<std::pair<String, Value>> properties;
+
+    String DebugString() const;
+
+    CreateNodeSpec() = delete;
+
+    explicit CreateNodeSpec(const ast::NodePattern &pattern);
+
+    explicit CreateNodeSpec(ast::NodePattern &&pattern);
+  };
+
+  struct CreateEdgeSpec {
+    String src_alias;
+    String dst_alias;
+    std::vector<String> labels;
+    std::vector<std::pair<String, Value>> properties;
+    frontend::EdgeDirection direction;
+
+    String DebugString() const;
+
+    CreateEdgeSpec() = delete;
+
+    explicit CreateEdgeSpec(const ast::CreateEdgePattern &pattern);
+
+    explicit CreateEdgeSpec(ast::CreateEdgePattern &&pattern);
+
+  };
 
 
-struct LogicalCreate : LogicalOpUnaryChild {
-  std::vector<std::variant<CreateNodeSpec, CreateEdgeSpec>> items;
-  LogicalCreate() = delete;
-  LogicalCreate(LogicalOpPtr child, const std::vector<ast::CreateItem>& items);
-  String DebugString() const override;
-};
+  struct LogicalCreate : LogicalOpUnaryChild {
+    std::vector<std::variant<CreateNodeSpec, CreateEdgeSpec>> items;
+
+    LogicalCreate() = delete;
+
+    LogicalCreate(LogicalOpPtr child, const std::vector<ast::CreateItem> &items);
+
+    String DebugString() const override;
+  };
 }
-}
 
 
-namespace graph {
-namespace exec {
-using storage::Node;
-using storage::Edge;
-struct PhysicalOp;
-struct RowCursor;
 
-using RowSlot = std::variant<Node*, Edge*, Value>;
-using PhysicalOpPtr = std::unique_ptr<PhysicalOp>;
-using RowCursorPtr = std::unique_ptr<RowCursor>;
 
-struct ExecOptions {
-  /// options of execution; mymory, in future parallelism and spill
-  size_t memory_budget_bytes = 256ULL * 1024 * 1024;
-};
-struct SlotMapping {
-  std::unordered_map<std::string, size_t> alias_to_slot;
-  size_t map(const std::string& key);
-  void add_map(const String& key, size_t idx);
-};
+namespace graph::exec {
+  using storage::Node;
+  using storage::Edge;
+  struct PhysicalOp;
+  struct RowCursor;
 
-struct ExecContext {
-  /// Context of execution db
-  frontend::GraphDB* db;
-  ExecOptions options;
-};
+  using RowSlot = std::variant<Node *, Edge *, Value>;
+  using PhysicalOpPtr = std::unique_ptr<PhysicalOp>;
+  using RowCursorPtr = std::unique_ptr<RowCursor>;
 
-struct Row {
-  /// store current row values and names
-  std::vector<RowSlot> slots;
-  std::vector<String> slots_names;
-  SlotMapping slots_mapping;
-};
-class RowCursor {
-public:
-  /// iterator by Row
-  /// used to obtain next row(at the end need to be closed)
-  RowCursor() = default;
-  virtual bool next(Row& out) = 0;
-  virtual void close() = 0;
-  virtual ~RowCursor() = default;
-};
+  struct ExecOptions {
+    /// options of execution; mymory, in future parallelism and spill
+    size_t memory_budget_bytes = 256ULL * 1024 * 1024;
+  };
 
-struct PhysicalOp {
-  virtual ~PhysicalOp() = default;
-  /// open operator, return RowCursor
-  /// tx may be required for storage access
-  virtual RowCursorPtr open(ExecContext& ctx) = 0;
-  virtual String DebugString() const = 0;
+  struct SlotMapping {
+    std::unordered_map<std::string, size_t> alias_to_slot;
+
+    bool key_exists(const std::string &key) const;
+
+    size_t map(const std::string &key) const;
+
+    void add_map(const String &key, size_t idx);
+  };
+
+  struct ExecContext {
+    /// Context of execution db
+    frontend::GraphDB *db;
+    ExecOptions options;
+  };
+
+  struct Row {
+    /// store current row values and names
+    std::vector<RowSlot> slots;
+    std::vector<String> slots_names;
+    SlotMapping slots_mapping;
+  };
+
+  class RowCursor {
+  public:
+    /// iterator by Row
+    /// used to obtain next row(at the end need to be closed)
+    RowCursor() = default;
+
+    virtual bool next(Row &out) = 0;
+
+    virtual void close() = 0;
+
+    virtual ~RowCursor() = default;
+  };
+
+  struct PhysicalOp {
+    virtual ~PhysicalOp() = default;
+
+    /// open operator, return RowCursor
+    /// tx may be required for storage access
+    virtual RowCursorPtr open(ExecContext &ctx) = 0;
+
+    virtual String DebugString() const = 0;
 //  virtual String DebugSubtreeString() const = 0;
-};
+  };
 
-struct ScanNodeCursorPhysical : RowCursor {
-  std::unique_ptr<storage::NodeCursor> nodes_cursor;
-  String out_alias;
+  struct ScanNodeCursorPhysical : RowCursor {
+    std::unique_ptr<storage::NodeCursor> nodes_cursor;
+    String out_alias;
 
-  ScanNodeCursorPhysical(const ScanNodeCursorPhysical&) = delete;
-  ScanNodeCursorPhysical(ScanNodeCursorPhysical&&) = default;
-  ScanNodeCursorPhysical(std::unique_ptr<storage::NodeCursor> nodes_cursor, String out_alias);
-  bool next(Row& out) override;
-  void close() override;
+    ScanNodeCursorPhysical(const ScanNodeCursorPhysical &) = delete;
 
-  ~ScanNodeCursorPhysical() override = default;
-};
+    ScanNodeCursorPhysical(ScanNodeCursorPhysical &&) = default;
 
-struct LabelIndexSeekOp : public PhysicalOp {
-  /// used for node filtering(for more optimized by label we dont need to do all node scan)
-  String label;
-  String out_alias;
+    ScanNodeCursorPhysical(std::unique_ptr<storage::NodeCursor> nodes_cursor, String out_alias);
 
-  LabelIndexSeekOp(String label,
-                   String alias);
-  RowCursorPtr open(ExecContext& ctx) override;
-  String DebugString() const override;
-  ~LabelIndexSeekOp() override = default;
-};
+    bool next(Row &out) override;
 
-struct NodeScanOp : public PhysicalOp {
-  /// co complete Node scan and return Row to every Node
-  String out_alias;
-  RowCursorPtr open(ExecContext& ctx) override;
-  String DebugString() const override;
-  ~NodeScanOp() override = default;
-};
+    void close() override;
 
-template<bool edge_outgoing>
-struct ExpandNodeCursorPhysical : RowCursor {
-  enum class Direction { Outgoing, Ingoing };
-  RowCursorPtr child_cursor;
-  std::unique_ptr<storage::EdgeCursor> edge_cursor;
-  std::function<bool(Edge*)> label_predicate;
-  String src_alias;
-  String dst_alias;
-  storage::GraphDB* db;
+    ~ScanNodeCursorPhysical() override = default;
+  };
 
-  ExpandNodeCursorPhysical(const ExpandNodeCursorPhysical&) = delete;
-  ExpandNodeCursorPhysical(ExpandNodeCursorPhysical&&) = default;
-  ExpandNodeCursorPhysical(RowCursorPtr child_cursor, String src_alias, String dst_alias, std::function<bool(Edge*)> label_predicate, storage::GraphDB* db);
-  bool next(Row& out) override;
-  void close() override;
+  struct LabelIndexSeekOp : public PhysicalOp {
+    /// used for node filtering(for more optimized by label we dont need to do all node scan)
+    String label;
+    String out_alias;
 
-  ~ExpandNodeCursorPhysical() override = default;
-};
+    LabelIndexSeekOp(String label,
+                     String alias);
 
-template<bool edge_outgoing>
-struct ExpandOp : public PhysicalOp {
-  /// write do dst_alias outgoing edge of edge_type
-  String src_alias;
-  String dst_alias;
-  std::optional<String> edge_type;
-  PhysicalOpPtr child;
+    RowCursorPtr open(ExecContext &ctx) override;
 
-  ExpandOp(String src_alias, String dst_alias, String edge_type, PhysicalOpPtr child);
-  RowCursorPtr open(ExecContext& ctx) override;
-  String DebugString() const override;
+    String DebugString() const override;
 
-  ~ExpandOp() override = default;
-};
+    ~LabelIndexSeekOp() override = default;
+  };
 
-using ExpandOutgoingOp = ExpandOp<true>;
-using ExpandIngoingOp = ExpandOp<false>;
+  struct NodeScanOp : public PhysicalOp {
+    /// co complete Node scan and return Row to every Node
+    String out_alias;
 
-struct FilterCursor : RowCursor {
-  RowCursorPtr child_cursor;
-  String out_alias;
-  std::unique_ptr<frontend::Expr> predicate;
+    RowCursorPtr open(ExecContext &ctx) override;
 
-  FilterCursor(const FilterCursor&) = delete;
-  FilterCursor(FilterCursor&&) = default;
-  FilterCursor(RowCursorPtr child_cursor, String out_alias, std::unique_ptr<frontend::Expr> predicate);
-  bool next(Row& out) override;
-  void close() override;
+    String DebugString() const override;
 
-  ~FilterCursor() override = default;
-};
+    ~NodeScanOp() override = default;
+  };
 
-struct FilterOp : public PhysicalOp {
-  /// do Filter operation with predicate on Child like while (!predicate(child)) { child.next(row) }
-  std::unique_ptr<frontend::Expr> predicate;
-  String out_alias;
-  PhysicalOpPtr child;
+  template<bool edge_outgoing>
+  struct ExpandNodeCursorPhysical : RowCursor {
+    enum class Direction {
+      Outgoing, Ingoing
+    };
+    RowCursorPtr child_cursor;
+    std::unique_ptr<storage::EdgeCursor> edge_cursor;
+    std::function<bool(Edge *)> label_predicate;
+    String src_alias;
+    String dst_alias;
+    storage::GraphDB *db;
 
-  FilterOp(std::unique_ptr<frontend::Expr> predicate, String out_alias, PhysicalOpPtr child);
+    ExpandNodeCursorPhysical(const ExpandNodeCursorPhysical &) = delete;
 
-  RowCursorPtr open(ExecContext& ctx) override;
-  String DebugString() const override;
+    ExpandNodeCursorPhysical(ExpandNodeCursorPhysical &&) = default;
 
-private:
-  String debugString_;
-};
+    ExpandNodeCursorPhysical(RowCursorPtr child_cursor, String src_alias, String dst_alias,
+                             std::function<bool(Edge *)> label_predicate, storage::GraphDB *db);
 
-struct ProjectCursor : RowCursor {
-  RowCursorPtr child_cursor;
-  std::vector<frontend::ReturnItem> items;
+    bool next(Row &out) override;
 
-  ProjectCursor(const ProjectCursor&) = delete;
-  ProjectCursor(ProjectCursor&&) = default;
+    void close() override;
 
-  ProjectCursor(RowCursorPtr child_cursor, std::vector<frontend::ReturnItem> items);
-  bool next(Row& out) override;
-  void close() override;
+    ~ExpandNodeCursorPhysical() override = default;
+  };
 
-  ~ProjectCursor() override = default;
-};
-struct ProjectOp : public PhysicalOp {
-  /// child is next operator in the tree
-  std::vector<frontend::ReturnItem> items;
-  PhysicalOpPtr child;
+  template<bool edge_outgoing>
+  struct ExpandOp : public PhysicalOp {
+    /// write do dst_alias outgoing edge of edge_type
+    String src_alias;
+    String dst_alias;
+    std::optional<String> edge_type;
+    PhysicalOpPtr child;
 
-  ProjectOp() = default;
-  ProjectOp(std::vector<frontend::ReturnItem> items,
-            PhysicalOpPtr child);
-  RowCursorPtr open(ExecContext& ctx) override;
-  String DebugString() const override;
-};
+    ExpandOp(String src_alias, String dst_alias, String edge_type, PhysicalOpPtr child);
 
-struct LimitOp : public PhysicalOp {
-  /// just physycal limit
-  Int limit_size;
-  PhysicalOpPtr child;
-  LimitOp(Int limit_size, PhysicalOpPtr child);
-  RowCursorPtr open(ExecContext& ctx) override;
-  String DebugString() const override;
-};
+    RowCursorPtr open(ExecContext &ctx) override;
 
-struct NestedLoopJoinOp : public PhysicalOp {
-  /// do join for 2 expressions based on predicate
-  PhysicalOpPtr left;
-  PhysicalOpPtr right;
-  std::unique_ptr<frontend::Expr> predicate;
-  bool left_outer = false; //
-  NestedLoopJoinOp(std::unique_ptr<PhysicalOp> l, std::unique_ptr<PhysicalOp> r,
-                   std::unique_ptr<frontend::Expr> pred, bool left_outer_);
-  RowCursorPtr open(class ExecContext &ctx) override;
-  std::string DebugString() const override;
-};
+    String DebugString() const override;
 
-struct HashJoinOp : public PhysicalOp {
-  /// do hashJoin
-  std::unique_ptr<PhysicalOp> build_side;
-  std::unique_ptr<PhysicalOp> probe_side;
-  std::vector<std::string> build_keys;
-  std::vector<std::string> probe_keys;
-  bool left_outer = false;
-  HashJoinOp(std::unique_ptr<PhysicalOp> build, std::unique_ptr<PhysicalOp> probe,
-             std::vector<std::string> bkeys, std::vector<std::string> pkeys, bool left_outer_);
-  RowCursorPtr open(class ExecContext &ctx) override;
-  std::string DebugString() const override;
-};
+    ~ExpandOp() override = default;
+  };
 
-struct PhysicalPlan {
-  /// creates physical plan
-  std::unique_ptr<PhysicalOp> root;
-  PhysicalPlan() = default;
-  explicit PhysicalPlan(std::unique_ptr<PhysicalOp> r);
-  std::string DebugString() const;
-};
+  using ExpandOutgoingOp = ExpandOp<true>;
+  using ExpandIngoingOp = ExpandOp<false>;
 
-using ResultCursor = RowCursor;
+  struct FilterCursor : RowCursor {
+    RowCursorPtr child_cursor;
+    String out_alias;
+    std::unique_ptr<frontend::Expr> predicate;
 
-struct QueryResult {
-  std::unique_ptr<ResultCursor> cursor;
-};
+    FilterCursor(const FilterCursor &) = delete;
+
+    FilterCursor(FilterCursor &&) = default;
+
+    FilterCursor(RowCursorPtr child_cursor, String out_alias, std::unique_ptr<frontend::Expr> predicate);
+
+    bool next(Row &out) override;
+
+    void close() override;
+
+    ~FilterCursor() override = default;
+  };
+
+  struct FilterOp : public PhysicalOp {
+    /// do Filter operation with predicate on Child like while (!predicate(child)) { child.next(row) }
+    std::unique_ptr<frontend::Expr> predicate;
+    String out_alias;
+    PhysicalOpPtr child;
+
+    FilterOp(std::unique_ptr<frontend::Expr> predicate, String out_alias, PhysicalOpPtr child);
+
+    RowCursorPtr open(ExecContext &ctx) override;
+
+    String DebugString() const override;
+
+  private:
+    String debugString_;
+  };
+
+  struct ProjectCursor : RowCursor {
+    RowCursorPtr child_cursor;
+    std::vector<frontend::ReturnItem> items;
+
+    ProjectCursor(const ProjectCursor &) = delete;
+
+    ProjectCursor(ProjectCursor &&) = default;
+
+    ProjectCursor(RowCursorPtr child_cursor, std::vector<frontend::ReturnItem> items);
+
+    bool next(Row &out) override;
+
+    void close() override;
+
+    ~ProjectCursor() override = default;
+  };
+
+  struct ProjectOp : public PhysicalOp {
+    /// child is next operator in the tree
+    std::vector<frontend::ReturnItem> items;
+    PhysicalOpPtr child;
+
+    ProjectOp() = default;
+
+    ProjectOp(std::vector<frontend::ReturnItem> items,
+              PhysicalOpPtr child);
+
+    RowCursorPtr open(ExecContext &ctx) override;
+
+    String DebugString() const override;
+  };
+
+  struct LimitCursor : RowCursor {
+    RowCursorPtr child_cursor;
+    size_t limit_count;
+    size_t used_count{0};
+
+    LimitCursor(const LimitCursor &) = delete;
+
+    LimitCursor(LimitCursor &&) = default;
+
+    LimitCursor(RowCursorPtr child_cursor, size_t limit_count);
+
+    bool next(Row &out) override;
+
+    void close() override;
+
+    ~LimitCursor() override = default;
+  };
+
+  struct LimitOp : public PhysicalOp {
+    /// just physycal limit
+    Int limit_size;
+    PhysicalOpPtr child;
+
+    LimitOp(Int limit_size, PhysicalOpPtr child);
+
+    RowCursorPtr open(ExecContext &ctx) override;
+
+    String DebugString() const override;
+  };
+
+  struct NestedLoopJoinOp : public PhysicalOp {
+    /// do join for 2 expressions based on predicate
+    PhysicalOpPtr left;
+    PhysicalOpPtr right;
+    std::unique_ptr<frontend::Expr> predicate;
+
+    NestedLoopJoinOp(PhysicalOpPtr left, PhysicalOpPtr right,
+                     std::unique_ptr<frontend::Expr> pred);
+    NestedLoopJoinOp(PhysicalOpPtr left, PhysicalOpPtr right);
+
+    RowCursorPtr open(class ExecContext &ctx) override;
+
+    std::string DebugString() const override;
+  };
+
+  struct NestedLoopJoinCursor : public RowCursor {
+    /// do join for 2 expressions based on predicate
+
+    RowCursorPtr left_cursor;
+    RowCursorPtr right_cursor{nullptr};
+    PhysicalOp* right_operation;
+    ExecContext& ctx;
+    const frontend::Expr* predicate;
+
+    Row left_row;
+    bool has_left{false};
+
+    NestedLoopJoinCursor(RowCursorPtr left_cursor, PhysicalOp* right_operation,
+                         frontend::Expr* pred, ExecContext& ctx);
+
+    bool next(Row &out) override;
+
+    void close() override;
+
+    ~NestedLoopJoinCursor() override = default;
+
+  private:
+    static Row MergeRows(Row& first, Row& second);
+  };
+
+  struct HashJoinOp : public PhysicalOp {
+    /// do hashJoin
+    std::unique_ptr<PhysicalOp> build_side;
+    std::unique_ptr<PhysicalOp> probe_side;
+    std::vector<std::string> build_keys;
+    std::vector<std::string> probe_keys;
+    bool left_outer = false;
+
+    HashJoinOp(std::unique_ptr<PhysicalOp> build, std::unique_ptr<PhysicalOp> probe,
+               std::vector<std::string> bkeys, std::vector<std::string> pkeys, bool left_outer_);
+
+    RowCursorPtr open(class ExecContext &ctx) override;
+
+    std::string DebugString() const override;
+  };
+
+  struct PhysicalPlan {
+    /// creates physical plan
+    PhysicalOpPtr root;
+
+    PhysicalPlan() = default;
+
+    explicit PhysicalPlan(PhysicalOpPtr root);
+
+    std::string DebugString() const;
+  };
+
+  using ResultCursor = RowCursor;
+
+  struct QueryResult {
+    std::unique_ptr<ResultCursor> cursor;
+  };
 
 // execute physycal plan
-std::unique_ptr<ResultCursor> execute_plan(const exec::PhysicalPlan &plan,
-                                           ExecContext &ctx);
+  std::unique_ptr<ResultCursor> execute_plan(const exec::PhysicalPlan &plan,
+                                             ExecContext &ctx);
 
 // (Planner->Executor glue)
-std::unique_ptr<ResultCursor> execute_query_ast(const frontend::QueryAST &ast,
-                                                const frontend::GraphDB &cat,
-                                                graph::exec::ExecOptions opts);
+  std::unique_ptr<ResultCursor> execute_query_ast(const frontend::QueryAST &ast,
+                                                  const frontend::GraphDB &cat,
+                                                  graph::exec::ExecOptions opts);
 }
-}
+
 
 namespace graph {
 namespace planner {
