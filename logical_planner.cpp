@@ -436,4 +436,3 @@ graph::String graph::PlannerUtils::ConcatStrVector(const std::vector<String> &v)
   }
   return ans;
 }
-

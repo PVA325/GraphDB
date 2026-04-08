@@ -13,6 +13,7 @@
 #include <numeric>
 #include <functional>
 #include "ast.hpp"
+#include "graph.hpp"
 #include "storage.hpp"
 
 
@@ -109,6 +110,7 @@ namespace graph::planner {
     explicit LogicalOpUnaryChild(LogicalOpPtr child);
 
     String SubtreeDebugString() const override;
+    virtual ~LogicalOpUnaryChild() = default;
   };
 
   struct LogicalOpBinaryChild : LogicalOp {
@@ -406,7 +408,33 @@ namespace graph::exec {
     virtual RowCursorPtr open(ExecContext &ctx) = 0;
 
     virtual String DebugString() const = 0;
-//  virtual String DebugSubtreeString() const = 0;
+    virtual String DebugSubtreeString() const = 0;
+  };
+  struct PhysicalOpNoChild : PhysicalOp {
+    PhysicalOpNoChild() = default;
+
+    String DebugSubtreeString() const override { return DebugString(); }
+
+    virtual ~PhysicalOpNoChild() = default;
+  };
+
+  struct PhysicalOpUnaryChild : PhysicalOp {
+    PhysicalOpPtr child;
+    PhysicalOpUnaryChild(PhysicalOpPtr child): child(std::move(child)) {}
+
+    String DebugSubtreeString() const override { return DebugString() + "\n" + child->DebugSubtreeString(); }
+
+    virtual ~PhysicalOpUnaryChild() = default;
+  };
+
+  struct PhysicalOpBinaryChild : PhysicalOp {
+    PhysicalOpPtr left;
+    PhysicalOpPtr right;
+    PhysicalOpBinaryChild(PhysicalOpPtr left, PhysicalOpPtr right): left(std::move(left)), right(std::move(right)) {}
+
+    String DebugSubtreeString() const override { return DebugString() + "\n1)" + left->DebugSubtreeString() + "\n2)" + right->DebugSubtreeString(); }
+
+    virtual ~PhysicalOpBinaryChild() = default;
   };
 
   struct ScanNodeCursorPhysical : RowCursor {
@@ -426,7 +454,7 @@ namespace graph::exec {
     ~ScanNodeCursorPhysical() override = default;
   };
 
-  struct LabelIndexSeekOp : public PhysicalOp {
+  struct LabelIndexSeekOp : public PhysicalOpNoChild {
     /// used for node filtering(for more optimized by label we dont need to do all node scan)
     String label;
     String out_alias;
@@ -441,7 +469,7 @@ namespace graph::exec {
     ~LabelIndexSeekOp() override = default;
   };
 
-  struct NodeScanOp : public PhysicalOp {
+  struct NodeScanOp : public PhysicalOpNoChild {
     /// co complete Node scan and return Row to every Node
     String out_alias;
 
@@ -479,12 +507,11 @@ namespace graph::exec {
   };
 
   template<bool edge_outgoing>
-  struct ExpandOp : public PhysicalOp {
+  struct ExpandOp : public PhysicalOpUnaryChild {
     /// write do dst_alias outgoing edge of edge_type
     String src_alias;
     String dst_alias;
     std::optional<String> edge_type;
-    PhysicalOpPtr child;
 
     ExpandOp(String src_alias, String dst_alias, String edge_type, PhysicalOpPtr child);
 
@@ -516,11 +543,10 @@ namespace graph::exec {
     ~FilterCursor() override = default;
   };
 
-  struct FilterOp : public PhysicalOp {
+  struct FilterOp : public PhysicalOpUnaryChild {
     /// do Filter operation with predicate on Child like while (!predicate(child)) { child.next(row) }
     std::unique_ptr<frontend::Expr> predicate;
     String out_alias;
-    PhysicalOpPtr child;
 
     FilterOp(std::unique_ptr<frontend::Expr> predicate, String out_alias, PhysicalOpPtr child);
 
@@ -528,6 +554,7 @@ namespace graph::exec {
 
     String DebugString() const override;
 
+    ~FilterOp() = default;
   private:
     String debugString_;
   };
@@ -549,12 +576,9 @@ namespace graph::exec {
     ~ProjectCursor() override = default;
   };
 
-  struct ProjectOp : public PhysicalOp {
+  struct ProjectOp : public PhysicalOpUnaryChild {
     /// child is next operator in the tree
     std::vector<frontend::ReturnItem> items;
-    PhysicalOpPtr child;
-
-    ProjectOp() = default;
 
     ProjectOp(std::vector<frontend::ReturnItem> items,
               PhysicalOpPtr child);
@@ -562,6 +586,8 @@ namespace graph::exec {
     RowCursorPtr open(ExecContext &ctx) override;
 
     String DebugString() const override;
+
+    ~ProjectOp() = default;
   };
 
   struct LimitCursor : RowCursor {
@@ -582,32 +608,19 @@ namespace graph::exec {
     ~LimitCursor() override = default;
   };
 
-  struct LimitOp : public PhysicalOp {
+  struct LimitOp : public PhysicalOpUnaryChild {
     /// just physycal limit
     Int limit_size;
-    PhysicalOpPtr child;
 
     LimitOp(Int limit_size, PhysicalOpPtr child);
 
     RowCursorPtr open(ExecContext &ctx) override;
 
     String DebugString() const override;
+    ~LimitOp() override = default;
   };
 
-  struct NestedLoopJoinOp : public PhysicalOp {
-    /// do join for 2 expressions based on predicate
-    PhysicalOpPtr left;
-    PhysicalOpPtr right;
-    std::unique_ptr<frontend::Expr> predicate;
-
-    NestedLoopJoinOp(PhysicalOpPtr left, PhysicalOpPtr right,
-                     std::unique_ptr<frontend::Expr> pred);
-    NestedLoopJoinOp(PhysicalOpPtr left, PhysicalOpPtr right);
-
-    RowCursorPtr open(class ExecContext &ctx) override;
-
-    std::string DebugString() const override;
-  };
+  Row MergeRows(Row& first, Row& second);
 
   struct NestedLoopJoinCursor : public RowCursor {
     /// do join for 2 expressions based on predicate
@@ -619,7 +632,7 @@ namespace graph::exec {
     const frontend::Expr* predicate;
 
     Row left_row;
-    bool has_left{false};
+    // bool has_left{false};
 
     NestedLoopJoinCursor(RowCursorPtr left_cursor, PhysicalOp* right_operation,
                          frontend::Expr* pred, ExecContext& ctx);
@@ -629,25 +642,110 @@ namespace graph::exec {
     void close() override;
 
     ~NestedLoopJoinCursor() override = default;
-
-  private:
-    static Row MergeRows(Row& first, Row& second);
   };
 
-  struct HashJoinOp : public PhysicalOp {
-    /// do hashJoin
-    std::unique_ptr<PhysicalOp> build_side;
-    std::unique_ptr<PhysicalOp> probe_side;
-    std::vector<std::string> build_keys;
-    std::vector<std::string> probe_keys;
-    bool left_outer = false;
+  struct NestedLoopJoinOp : public PhysicalOpBinaryChild {
+    /// do join for 2 expressions based on predicate
+    std::unique_ptr<frontend::Expr> predicate;
 
-    HashJoinOp(std::unique_ptr<PhysicalOp> build, std::unique_ptr<PhysicalOp> probe,
-               std::vector<std::string> bkeys, std::vector<std::string> pkeys, bool left_outer_);
+    NestedLoopJoinOp(PhysicalOpPtr left, PhysicalOpPtr right,
+                     std::unique_ptr<frontend::Expr> pred);
+    NestedLoopJoinOp(PhysicalOpPtr left, PhysicalOpPtr right);
 
     RowCursorPtr open(class ExecContext &ctx) override;
 
     std::string DebugString() const override;
+    ~NestedLoopJoinOp() override = default;
+  };
+
+  struct ValueHash {
+    size_t operator()(const Value& k) const {
+      const auto& visitor = PlannerUtils::overloads { // can make static in struct
+        [](Int cur) { return std::hash<Int>()(cur); },
+        [](String cur) { return std::hash<String>()(cur); },
+        [](double cur) { return std::hash<double>()(cur); },
+        [](bool cur) { return std::hash<bool>()(cur); }
+      };
+      return std::visit(visitor, k);
+    }
+  };
+
+  struct KeyHashJoinCursor : public RowCursor {
+    /// do join for 2 eNestedLoopJoinCursorxpressions based on predicate
+
+    RowCursorPtr left_cursor;
+    RowCursorPtr right_cursor;
+    String left_alias;
+    String right_alias;
+    String left_feature_key;
+    String right_feature_key;
+
+    std::unordered_map<Value, std::vector<Row>, ValueHash> left_rows;
+    Row last_right_row;
+
+    std::unordered_map<Value, std::vector<Row>, ValueHash>::iterator it_left;
+    size_t vec_left_idx{std::numeric_limits<size_t>::max()};
+
+    KeyHashJoinCursor(RowCursorPtr left_cursor, RowCursorPtr right_cursor,
+                      String left_alias, String right_alias,
+                      String left_feature_key, String right_feature_key);
+
+    bool next(Row &out) override;
+
+    void close() override;
+
+    ~KeyHashJoinCursor() override = default;
+  };
+  struct KeyHashJoinOp : public PhysicalOpBinaryChild {
+    /// do hashJoin
+    String left_alias;
+    String right_alias;
+    String left_feature_key;
+    String right_feature_key;
+
+    KeyHashJoinOp(PhysicalOpPtr left, PhysicalOpPtr right,
+                  String left_alias, String right_alias,
+                  String left_feature_key, String right_feature_key);
+
+    RowCursorPtr open(class ExecContext &ctx) override;
+
+    std::string DebugString() const override;
+    ~KeyHashJoinOp() override = default;
+
+
+    struct PhysicalSetOp : PhysicalOpUnaryChild {
+      std::optional<std::vector<String>> aliases;
+      std::optional<std::vector<String>> labels;
+      std::optional<std::vector<std::pair<String, Value>>> properties;
+
+      PhysicalSetOp(std::vector<String> aliases,
+                    std::vector<String> labels,
+                    std::vector<std::pair<String, Value>> properties,
+                    PhysicalOpPtr child);
+
+      RowCursorPtr open(class ExecContext &ctx) override;
+
+      ~PhysicalSetOp() override = default;
+    };
+
+    struct PhysicalCreateOp : PhysicalOpUnaryChild {
+      std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items;
+      PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
+                       PhysicalOpPtr child);
+      RowCursorPtr open(ExecContext& ctx) override;
+    };
+
+    struct PhysicalDelete : PhysicalOpUnaryChild {
+      std::vector<String> aliases;
+
+      PhysicalDelete(std::vector<String> aliases, PhysicalOpPtr child);
+
+      RowCursorPtr open(class ExecContext &ctx) override;
+
+      ~PhysicalDelete() override = default;
+    };
+
+    struct PhysicalSort {}; /// todo
   };
 
   struct PhysicalPlan {

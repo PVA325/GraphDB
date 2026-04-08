@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include "graph.hpp"
 
 namespace graph::exec {
@@ -95,10 +97,10 @@ namespace graph::exec {
     graph::String dst_alias,
     graph::String edge_type,
     PhysicalOpPtr child):
+    PhysicalOpUnaryChild(std::move(child)),
     src_alias(std::move(src_alias)),
     dst_alias(std::move(dst_alias)),
-    edge_type(std::move(edge_type)),
-    child(std::move(child)) {}
+    edge_type(std::move(edge_type)) {}
 
   template<bool edge_outgoing>
   RowCursorPtr ExpandOp<edge_outgoing>::open(ExecContext &ctx) {
@@ -150,9 +152,9 @@ namespace graph::exec {
     std::unique_ptr<frontend::Expr> predicate,
     String out_alias,
     PhysicalOpPtr child) :
+    PhysicalOpUnaryChild(std::move(child)),
     predicate(std::move(predicate)),
-    out_alias(std::move(out_alias)),
-    child(std::move(child)) {}
+    out_alias(std::move(out_alias)) {}
 
 
   graph::String FilterOp::DebugString() const {
@@ -214,8 +216,8 @@ namespace graph::exec {
 
 
   ProjectOp::ProjectOp(std::vector<frontend::ReturnItem> items, PhysicalOpPtr child) :
-    items(std::move(items)),
-    child(std::move(child)) {}
+    PhysicalOpUnaryChild(std::move(child)),
+    items(std::move(items)) {}
 
   RowCursorPtr ProjectOp::open(ExecContext &ctx) {
     return std::make_unique<ProjectCursor>(
@@ -250,8 +252,8 @@ namespace graph::exec {
 
 
   LimitOp::LimitOp(graph::Int limit_size, PhysicalOpPtr child) :
-    limit_size(limit_size),
-    child(std::move(child)) {}
+    PhysicalOpUnaryChild(std::move(child)),
+    limit_size(limit_size) {}
 
   RowCursorPtr LimitOp::open(ExecContext &ctx) {
     return std::make_unique<LimitCursor>(
@@ -303,19 +305,21 @@ namespace graph::exec {
     PhysicalOpPtr left,
     PhysicalOpPtr right,
     std::unique_ptr<frontend::Expr> pred):
-    left(std::move(left)),
-    right(std::move(right)),
+    PhysicalOpBinaryChild(std::move(left), std::move(right)),
     predicate(std::move(pred))
   {}
 
   NestedLoopJoinOp::NestedLoopJoinOp(
     PhysicalOpPtr left,
     PhysicalOpPtr right):
-    left(std::move(left)),
-    right(std::move(right)),
+    PhysicalOpBinaryChild(std::move(left), std::move(right)),
     predicate(nullptr)
   {}
 
+
+  std::string PhysicalPlan::DebugString() const {
+    return root->DebugSubtreeString();
+  }
 
   RowCursorPtr NestedLoopJoinOp::open(ExecContext &ctx) {
     return std::make_unique<NestedLoopJoinCursor>(
@@ -331,7 +335,56 @@ namespace graph::exec {
     return ans;
   }
 
-  graph::exec::Row graph::exec::NestedLoopJoinCursor::MergeRows(graph::exec::Row &first, graph::exec::Row &second) {
+  KeyHashJoinCursor::KeyHashJoinCursor(RowCursorPtr left_cursor, RowCursorPtr right_cursor,
+                                       String left_alias, String right_alias,
+                                       String left_feature_key, String right_feature_key):
+  left_cursor(std::move(left_cursor)),
+  right_cursor(std::move(right_cursor)),
+  left_alias(std::move(left_alias)),
+  right_alias(std::move(right_alias)),
+  left_feature_key(std::move(left_feature_key)),
+  right_feature_key(std::move(right_feature_key)){
+    Row cur;
+    while (left_cursor->next(cur)) {
+      auto cur_slot_val = cur.slots[cur.slots_mapping.map(left_alias)];
+      if (cur_slot_val.index() == 2) {
+        throw std::runtime_error("Error during KeyHashJoin: invalid alias type");
+      }
+      Value val;
+      if (cur_slot_val.index() == 0) {
+        Node* node = std::get<0>(cur_slot_val);
+        val = node->properties[left_feature_key];
+      } else {
+        Edge* edge = std::get<1>(cur_slot_val);
+        val = edge->properties[left_feature_key];
+      }
+      left_rows[val].emplace_back(cur);
+    }
+    it_left = left_rows.end();
+  }
+
+  bool KeyHashJoinCursor::next(Row& out) {
+    while (it_left == left_rows.end() || it_left->second.size() <= vec_left_idx) {
+      if (!right_cursor->next(last_right_row)) {
+        return false;
+      }
+      Value right_value = last_right_row.slots[last_right_row.slots_mapping.map(right_feature_key)];
+      auto it = left_rows.find(right_value);
+      if (it != left_rows.end() && !it->second.empty()) {
+        it_left = it;
+        vec_left_idx = 0;
+        break;
+      }
+    }
+
+    Row left_row = it_left->second[vec_left_idx++];
+    out = MergeRows(left_row, last_right_row);
+    return true;
+  }
+
+  void KeyHashJoinCursor::close() {}
+
+  graph::exec::Row graph::exec::MergeRows(graph::exec::Row &first, graph::exec::Row &second) {
     Row ans;
     ans.slots.insert(ans.slots.end(), first.slots.begin(), first.slots.end());
     ans.slots.insert(ans.slots.end(), second.slots.begin(), second.slots.end());
@@ -343,4 +396,33 @@ namespace graph::exec {
     ans.slots_mapping.alias_to_slot.merge(second.slots_mapping.alias_to_slot);
     return ans;
   }
+
+
+  KeyHashJoinOp::KeyHashJoinOp(PhysicalOpPtr left, PhysicalOpPtr right,
+                  String left_alias, String right_alias,
+                  String left_feature_key, String right_feature_key):
+    PhysicalOpBinaryChild(std::move(left), std::move(right)),
+    left_alias(std::move(left_alias)),
+    right_alias(std::move(right_alias)),
+    left_feature_key(std::move(left_feature_key)),
+    right_feature_key(std::move(right_feature_key)) {}
+
+  RowCursorPtr KeyHashJoinOp::open(struct ExecContext& ctx) {
+    return std::make_unique<KeyHashJoinCursor>(
+      std::move(left->open()),
+      std::move(right->open()),
+      left_alias,
+      right_alias,
+      left_feature_key,
+      right_feature_key
+    );
+  }
+
+  String KeyHashJoinOp::DebugString() const {
+    String ans = "HashJoin(" + left_alias + "." + left_feature_key + "," + right_alias + "." + right_feature_key + ")";
+    return ans;
+  }
+
+  PhysicalPlan::PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}
+
 }
