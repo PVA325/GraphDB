@@ -47,7 +47,6 @@ namespace graph::exec {
     );
   }
 
-
   template<bool edge_outgoing>
   ExpandNodeCursorPhysical<edge_outgoing>::ExpandNodeCursorPhysical(
     RowCursorPtr child_cursor,
@@ -89,7 +88,9 @@ namespace graph::exec {
 
 
   template<bool edge_outgoing>
-  void ExpandNodeCursorPhysical<edge_outgoing>::close() {}
+  void ExpandNodeCursorPhysical<edge_outgoing>::close() {
+    child_cursor->close();
+  }
 
   template<bool edge_outgoing>
   ExpandOp<edge_outgoing>::ExpandOp(
@@ -136,7 +137,9 @@ namespace graph::exec {
     return was_writing;
   }
 
-  void FilterCursor::close() {}
+  void FilterCursor::close() {
+    child_cursor->close();
+  }
 
   RowCursorPtr FilterOp::open(ExecContext &ctx) {
     debugString_ = predicate->DebugString();
@@ -156,15 +159,6 @@ namespace graph::exec {
     predicate(std::move(predicate)),
     out_alias(std::move(out_alias)) {}
 
-
-  graph::String FilterOp::DebugString() const {
-    String ans = "FilterPhysical(";
-    if (predicate) {
-//      debugString_ = predicate->DebugString();
-    }
-    ans += debugString_;
-    return ans;
-  }
 
   ProjectCursor::ProjectCursor(
     RowCursorPtr child_cursor,
@@ -212,7 +206,9 @@ namespace graph::exec {
     return true;
   }
 
-  void ProjectCursor::close() {}
+  void ProjectCursor::close() {
+    child_cursor->close();
+  }
 
 
   ProjectOp::ProjectOp(std::vector<frontend::ReturnItem> items, PhysicalOpPtr child) :
@@ -226,15 +222,6 @@ namespace graph::exec {
     );
   }
 
-  graph::String ProjectOp::DebugString() const {
-    String ans = "";
-    ans += "ProjectOp(";
-    for (const auto &item: items) {
-      ans += item.DebugString();
-    }
-    ans += ")";
-    return ans;
-  }
 
   LimitCursor::LimitCursor(RowCursorPtr child_cursor, size_t limit_count) :
     child_cursor(std::move(child_cursor)),
@@ -248,7 +235,9 @@ namespace graph::exec {
     return true;
   }
 
-  void LimitCursor::close() {}
+  void LimitCursor::close() {
+    child_cursor->close();
+  }
 
 
   LimitOp::LimitOp(graph::Int limit_size, PhysicalOpPtr child) :
@@ -261,12 +250,6 @@ namespace graph::exec {
       limit_size
     );
   }
-
-  graph::String LimitOp::DebugString() const {
-    String ans = "LimitOp(" + std::to_string(limit_size) + ")";
-    return ans;
-  }
-
 
   NestedLoopJoinCursor::NestedLoopJoinCursor(
     RowCursorPtr left_cursor,
@@ -300,7 +283,10 @@ namespace graph::exec {
     }
   }
 
-  void NestedLoopJoinCursor::close() {}
+  void NestedLoopJoinCursor::close() {
+    left_cursor->close();
+    right_cursor->close();
+  }
 
   NestedLoopJoinOp::NestedLoopJoinOp(
     PhysicalOpPtr left,
@@ -329,11 +315,6 @@ namespace graph::exec {
       predicate.get(),
       ctx
     );
-  }
-
-  std::string NestedLoopJoinOp::DebugString() const {
-    String ans = "LoopJoin"; /// todo
-    return ans;
   }
 
   KeyHashJoinCursor::KeyHashJoinCursor(RowCursorPtr left_cursor, RowCursorPtr right_cursor,
@@ -428,11 +409,6 @@ namespace graph::exec {
     );
   }
 
-  String KeyHashJoinOp::DebugString() const {
-    String ans = "HashJoin(" + left_alias + "." + left_feature_key + "," + right_alias + "." + right_feature_key + ")";
-    return ans;
-  }
-
   SetCursor::SetCursor(RowCursorPtr child, std::vector<String> aliases,
     std::vector<std::optional<std::vector<String>>> labels,
     std::vector<std::optional<std::vector<std::pair<String, Value>>>> properties):
@@ -500,8 +476,9 @@ namespace graph::exec {
     );
   }
 
+
   CreateCursor::CreateCursor(RowCursorPtr child,
-    std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items, storage::GraphDB* db):
+                             std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items, storage::GraphDB* db):
     child(std::move(child)),
     items(std::move(items)),
     db(db) {}
@@ -546,7 +523,7 @@ namespace graph::exec {
           edge_spec.label,
           std::move(std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end()))
         );
-      }
+        }
       if (edge_spec.direction == frontend::EdgeDirection::Left ||
         edge_spec.direction == frontend::EdgeDirection::Undirected) {
         db->create_edge(
@@ -555,7 +532,7 @@ namespace graph::exec {
           edge_spec.label,
           std::move(std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end()))
         );
-      }
+        }
     }
     return true;
   }
@@ -583,6 +560,239 @@ namespace graph::exec {
     );
   }
 
+  DeleteCursor::DeleteCursor(RowCursorPtr child, std::vector<String> aliases, storage::GraphDB* db):
+    child(std::move(child)),
+    aliases(std::move(aliases)),
+    db{db} {}
+
+  bool DeleteCursor::next(Row& out) {
+    if (!child->next(out)) {
+      return false;
+    }
+    for (const auto& alias : aliases) {
+      size_t alias_idx = out.slots_mapping.map(alias);
+      const RowSlot& row_slot = out.slots[alias_idx];
+      if (row_slot.index() == 2) {
+        continue;
+      }
+      if (row_slot.index() == 0) {
+        db->delete_node(std::get<Node*>(row_slot)->id);
+      } else {
+        db->delete_edge(std::get<Edge*>(row_slot)->id);
+      }
+    }
+    return true;
+  }
+
+  void DeleteCursor::close() {
+    child->close();
+  }
+
   PhysicalPlan::PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}
 
-}
+
+  template <class Range, class F>
+  String Join(const Range& r, std::string_view sep, F&& to_string) {
+    String out;
+    bool first = true;
+    for (const auto& x : r) {
+      if (!first) {
+        out += sep;
+      }
+      first = false;
+      out += to_string(x);
+    }
+    return out;
+  }
+
+  std::string ValueDebugString(const Value& v) {
+    return std::visit([](const auto& x) -> std::string {
+      using T = std::decay_t<decltype(x)>;
+      if constexpr (std::is_same_v<T, std::string>) {
+        return std::format("\"{}\"", x);
+      } else if constexpr (std::is_same_v<T, bool>) {
+        return x ? "true" : "false";
+      } else if constexpr (std::is_arithmetic_v<T>) {
+        return std::format("{}", x);
+      } else if constexpr (std::is_same_v<T, std::monostate>) {
+        return "null";
+      } else {
+        return "<value>";
+      }
+    }, v);
+  }
+
+  std::string PropertiesDebugString(const std::vector<std::pair<String, Value>>& props) {
+    return std::format(
+      "{{{}}}",
+      Join(props, ", ", [](const auto& kv) {
+        return std::format("{}: {}", kv.first, ValueDebugString(kv.second));
+      })
+    );
+  }
+
+  std::string LabelsDebugString(const std::vector<String>& labels) {
+    return std::format(
+      "[{}]",
+      Join(labels, ", ", [](const auto& s) {
+        return std::format("\"{}\"", s);
+      })
+    );
+  }
+
+  std::string OptionalLabelsDebugString(const std::optional<std::vector<String>>& labels) {
+    if (!labels.has_value()) {
+      return "";
+    }
+    return std::format("labels={}", LabelsDebugString(*labels));
+  }
+
+  std::string OptionalPropertiesDebugString(
+    const std::optional<std::vector<std::pair<String, Value>>>& props
+  ) {
+    if (!props.has_value()) {
+      return "";
+    }
+    return std::format("properties={}", PropertiesDebugString(*props));
+  }
+
+  std::string CreateNodeSpecDebugString(const planner::CreateNodeSpec& spec) {
+    return std::format(
+      "Node(labels={}, properties={})",
+      LabelsDebugString(spec.labels),
+      PropertiesDebugString(spec.properties)
+    );
+  }
+
+  std::string CreateEdgeSpecDebugString(const planner::CreateEdgeSpec& spec) {
+    std::string dir;
+    switch (spec.direction) {
+    case frontend::EdgeDirection::Right:      dir = "->"; break;
+    case frontend::EdgeDirection::Left:       dir = "<-"; break;
+    case frontend::EdgeDirection::Undirected: dir = "--"; break;
+    }
+
+    return std::format(
+      "Edge(src={}, dst={}, dir={}, label=\"{}\", properties={})",
+      spec.src_alias,
+      spec.dst_alias,
+      dir,
+      spec.label,
+      PropertiesDebugString(spec.properties)
+    );
+  }
+
+  std::string ReturnItemDebugString(const frontend::ReturnItem& item) {
+    if (item.item.index() == 0) {
+      return std::get<0>(item.item);
+    }
+    const auto& prop = std::get<1>(item.item);
+    return std::format("{}.{}", prop.alias, prop.property);
+  }
+
+  String LabelIndexSeekOp::DebugString() const {
+    return std::format("LabelIndexSeek(label=\"{}\", as={})", label, out_alias);
+  }
+
+  String NodeScanOp::DebugString() const {
+    return std::format("NodeScan(as={})", out_alias);
+  }
+
+  template <bool edge_outgoing>
+  String ExpandOp<edge_outgoing>::DebugString() const {
+    return std::format(
+      "Expand({} {} {}, type={})",
+      src_alias,
+      (edge_outgoing ? "->" : "<-"),
+      dst_alias,
+      (edge_type.has_value() ? std::format("\"{}\"", edge_type.value()) : "*")
+    );
+  }
+
+  String FilterOp::DebugString() const {
+    return std::format(
+      "Filter({})",
+      predicate ? predicate->DebugString() : "<null>"
+    );
+  }
+
+  String ProjectOp::DebugString() const {
+    return std::format(
+      "Project({})",
+      Join(items, ", ", [](const auto& item) {
+        return ReturnItemDebugString(item);
+      })
+    );
+  }
+
+  String LimitOp::DebugString() const {
+    return std::format("Limit({})", limit_size);
+  }
+
+  String NestedLoopJoinOp::DebugString() const {
+    if (predicate) {
+      return std::format("NestedLoopJoin(on={})", predicate->DebugString());
+    }
+    return "NestedLoopJoin(cross)";
+  }
+
+  String KeyHashJoinOp::DebugString() const {
+    return std::format(
+      "HashJoin(on {}.{} = {}.{})",
+      left_alias, left_feature_key,
+      right_alias, right_feature_key
+    );
+  }
+
+  String PhysicalSetOp::DebugString() const {
+    std::string ans = "Set(";
+    for (size_t i = 0; i < aliases.size(); ++i) {
+      if (i) {
+        ans += ", ";
+      }
+      ans += aliases[i];
+      ans += " {";
+
+      bool first = true;
+      if (labels[i].has_value()) {
+        ans += "labels=" + LabelsDebugString(labels[i].value());
+        first = false;
+      }
+      if (properties[i].has_value()) {
+        if (!first) {
+          ans += ", ";
+        }
+        ans += "properties=" + PropertiesDebugString(properties[i].value());
+      }
+
+      ans += "}";
+    }
+    ans += ")";
+    return ans;
+  }
+
+  String PhysicalCreateOp::DebugString() const {
+    return std::format(
+      "Create({})",
+      Join(items, ", ", [](const auto& item) {
+        return std::visit([](const auto& spec) -> String {
+          using T = std::decay_t<decltype(spec)>;
+          if constexpr (std::is_same_v<T, planner::CreateNodeSpec>) {
+            return CreateNodeSpecDebugString(spec);
+          } else {
+            return CreateEdgeSpecDebugString(spec);
+          }
+        }, item);
+      })
+    );
+  }
+
+  String PhysicalDelete::DebugString() const {
+    return std::format(
+      "Delete({})",
+      Join(aliases, ", ", [](const auto& a) {
+        return a;
+      })
+    );
+  }
+} // namespace

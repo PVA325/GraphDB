@@ -267,16 +267,14 @@ namespace graph::planner {
     ~LogicalPlan() override = default;
   };
 
-  struct Assignment {
-    String alias;
-    String key;
-    Value value;
 
-    Assignment(Assignment&&) = default;
-    Assignment(Assignment&) = default;
-  };
   struct LogicalSet : LogicalOpUnaryChild {
     /// Create LogicalSet; can set only 1 parameter through execution
+    struct Assignment {
+      String alias;
+      String key;
+      Value value;
+    };
     Assignment assignment;
 
     LogicalSet(const LogicalSet&) = delete;
@@ -424,7 +422,7 @@ namespace graph::exec {
     PhysicalOpPtr child;
     PhysicalOpUnaryChild(PhysicalOpPtr child): child(std::move(child)) {}
 
-    [[nodiscard]] String DebugSubtreeString() const override { return DebugString() + "\n" + child->DebugSubtreeString(); }
+    [[nodiscard]] String DebugSubtreeString() const override { return DebugString() + "\n" + (child ? child->DebugSubtreeString() : ""); }
 
     ~PhysicalOpUnaryChild() override = default;
   };
@@ -698,8 +696,7 @@ namespace graph::exec {
 
     ~KeyHashJoinCursor() override = default;
   };
-  struct KeyHashJoinOp : public PhysicalOpBinaryChild
-  {
+  struct KeyHashJoinOp : public PhysicalOpBinaryChild {
     /// do hashJoin
     String left_alias;
     String right_alias;
@@ -730,7 +727,7 @@ namespace graph::exec {
     void close() override;
   };
 
-  struct PhysicalSetOp : PhysicalOpUnaryChild {
+  struct PhysicalSetOp : public PhysicalOpUnaryChild {
     PhysicalOpPtr child;
     std::vector<String> aliases;
     std::vector<std::optional<std::vector<String> > > labels;
@@ -742,6 +739,8 @@ namespace graph::exec {
                   PhysicalOpPtr child);
 
     RowCursorPtr open(class ExecContext &ctx) override;
+
+    [[nodiscard]] String DebugString() const override;
 
     ~PhysicalSetOp() override = default;
   };
@@ -759,18 +758,35 @@ namespace graph::exec {
   };
   struct PhysicalCreateOp : PhysicalOpUnaryChild {
     std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items;
+
     PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items);
     PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
                      PhysicalOpPtr child);
     RowCursorPtr open(ExecContext& ctx) override;
+
+    [[nodiscard]] String DebugString() const override;
+
+    ~PhysicalCreateOp() override = default;
   };
 
+  struct DeleteCursor : RowCursor {
+    RowCursorPtr child;
+    std::vector<String> aliases;
+    storage::GraphDB* db;
+
+    DeleteCursor(RowCursorPtr child, std::vector<String> aliases, storage::GraphDB* db);
+    bool next(Row &out) override;
+    void close() override;
+
+    ~DeleteCursor() override = default;
+  };
   struct PhysicalDelete : PhysicalOpUnaryChild {
     std::vector<String> aliases;
 
     PhysicalDelete(std::vector<String> aliases, PhysicalOpPtr child);
 
-    RowCursorPtr open(class ExecContext &ctx) override;
+    RowCursorPtr open(ExecContext &ctx) override;
+    [[nodiscard]] String DebugString() const override;
 
     ~PhysicalDelete() override = default;
   };
