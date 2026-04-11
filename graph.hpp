@@ -1,13 +1,11 @@
 #pragma once
 #include <iostream>
-#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
 #include <memory>
 #include <optional>
 #include <variant>
-#include <map>
 #include <set>
 #include <unordered_map>
 #include <numeric>
@@ -45,11 +43,11 @@ using Bool = bool;
 using Value = std::variant<Int, Double, String, Bool>;
 
 
-struct PlannerError : public std::runtime_error { // todo at the ened
+struct PlannerError : public std::runtime_error { // todo at the end
   explicit PlannerError(const std::string &msg);
 };
 
-struct ExecutionError : public std::runtime_error { // todo at the ened
+struct ExecutionError : public std::runtime_error { // todo at the end
   explicit ExecutionError(const std::string &msg);
 };
 
@@ -99,9 +97,9 @@ namespace graph::planner {
   struct LogicalOp {
     virtual ~LogicalOp() = default;
 
-    virtual String DebugString() const = 0;
+    [[nodiscard]] virtual String DebugString() const = 0;
 
-    virtual String SubtreeDebugString() const = 0;
+    [[nodiscard]] virtual String SubtreeDebugString() const = 0;
   };
 
   struct LogicalOpUnaryChild : LogicalOp {
@@ -109,8 +107,8 @@ namespace graph::planner {
 
     explicit LogicalOpUnaryChild(LogicalOpPtr child);
 
-    String SubtreeDebugString() const override;
-    virtual ~LogicalOpUnaryChild() = default;
+    [[nodiscard]] String SubtreeDebugString() const override;
+    ~LogicalOpUnaryChild() override = default;
   };
 
   struct LogicalOpBinaryChild : LogicalOp {
@@ -119,7 +117,7 @@ namespace graph::planner {
 
     LogicalOpBinaryChild(LogicalOpPtr left, LogicalOpPtr right);
 
-    String SubtreeDebugString() const override;
+    [[nodiscard]] String SubtreeDebugString() const override;
   };
 
   struct AliasedLogicalOp : public LogicalOp {
@@ -144,9 +142,9 @@ namespace graph::planner {
 
     LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<String, Value> > property_filters);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
-    virtual String SubtreeDebugString() const override;
+    [[nodiscard]] String SubtreeDebugString() const override;
 
     ~LogicalScan() override = default;
   };
@@ -170,9 +168,9 @@ namespace graph::planner {
                   std::vector<String> edge_labels, std::vector<String> dst_vertex_labels,
                   frontend::EdgeDirection direction);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
-    virtual String SubtreeDebugString() const override;
+    [[nodiscard]] String SubtreeDebugString() const override;
 
     ~LogicalExpand() override = default;
   };
@@ -185,7 +183,7 @@ namespace graph::planner {
 
     explicit LogicalFilter(LogicalOpPtr child, std::unique_ptr<frontend::Expr> predicate);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
     ~LogicalFilter() override = default;
   };
@@ -198,20 +196,20 @@ namespace graph::planner {
 
     LogicalProject(LogicalOpPtr child, std::vector<frontend::ReturnItem> items);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
     ~LogicalProject() override = default;
   };
 
   struct LogicalLimit : public LogicalOpUnaryChild {
     /// Logical Limit - nothing to comment
-    Int limit_size;
+    size_t limit_size;
 
     LogicalLimit() = delete;
 
     explicit LogicalLimit(LogicalOpPtr child, size_t limit_size);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
     ~LogicalLimit() override = default;
   };
@@ -231,7 +229,7 @@ namespace graph::planner {
 
     explicit LogicalSort(LogicalOpPtr child, std::vector<frontend::OrderItem> keys);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
     ~LogicalSort() override = default;
   };
@@ -247,7 +245,7 @@ namespace graph::planner {
 
     LogicalJoin(LogicalOpPtr left, LogicalOpPtr right, std::unique_ptr<frontend::Expr> predicate);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
     ~LogicalJoin() override = default;
   };
@@ -258,35 +256,38 @@ namespace graph::planner {
 
     LogicalPlan() : root(nullptr) {}
 
-    LogicalPlan(LogicalPlan &&other) : root(std::move(other.root)) {}
+    LogicalPlan(LogicalPlan &&other) noexcept : root(std::move(other.root)) {}
 
     explicit LogicalPlan(LogicalOpPtr r) : root(std::move(r)) {}
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
-    String SubtreeDebugString() const override;
+    [[nodiscard]] String SubtreeDebugString() const override;
 
     ~LogicalPlan() override = default;
   };
 
+  struct Assignment {
+    String alias;
+    String key;
+    Value value;
+
+    Assignment(Assignment&&) = default;
+    Assignment(Assignment&) = default;
+  };
   struct LogicalSet : LogicalOpUnaryChild {
     /// Create LogicalSet; can set only 1 parameter through execution
-    struct Assignment {
-      String alias;
-      String key;
-      Value value;
-    };
     Assignment assignment;
 
-    LogicalSet(const LogicalSet &) = delete;
+    LogicalSet(const LogicalSet&) = delete;
 
-    LogicalSet(LogicalSet &&other) = default;
+    LogicalSet(LogicalSet &&other) noexcept : LogicalOpUnaryChild(std::move(other.child)), assignment(std::move(other.assignment)) {}
 
     LogicalSet(LogicalOpPtr child, String alias, String key, Value value);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
-    ~LogicalSet() = default;
+    ~LogicalSet() override = default;
   };
 
   struct LogicalDelete : LogicalOpUnaryChild {
@@ -295,11 +296,11 @@ namespace graph::planner {
 
     LogicalDelete(const LogicalDelete &) = delete;
 
-    LogicalDelete(LogicalDelete &&other) = default;
+    LogicalDelete(LogicalDelete &&other) noexcept : LogicalOpUnaryChild(std::move(other.child)), target(std::move(other.target)) {}
 
     LogicalDelete(LogicalOpPtr child, std::vector<String> target);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
     ~LogicalDelete() override = default;
   };
@@ -308,7 +309,7 @@ namespace graph::planner {
     std::vector<String> labels;
     std::vector<std::pair<String, Value>> properties;
 
-    String DebugString() const;
+    [[nodiscard]] String DebugString() const;
 
     CreateNodeSpec() = delete;
 
@@ -324,7 +325,7 @@ namespace graph::planner {
     std::vector<std::pair<String, Value>> properties;
     frontend::EdgeDirection direction;
 
-    String DebugString() const;
+    [[nodiscard]] String DebugString() const;
 
     CreateEdgeSpec() = delete;
 
@@ -342,7 +343,7 @@ namespace graph::planner {
 
     LogicalCreate(LogicalOpPtr child, const std::vector<ast::CreateItem> &items);
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
   };
 }
 
@@ -360,7 +361,7 @@ namespace graph::exec {
   using RowCursorPtr = std::unique_ptr<RowCursor>;
 
   struct ExecOptions {
-    /// options of execution; mymory, in future parallelism and spill
+    /// options of execution; memory, in future parallelism and spill
     size_t memory_budget_bytes = 256ULL * 1024 * 1024;
   };
 
@@ -378,6 +379,8 @@ namespace graph::exec {
     /// Context of execution db
     frontend::GraphDB *db;
     ExecOptions options;
+    ExecContext(): db{nullptr} {}
+
   };
 
   struct Row {
@@ -387,8 +390,7 @@ namespace graph::exec {
     SlotMapping slots_mapping;
   };
 
-  class RowCursor {
-  public:
+  struct RowCursor {
     /// iterator by Row
     /// used to obtain next row(at the end need to be closed)
     RowCursor() = default;
@@ -407,24 +409,24 @@ namespace graph::exec {
     /// tx may be required for storage access
     virtual RowCursorPtr open(ExecContext &ctx) = 0;
 
-    virtual String DebugString() const = 0;
-    virtual String DebugSubtreeString() const = 0;
+    [[nodiscard]] virtual String DebugString() const = 0;
+    [[nodiscard]] virtual String DebugSubtreeString() const = 0;
   };
   struct PhysicalOpNoChild : PhysicalOp {
     PhysicalOpNoChild() = default;
 
-    String DebugSubtreeString() const override { return DebugString(); }
+    [[nodiscard]] String DebugSubtreeString() const override { return DebugString(); }
 
-    virtual ~PhysicalOpNoChild() = default;
+    ~PhysicalOpNoChild() override = default;
   };
 
   struct PhysicalOpUnaryChild : PhysicalOp {
     PhysicalOpPtr child;
     PhysicalOpUnaryChild(PhysicalOpPtr child): child(std::move(child)) {}
 
-    String DebugSubtreeString() const override { return DebugString() + "\n" + child->DebugSubtreeString(); }
+    [[nodiscard]] String DebugSubtreeString() const override { return DebugString() + "\n" + child->DebugSubtreeString(); }
 
-    virtual ~PhysicalOpUnaryChild() = default;
+    ~PhysicalOpUnaryChild() override = default;
   };
 
   struct PhysicalOpBinaryChild : PhysicalOp {
@@ -432,9 +434,9 @@ namespace graph::exec {
     PhysicalOpPtr right;
     PhysicalOpBinaryChild(PhysicalOpPtr left, PhysicalOpPtr right): left(std::move(left)), right(std::move(right)) {}
 
-    String DebugSubtreeString() const override { return DebugString() + "\n1)" + left->DebugSubtreeString() + "\n2)" + right->DebugSubtreeString(); }
+    [[nodiscard]] String DebugSubtreeString() const override { return DebugString() + "\n1)" + left->DebugSubtreeString() + "\n2)" + right->DebugSubtreeString(); }
 
-    virtual ~PhysicalOpBinaryChild() = default;
+    ~PhysicalOpBinaryChild() override = default;
   };
 
   struct ScanNodeCursorPhysical : RowCursor {
@@ -464,7 +466,7 @@ namespace graph::exec {
 
     RowCursorPtr open(ExecContext &ctx) override;
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
     ~LabelIndexSeekOp() override = default;
   };
@@ -475,7 +477,7 @@ namespace graph::exec {
 
     RowCursorPtr open(ExecContext &ctx) override;
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
     ~NodeScanOp() override = default;
   };
@@ -517,7 +519,7 @@ namespace graph::exec {
 
     RowCursorPtr open(ExecContext &ctx) override;
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
     ~ExpandOp() override = default;
   };
@@ -552,9 +554,9 @@ namespace graph::exec {
 
     RowCursorPtr open(ExecContext &ctx) override;
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
-    ~FilterOp() = default;
+    ~FilterOp() override = default;
   private:
     String debugString_;
   };
@@ -585,9 +587,9 @@ namespace graph::exec {
 
     RowCursorPtr open(ExecContext &ctx) override;
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
 
-    ~ProjectOp() = default;
+    ~ProjectOp() override = default;
   };
 
   struct LimitCursor : RowCursor {
@@ -609,14 +611,14 @@ namespace graph::exec {
   };
 
   struct LimitOp : public PhysicalOpUnaryChild {
-    /// just physycal limit
+    /// just physical limit
     Int limit_size;
 
     LimitOp(Int limit_size, PhysicalOpPtr child);
 
     RowCursorPtr open(ExecContext &ctx) override;
 
-    String DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
     ~LimitOp() override = default;
   };
 
@@ -626,16 +628,15 @@ namespace graph::exec {
     /// do join for 2 expressions based on predicate
 
     RowCursorPtr left_cursor;
-    RowCursorPtr right_cursor{nullptr};
+    RowCursorPtr right_cursor;
     PhysicalOp* right_operation;
-    ExecContext& ctx;
     const frontend::Expr* predicate;
+    ExecContext& ctx;
 
     Row left_row;
-    // bool has_left{false};
 
     NestedLoopJoinCursor(RowCursorPtr left_cursor, PhysicalOp* right_operation,
-                         frontend::Expr* pred, ExecContext& ctx);
+                         const frontend::Expr* pred, ExecContext& ctx);
 
     bool next(Row &out) override;
 
@@ -654,7 +655,7 @@ namespace graph::exec {
 
     RowCursorPtr open(class ExecContext &ctx) override;
 
-    std::string DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
     ~NestedLoopJoinOp() override = default;
   };
 
@@ -662,7 +663,7 @@ namespace graph::exec {
     size_t operator()(const Value& k) const {
       const auto& visitor = PlannerUtils::overloads { // can make static in struct
         [](Int cur) { return std::hash<Int>()(cur); },
-        [](String cur) { return std::hash<String>()(cur); },
+        [](const String& cur) { return std::hash<String>()(cur); },
         [](double cur) { return std::hash<double>()(cur); },
         [](bool cur) { return std::hash<bool>()(cur); }
       };
@@ -670,8 +671,9 @@ namespace graph::exec {
     }
   };
 
+  Value GetValueFromSlot(const RowSlot& slot, const String& feature_key);
   struct KeyHashJoinCursor : public RowCursor {
-    /// do join for 2 eNestedLoopJoinCursorxpressions based on predicate
+    /// do join for 2 NestedLoopJoin Cursor expressions based on predicate
 
     RowCursorPtr left_cursor;
     RowCursorPtr right_cursor;
@@ -695,9 +697,6 @@ namespace graph::exec {
     void close() override;
 
     ~KeyHashJoinCursor() override = default;
-
-  private:
-    static Value GetValueFromSlot(const RowSlot& slot, const String& feature_key);
   };
   struct KeyHashJoinOp : public PhysicalOpBinaryChild
   {
@@ -713,18 +712,18 @@ namespace graph::exec {
 
     RowCursorPtr open(class ExecContext &ctx) override;
 
-    std::string DebugString() const override;
+    [[nodiscard]] String DebugString() const override;
     ~KeyHashJoinOp() override = default;
   };
 
   struct SetCursor : RowCursor {
     RowCursorPtr child;
-    std::optional<std::vector<String>> aliases;
+    std::vector<String> aliases;
     std::vector<std::optional<std::vector<String> > > labels;
     std::vector<std::optional<std::vector<std::pair<String, Value> > > > properties;
 
     SetCursor(RowCursorPtr child,
-              std::optional<std::vector<String>> aliases,
+              std::vector<String> aliases,
               std::vector<std::optional<std::vector<String> > > labels,
               std::vector<std::optional<std::vector<std::pair<String, Value> > > > properties);
     bool next(Row &out) override;
@@ -733,11 +732,11 @@ namespace graph::exec {
 
   struct PhysicalSetOp : PhysicalOpUnaryChild {
     PhysicalOpPtr child;
-    std::optional<std::vector<String>> aliases;
+    std::vector<String> aliases;
     std::vector<std::optional<std::vector<String> > > labels;
     std::vector<std::optional<std::vector<std::pair<String, Value> > > > properties;
 
-    PhysicalSetOp(std::optional<std::vector<String>> aliases,
+    PhysicalSetOp(std::vector<String> aliases,
                   std::vector<std::optional<std::vector<String> > > labels,
                   std::vector<std::optional<std::vector<std::pair<String, Value> > > > properties,
                   PhysicalOpPtr child);
@@ -747,12 +746,12 @@ namespace graph::exec {
     ~PhysicalSetOp() override = default;
   };
 
-  struct CteateCursor : public RowCursor {
+  struct CreateCursor : public RowCursor {
     RowCursorPtr child;
     std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items;
     storage::GraphDB* db;
 
-    CteateCursor(RowCursorPtr child,
+    CreateCursor(RowCursorPtr child,
                  std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
                  storage::GraphDB* db);
     bool next(Row &out) override;
@@ -786,7 +785,7 @@ namespace graph::exec {
 
     explicit PhysicalPlan(PhysicalOpPtr root);
 
-    std::string DebugString() const;
+    [[nodiscard]] std::string DebugString() const;
   };
 
   using ResultCursor = RowCursor;
@@ -795,7 +794,7 @@ namespace graph::exec {
     std::unique_ptr<ResultCursor> cursor;
   };
 
-// execute physycal plan
+// execute physical plan
   std::unique_ptr<ResultCursor> execute_plan(const exec::PhysicalPlan &plan,
                                              ExecContext &ctx);
 
@@ -806,8 +805,8 @@ namespace graph::exec {
 }
 
 
-namespace graph {
-namespace planner {
+
+namespace graph::planner {
 
 struct PlannerConfig {
   // Planner configuration options
@@ -827,11 +826,11 @@ struct CostEstimate {
 struct CostModel {
   virtual ~CostModel() = default;
   // estimate cost for scanning label with optional property predicate
-  virtual CostEstimate estimate_scan(const storage::GraphDB &cat,
+  [[nodiscard]] virtual CostEstimate estimate_scan(const storage::GraphDB &cat,
                                      const LogicalScan &scan) const = 0;
 
   // estimate for expand
-  virtual CostEstimate estimate_expand(const storage::GraphDB &cat,
+  [[nodiscard]] virtual CostEstimate estimate_expand(const storage::GraphDB &cat,
                                        const LogicalExpand &expand,
                                        const CostEstimate &input) const = 0;
 
@@ -844,9 +843,9 @@ struct CostModel {
 // Default cost model
 struct DefaultCostModel : public CostModel {
   DefaultCostModel();
-  CostEstimate estimate_scan(const storage::GraphDB &cat,
+  [[nodiscard]] CostEstimate estimate_scan(const storage::GraphDB &cat,
                              const LogicalScan &scan) const override;
-  CostEstimate estimate_expand(const storage::GraphDB &cat,
+  [[nodiscard]] CostEstimate estimate_expand(const storage::GraphDB &cat,
                                const LogicalExpand &expand,
                                const CostEstimate &input) const override;
   CostEstimate estimate_join(const CostEstimate &left,
@@ -877,40 +876,40 @@ public:
 
 class Planner {
 public:
-  Planner(const storage::GraphDB &cat,
-          PlannerConfig cfg = PlannerConfig(),
-          std::unique_ptr<CostModel> cost_model = std::make_unique<DefaultCostModel>(),
-          std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<GreedyJoinOrder>());
+  explicit Planner(const storage::GraphDB &cat,
+                   PlannerConfig cfg = PlannerConfig(),
+                   std::unique_ptr<CostModel> cost_model = std::make_unique<DefaultCostModel>(),
+                   std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<GreedyJoinOrder>());
 //              std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<DPJoinOrder>()); /// add later
 
   // End-to-end: AST -> LogicalPlan
-  planner::LogicalPlan build_logical_plan(const frontend::QueryAST &ast) const;
+  [[nodiscard]] LogicalPlan build_logical_plan(const frontend::QueryAST &ast) const;
 
   // Optimizations on logical plan (predicate pushdown, flattening)
-  planner::LogicalPlan optimize_logical_plan(planner::LogicalPlan plan) const;
+  [[nodiscard]] LogicalPlan optimize_logical_plan(planner::LogicalPlan plan) const;
 
   // For each logical scan enumerate alternatives (index vs scan)
   // returns vector of alternative LogicalScan nodes (candidates)
-  std::vector<planner::LogicalScan> enumerate_scan_alternatives(const planner::LogicalScan &scan) const;
+  [[nodiscard]] std::vector<LogicalScan> enumerate_scan_alternatives(const planner::LogicalScan &scan) const;
 
   // chooses join order (returns permutation indices)
-  std::vector<size_t> choose_join_order(const std::vector<planner::LogicalOp*> &joins) const;
+  [[nodiscard]] std::vector<size_t> choose_join_order(const std::vector<planner::LogicalOp*> &joins) const;
 
   // Map logical -> physical (core)
-  exec::PhysicalPlan map_logical_to_physical(const planner::LogicalPlan &lplan,
+  [[nodiscard]] exec::PhysicalPlan map_logical_to_physical(const planner::LogicalPlan &logical_plan,
                                              const exec::ExecOptions &opts) const;
 
   // Final physical optimizations (push limits, top-k)
-  exec::PhysicalPlan finalize_physical_plan(exec::PhysicalPlan pplan,
+  [[nodiscard]] exec::PhysicalPlan finalize_physical_plan(exec::PhysicalPlan plan,
                                             const exec::ExecOptions &opts) const;
 
   // Full pipeline: AST -> PhysicalPlan
-  exec::PhysicalPlan build_execution_plan(const frontend::QueryAST &ast,
+  [[nodiscard]] exec::PhysicalPlan build_execution_plan(const frontend::QueryAST &ast,
                                           const exec::ExecOptions &opts) const;
 
   // Debug / explain helpers
-  std::string explain_logical_plan(const planner::LogicalPlan &plan) const;
-  std::string explain_physical_plan(const exec::PhysicalPlan &plan) const;
+  [[nodiscard]] String explain_logical_plan(const planner::LogicalPlan &plan) const;
+  [[nodiscard]] String explain_physical_plan(const exec::PhysicalPlan &plan) const;
 
 private:
   const storage::GraphDB &cat_;
@@ -921,10 +920,10 @@ private:
   // helper internal functions (signatures)
   void collect_aliases_from_match(const frontend::QueryAST &ast, std::set<std::string> &out) const;
   // converts pattern fragments into LogicalScan/Expand sequence
-  LogicalOpPtr pattern_to_logical_ops(const frontend::MatchClause &match_clause) const;
+  [[nodiscard]] LogicalOpPtr pattern_to_logical_ops(const frontend::MatchClause &match_clause) const;
 };
 }
-}
+
 
 namespace ast {
   struct EvalContext {

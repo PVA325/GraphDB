@@ -56,10 +56,10 @@ namespace graph::exec {
     std::function<bool(Edge *)> label_predicate,
     storage::GraphDB *db):
     child_cursor(std::move(child_cursor)),
+    edge_cursor(nullptr),
+    label_predicate(std::move(label_predicate)),
     src_alias(std::move(src_alias)),
     dst_alias(std::move(dst_alias)),
-    label_predicate(std::move(label_predicate)),
-    edge_cursor(nullptr),
     db(db) {}
 
   template<bool edge_outgoing>
@@ -105,7 +105,7 @@ namespace graph::exec {
   template<bool edge_outgoing>
   RowCursorPtr ExpandOp<edge_outgoing>::open(ExecContext &ctx) {
     auto child_cursor = child->open(ctx);
-    auto label_predicate = [edge_type = edge_type](Edge *e) { // can move edge type?
+    auto label_predicate = [edge_type = edge_type](const Edge *e) { // can move edge type?
       return (edge_type.has_value() ? e->type == edge_type.value() : true);
     };
     return std::make_unique<ExpandNodeCursorPhysical<edge_outgoing>>(
@@ -271,9 +271,10 @@ namespace graph::exec {
   NestedLoopJoinCursor::NestedLoopJoinCursor(
     RowCursorPtr left_cursor,
     PhysicalOp *right_operation,
-    frontend::Expr* pred,
+    const frontend::Expr* pred,
     ExecContext& ctx):
     left_cursor(std::move(left_cursor)),
+    right_cursor(nullptr),
     right_operation(right_operation),
     predicate(pred),
     ctx(ctx)
@@ -347,7 +348,7 @@ namespace graph::exec {
     Row cur;
     while (left_cursor->next(cur)) {
       size_t slot_idx = cur.slots_mapping.map(left_alias);
-      Value val = KeyHashJoinCursor::GetValueFromSlot(cur.slots[slot_idx], left_feature_key);
+      Value val = GetValueFromSlot(cur.slots[slot_idx], left_feature_key);
 
       left_rows[val].emplace_back(cur);
     }
@@ -360,7 +361,7 @@ namespace graph::exec {
         return false;
       }
       size_t slot_idx = last_right_row.slots_mapping.map(right_feature_key);
-      Value right_value = KeyHashJoinCursor::GetValueFromSlot(last_right_row.slots[slot_idx], right_feature_key);
+      Value right_value = GetValueFromSlot(last_right_row.slots[slot_idx], right_feature_key);
 
       auto it = left_rows.find(right_value);
       if (it != left_rows.end() && !it->second.empty()) {
@@ -380,7 +381,7 @@ namespace graph::exec {
     right_cursor->close();
   }
 
-  Value KeyHashJoinCursor::GetValueFromSlot(const RowSlot& slot, const String& feature_key) {
+  Value GetValueFromSlot(const RowSlot& slot, const String& feature_key) {
     if (slot.index() == 2) {
       if (feature_key != "") {
         throw std::runtime_error("Error during KeyHashJoin: invalid alias or property");
@@ -393,7 +394,7 @@ namespace graph::exec {
     return std::get<0>(slot)->properties[feature_key];
   }
 
-  Row exec::MergeRows(graph::exec::Row &first, graph::exec::Row &second) {
+  Row MergeRows(graph::exec::Row &first, graph::exec::Row &second) {
     Row ans;
     ans.slots.insert(ans.slots.end(), first.slots.begin(), first.slots.end());
     ans.slots.insert(ans.slots.end(), second.slots.begin(), second.slots.end());
@@ -418,8 +419,8 @@ namespace graph::exec {
 
   RowCursorPtr KeyHashJoinOp::open(struct ExecContext& ctx) {
     return std::make_unique<KeyHashJoinCursor>(
-      std::move(left->open()),
-      std::move(right->open()),
+      std::move(left->open(ctx)),
+      std::move(right->open(ctx)),
       left_alias,
       right_alias,
       left_feature_key,
@@ -432,7 +433,7 @@ namespace graph::exec {
     return ans;
   }
 
-  SetCursor::SetCursor(RowCursorPtr child, std::optional<std::vector<String>> aliases,
+  SetCursor::SetCursor(RowCursorPtr child, std::vector<String> aliases,
     std::vector<std::optional<std::vector<String>>> labels,
     std::vector<std::optional<std::vector<std::pair<String, Value>>>> properties):
     child(std::move(child)),
@@ -447,23 +448,31 @@ namespace graph::exec {
     for (size_t i = 0; i < aliases.size(); ++i) {
       const String& cur_alias = aliases[i];
       size_t cur_slot_idx = out.slots_mapping.map(cur_alias);
-      RowCursor& cur_val = out.slots[cur_slot_idx];
-      if (cur_val.index() == 2) {
+      RowSlot& row_slot = out.slots[cur_slot_idx];
+      if (row_slot.index() == 2) {
         throw std::runtime_error("Error while setting, invalid type");
       }
-      auto& obj_labels = (cur_val.index() == 0 ? std::get<0>(cur_val)->labels : std::get<1>(cur_val)->labels);
-      auto& obj_properties = (cur_val.index() == 0 ? std::get<0>(cur_val)->properties : std::get<1>(cur_val)->properties);
 
-      if (labels[i].has_value()) {
-        for (const auto& new_label : labels[i].value()) {
-          if (obj_labels.find(new_label) == obj_labels.end()) {
-            obj_labels.emplace_back(new_label);
-          }
-        }
-      }
+      auto& obj_properties = (row_slot.index() == 0 ? std::get<0>(row_slot)->properties : std::get<1>(row_slot)->properties);
+
       if (properties[i].has_value()) {
         for (const auto& [key, val] : properties[i].value()) {
-          obj_labels[key] = val;
+          obj_properties[key] = val;
+        }
+      }
+
+      if (!labels[i].has_value() || labels[i].value().empty()) {
+        continue;
+      }
+      if (row_slot.index() == 1) {
+        auto& edge_label = std::get<1>(row_slot)->type;
+        edge_label = labels[i].value().back();
+        continue;
+      }
+      auto& node_labels = std::get<0>(row_slot)->labels;
+      for (const auto& new_label : labels[i].value()) {
+        if (std::ranges::find(node_labels, new_label) == node_labels.end()) {
+          node_labels.emplace_back(new_label);
         }
       }
     }
@@ -474,7 +483,7 @@ namespace graph::exec {
     child->close();
   }
 
-  PhysicalSetOp::PhysicalSetOp(std::optional<std::vector<String>> aliases,
+  PhysicalSetOp::PhysicalSetOp(std::vector<String> aliases,
     std::vector<std::optional<std::vector<String>>> labels,
     std::vector<std::optional<std::vector<std::pair<String, Value>>>> properties, PhysicalOpPtr child):
     PhysicalOpUnaryChild(std::move(child)),
@@ -491,19 +500,22 @@ namespace graph::exec {
     );
   }
 
-  CteateCursor::CteateCursor(RowCursorPtr child,
+  CreateCursor::CreateCursor(RowCursorPtr child,
     std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items, storage::GraphDB* db):
     child(std::move(child)),
     items(std::move(items)),
     db(db) {}
 
-  bool CteateCursor::next(Row& out) {
+  bool CreateCursor::next(Row& out) {
     if (child == nullptr) {
-      if (create_pattern.index() != 0) {
-       throw std::runtime_error("Error invalid syntax for create");
+      for (const auto& create_pattern : items) {
+        if (create_pattern.index() != 0) {
+          throw std::runtime_error("Error invalid syntax for create edge");
+        }
+        const auto& node_spec = std::get<planner::CreateNodeSpec>(create_pattern);
+        std::unordered_map<String, Value> m(node_spec.properties.begin(), node_spec.properties.end());
+        db->create_node(node_spec.labels, std::move(m));
       }
-      const auto& node_spec = std::get<planner::CreateNodeSpec>(create_pattern);
-      db->create_node(node_spec.labels, std::move(std::unordered_map<String, Value>(node_spec.properties)));
       return false;
     }
     if (!child->next(out)) {
@@ -513,14 +525,15 @@ namespace graph::exec {
     for (const auto& create_pattern : items) {
       if (create_pattern.index() == 0) {
         const auto& node_spec = std::get<planner::CreateNodeSpec>(create_pattern);
-        db->create_node(node_spec.labels,
-          std::move(std::unordered_map<String, Value>(node_spec.properties)));
+        std::unordered_map<String, Value> m(node_spec.properties.begin(), node_spec.properties.end());
+        db->create_node(node_spec.labels, std::move(m));
         continue;
       }
       const auto& edge_spec = std::get<planner::CreateEdgeSpec>(create_pattern);
+      ;
 
-      const auto& src = out.slots[out.slots_mapping(edge_spec.src_alias)];
-      const auto& dst = out.slots[out.slots_mapping(edge_spec.src_alias)];
+      const auto& src = out.slots[out.slots_mapping.map(edge_spec.src_alias)];
+      const auto& dst = out.slots[out.slots_mapping.map(edge_spec.src_alias)];
       if (src.index() != 0 || dst.index() != 0) {
         throw std::runtime_error("Edge must be between vertexes");
       }
@@ -531,7 +544,7 @@ namespace graph::exec {
           std::get<0>(src)->id,
           std::get<0>(dst)->id,
           edge_spec.label,
-          std::move(std::unordered_map<String, Value>(edge_spec.properties))
+          std::move(std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end()))
         );
       }
       if (edge_spec.direction == frontend::EdgeDirection::Left ||
@@ -540,14 +553,14 @@ namespace graph::exec {
           std::get<0>(dst)->id,
           std::get<0>(src)->id,
           edge_spec.label,
-          std::move(std::unordered_map<String, Value>(edge_spec.properties))
+          std::move(std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end()))
         );
       }
     }
     return true;
   }
 
-  void CteateCursor::close() {
+  void CreateCursor::close() {
     child->close();
   }
 
@@ -563,8 +576,8 @@ namespace graph::exec {
   {}
 
   RowCursorPtr PhysicalCreateOp::open(ExecContext& ctx) {
-    return std::make_unique<CteateCursor>(
-      (child == nullptr ? child : child->open(ctx)),
+    return std::make_unique<CreateCursor>(
+      (child == nullptr ? nullptr : child->open(ctx)),
       items,
       ctx.db
     );

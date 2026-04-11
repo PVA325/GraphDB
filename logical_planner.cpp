@@ -49,8 +49,8 @@ namespace graph::planner {
     AliasedLogicalOp(std::move(dst_alias)),
     src_alias(std::move(src_alias)),
     edge_alias(std::move(edge_alias)),
-    child(std::move(child)),
-    direction(direction) {}
+    direction(direction),
+    child(std::move(child)) {}
 
   LogicalExpand::LogicalExpand(
     LogicalOpPtr child, String src_alias, String edge_alias,
@@ -227,7 +227,7 @@ namespace graph::planner {
       if (pattern.index() == 0) {
         ans += std::get<0>(pattern).DebugString();
       } else {
-        ans += std::get<0>(pattern).DebugString();
+        ans += std::get<1>(pattern).DebugString();
       }
     }
     ans += ")";
@@ -259,7 +259,7 @@ namespace graph::planner {
           if (cur_root) {
             throw std::runtime_error("Error in Apply match, invalid syntax");
           }
-          const NodePattern &node_pattern = std::get<NodePattern>(pattern.element);
+          const auto& node_pattern = std::get<NodePattern>(pattern.element);
           std::unique_ptr<LogicalScan> node_scan = std::make_unique<LogicalScan>(
             node_pattern.labels,
             node_pattern.alias
@@ -272,7 +272,7 @@ namespace graph::planner {
             throw std::runtime_error("Invalid syntax in match");
           }
           ++idx;
-          const NodePattern &node_pattern = std::get<NodePattern>(pattern_vec.elements[idx].element);
+          const auto& node_pattern = std::get<NodePattern>(pattern_vec.elements[idx].element);
           cur_root = std::move(std::make_unique<LogicalExpand>(
             std::move(cur_root),
             cur_root->dst_alias,
@@ -364,15 +364,14 @@ namespace graph::planner {
     if (!ast.create) {
       return;
     }
-    const auto &create_item = ast.create->created_items;
     plan.root = std::make_unique<LogicalCreate>(
       std::move(plan.root),
       ast.create->created_items
     );
   }
 
-  planner::LogicalPlan Planner::build_logical_plan(const frontend::QueryAST &ast) const {
-    using QueryAST = frontend::QueryAST;
+  LogicalPlan Planner::build_logical_plan(const frontend::QueryAST &ast) const {
+    using frontend::QueryAST;
     LogicalPlan plan;
 
     ApplyLogicalMatchImpl(plan, ast);
@@ -411,15 +410,15 @@ graph::String graph::PlannerUtils::toString(const graph::Value &val) {
 bool graph::PlannerUtils::ValueToBool(graph::Value val) {
   const auto visitor = overloads {
     [](Int cur) -> bool { return cur; },
-    [](Double cur) -> bool { return cur; },
+    [](Double cur) -> bool { return cur != 0.0; },
     [](Bool cur) -> bool { return cur; },
-    [](String cur) -> bool { return (!cur.empty()); }
+    [](const String& cur) -> bool { return (!cur.empty()); }
   };
   return std::visit(visitor, val);
 }
 
 graph::String graph::PlannerUtils::ConcatProperties(const std::vector<std::pair<String, Value>> &v) {
-  String ans = "";
+  String ans;
   for (const auto& cur : v) {
     if (!ans.empty()) {
       ans += ", ";
@@ -430,7 +429,7 @@ graph::String graph::PlannerUtils::ConcatProperties(const std::vector<std::pair<
 }
 
 graph::String graph::PlannerUtils::ConcatStrVector(const std::vector<String> &v) {
-  String ans = "";
+  String ans;
   for (const auto& cur : v) {
     ans += cur;
   }
