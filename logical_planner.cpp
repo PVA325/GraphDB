@@ -186,7 +186,7 @@ namespace graph::planner {
   CreateEdgeSpec::CreateEdgeSpec(const ast::CreateEdgePattern &pattern) :
     src_alias(pattern.left_node.alias),
     dst_alias(pattern.right_node.alias),
-    labels(pattern.labels),
+    label(pattern.label),
     direction(pattern.direction) {
     PlannerUtils::transferProperties(properties, pattern.properties);
   }
@@ -194,7 +194,7 @@ namespace graph::planner {
   CreateEdgeSpec::CreateEdgeSpec(ast::CreateEdgePattern &&pattern) :
     src_alias(std::move(pattern.left_node.alias)),
     dst_alias(std::move(pattern.right_node.alias)),
-    labels(std::move(pattern.labels)),
+    label(std::move(pattern.label)),
     direction(pattern.direction) {
     PlannerUtils::transferProperties(properties, std::move(pattern.properties));
   }
@@ -202,7 +202,7 @@ namespace graph::planner {
   String CreateEdgeSpec::DebugString() const {
     String ans = "EdgeCreate(";
     ans += src_alias + PlannerUtils::EdgeStrByDirection(direction) + dst_alias + ",";
-    ans += PlannerUtils::ConcatStrVector(labels);
+    ans += label;
     if (!properties.empty()) {
       ans += ", " + PlannerUtils::ConcatProperties(properties);
     }

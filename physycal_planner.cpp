@@ -384,7 +384,7 @@ namespace graph::exec {
 
   void KeyHashJoinCursor::close() {}
 
-  graph::exec::Row graph::exec::MergeRows(graph::exec::Row &first, graph::exec::Row &second) {
+  Row exec::MergeRows(graph::exec::Row &first, graph::exec::Row &second) {
     Row ans;
     ans.slots.insert(ans.slots.end(), first.slots.begin(), first.slots.end());
     ans.slots.insert(ans.slots.end(), second.slots.begin(), second.slots.end());
@@ -421,6 +421,144 @@ namespace graph::exec {
   String KeyHashJoinOp::DebugString() const {
     String ans = "HashJoin(" + left_alias + "." + left_feature_key + "," + right_alias + "." + right_feature_key + ")";
     return ans;
+  }
+
+  SetCursor::SetCursor(RowCursorPtr child, std::optional<std::vector<String>> aliases,
+    std::vector<std::optional<std::vector<String>>> labels,
+    std::vector<std::optional<std::vector<std::pair<String, Value>>>> properties):
+    child(std::move(child)),
+    aliases(std::move(aliases)),
+    labels(std::move(labels)),
+    properties(std::move(properties)) {}
+
+  bool SetCursor::next(Row& out) {
+    if (!child->next(out)) {
+      return false;
+    }
+    for (size_t i = 0; i < aliases.size(); ++i) {
+      const String& cur_alias = aliases[i];
+      size_t cur_slot_idx = out.slots_mapping.map(cur_alias);
+      RowCursor& cur_val = out.slots[cur_slot_idx];
+      if (cur_val.index() == 2) {
+        throw std::runtime_error("Error while setting, invalid type");
+      }
+      auto& obj_labels = (cur_val.index() == 0 ? std::get<0>(cur_val)->labels : std::get<1>(cur_val)->labels);
+      auto& obj_properties = (cur_val.index() == 0 ? std::get<0>(cur_val)->properties : std::get<1>(cur_val)->properties);
+
+      if (labels[i].has_value()) {
+        for (const auto& new_label : labels[i].value()) {
+          if (obj_labels.find(new_label) == obj_labels.end()) {
+            obj_labels.emplace_back(new_label);
+          }
+        }
+      }
+      if (properties[i].has_value()) {
+        for (const auto& [key, val] : properties[i].value()) {
+          obj_labels[key] = val;
+        }
+      }
+    }
+    return true;
+  }
+
+  void SetCursor::close() {
+    child->close();
+  }
+
+  PhysicalSetOp::PhysicalSetOp(std::optional<std::vector<String>> aliases,
+    std::vector<std::optional<std::vector<String>>> labels,
+    std::vector<std::optional<std::vector<std::pair<String, Value>>>> properties, PhysicalOpPtr child):
+    PhysicalOpUnaryChild(std::move(child)),
+    aliases(std::move(aliases)),
+    labels(std::move(labels)),
+    properties(std::move(properties)) {}
+
+  RowCursorPtr PhysicalSetOp::open(struct ExecContext& ctx) {
+    return std::make_unique<SetCursor>(
+      std::move(child->open(ctx)),
+      aliases,
+      labels,
+      properties
+    );
+  }
+
+  CteateCursor::CteateCursor(RowCursorPtr child,
+    std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items, storage::GraphDB* db):
+    child(std::move(child)),
+    items(std::move(items)),
+    db(db) {}
+
+  bool CteateCursor::next(Row& out) {
+    if (child == nullptr) {
+      if (create_pattern.index() != 0) {
+       throw std::runtime_error("Error invalid syntax for create");
+      }
+      const auto& node_spec = std::get<planner::CreateNodeSpec>(create_pattern);
+      db->create_node(node_spec.labels, std::move(std::unordered_map<String, Value>(node_spec.properties)));
+      return false;
+    }
+    if (!child->next(out)) {
+      return false;
+    }
+
+    for (const auto& create_pattern : items) {
+      if (create_pattern.index() == 0) {
+        const auto& node_spec = std::get<planner::CreateNodeSpec>(create_pattern);
+        db->create_node(node_spec.labels,
+          std::move(std::unordered_map<String, Value>(node_spec.properties)));
+        continue;
+      }
+      const auto& edge_spec = std::get<planner::CreateEdgeSpec>(create_pattern);
+
+      const auto& src = out.slots[out.slots_mapping(edge_spec.src_alias)];
+      const auto& dst = out.slots[out.slots_mapping(edge_spec.src_alias)];
+      if (src.index() != 0 || dst.index() != 0) {
+        throw std::runtime_error("Edge must be between vertexes");
+      }
+
+      if (edge_spec.direction == frontend::EdgeDirection::Right ||
+        edge_spec.direction == frontend::EdgeDirection::Undirected) {
+        db->create_edge(
+          std::get<0>(src)->id,
+          std::get<0>(dst)->id,
+          edge_spec.label,
+          std::move(std::unordered_map<String, Value>(edge_spec.properties))
+        );
+      }
+      if (edge_spec.direction == frontend::EdgeDirection::Left ||
+        edge_spec.direction == frontend::EdgeDirection::Undirected) {
+        db->create_edge(
+          std::get<0>(dst)->id,
+          std::get<0>(src)->id,
+          edge_spec.label,
+          std::move(std::unordered_map<String, Value>(edge_spec.properties))
+        );
+      }
+    }
+    return true;
+  }
+
+  void CteateCursor::close() {
+    child->close();
+  }
+
+  PhysicalCreateOp::PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items):
+    PhysicalOpUnaryChild(nullptr),
+    items(std::move(items))
+  {}
+
+  PhysicalCreateOp::PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
+    PhysicalOpPtr child):
+    PhysicalOpUnaryChild(std::move(child)),
+    items(std::move(items))
+  {}
+
+  RowCursorPtr PhysicalCreateOp::open(ExecContext& ctx) {
+    return std::make_unique<CteateCursor>(
+      (child == nullptr ? child : child->open(ctx)),
+      items,
+      ctx.db
+    );
   }
 
   PhysicalPlan::PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}

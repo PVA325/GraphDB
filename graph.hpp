@@ -320,7 +320,7 @@ namespace graph::planner {
   struct CreateEdgeSpec {
     String src_alias;
     String dst_alias;
-    std::vector<String> labels;
+    String label;
     std::vector<std::pair<String, Value>> properties;
     frontend::EdgeDirection direction;
 
@@ -696,7 +696,8 @@ namespace graph::exec {
 
     ~KeyHashJoinCursor() override = default;
   };
-  struct KeyHashJoinOp : public PhysicalOpBinaryChild {
+  struct KeyHashJoinOp : public PhysicalOpBinaryChild
+  {
     /// do hashJoin
     String left_alias;
     String right_alias;
@@ -711,42 +712,68 @@ namespace graph::exec {
 
     std::string DebugString() const override;
     ~KeyHashJoinOp() override = default;
-
-
-    struct PhysicalSetOp : PhysicalOpUnaryChild {
-      std::optional<std::vector<String>> aliases;
-      std::optional<std::vector<String>> labels;
-      std::optional<std::vector<std::pair<String, Value>>> properties;
-
-      PhysicalSetOp(std::vector<String> aliases,
-                    std::vector<String> labels,
-                    std::vector<std::pair<String, Value>> properties,
-                    PhysicalOpPtr child);
-
-      RowCursorPtr open(class ExecContext &ctx) override;
-
-      ~PhysicalSetOp() override = default;
-    };
-
-    struct PhysicalCreateOp : PhysicalOpUnaryChild {
-      std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items;
-      PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
-                       PhysicalOpPtr child);
-      RowCursorPtr open(ExecContext& ctx) override;
-    };
-
-    struct PhysicalDelete : PhysicalOpUnaryChild {
-      std::vector<String> aliases;
-
-      PhysicalDelete(std::vector<String> aliases, PhysicalOpPtr child);
-
-      RowCursorPtr open(class ExecContext &ctx) override;
-
-      ~PhysicalDelete() override = default;
-    };
-
-    struct PhysicalSort {}; /// todo
   };
+
+  struct SetCursor : RowCursor {
+    RowCursorPtr child;
+    std::optional<std::vector<String>> aliases;
+    std::vector<std::optional<std::vector<String> > > labels;
+    std::vector<std::optional<std::vector<std::pair<String, Value> > > > properties;
+
+    SetCursor(RowCursorPtr child,
+              std::optional<std::vector<String>> aliases,
+              std::vector<std::optional<std::vector<String> > > labels,
+              std::vector<std::optional<std::vector<std::pair<String, Value> > > > properties);
+    bool next(Row &out) override;
+    void close() override;
+  };
+
+  struct PhysicalSetOp : PhysicalOpUnaryChild {
+    PhysicalOpPtr child;
+    std::optional<std::vector<String>> aliases;
+    std::vector<std::optional<std::vector<String> > > labels;
+    std::vector<std::optional<std::vector<std::pair<String, Value> > > > properties;
+
+    PhysicalSetOp(std::optional<std::vector<String>> aliases,
+                  std::vector<std::optional<std::vector<String> > > labels,
+                  std::vector<std::optional<std::vector<std::pair<String, Value> > > > properties,
+                  PhysicalOpPtr child);
+
+    RowCursorPtr open(class ExecContext &ctx) override;
+
+    ~PhysicalSetOp() override = default;
+  };
+
+  struct CteateCursor : public RowCursor {
+    RowCursorPtr child;
+    std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items;
+    storage::GraphDB* db;
+
+    CteateCursor(RowCursorPtr child,
+                 std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
+                 storage::GraphDB* db);
+    bool next(Row &out) override;
+    void close() override;
+  };
+  struct PhysicalCreateOp : PhysicalOpUnaryChild {
+    std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items;
+    PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items);
+    PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
+                     PhysicalOpPtr child);
+    RowCursorPtr open(ExecContext& ctx) override;
+  };
+
+  struct PhysicalDelete : PhysicalOpUnaryChild {
+    std::vector<String> aliases;
+
+    PhysicalDelete(std::vector<String> aliases, PhysicalOpPtr child);
+
+    RowCursorPtr open(class ExecContext &ctx) override;
+
+    ~PhysicalDelete() override = default;
+  };
+
+  struct PhysicalSort {}; /// todo
 
   struct PhysicalPlan {
     /// creates physical plan
