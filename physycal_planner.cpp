@@ -346,18 +346,9 @@ namespace graph::exec {
   right_feature_key(std::move(right_feature_key)){
     Row cur;
     while (left_cursor->next(cur)) {
-      auto cur_slot_val = cur.slots[cur.slots_mapping.map(left_alias)];
-      if (cur_slot_val.index() == 2) {
-        throw std::runtime_error("Error during KeyHashJoin: invalid alias type");
-      }
-      Value val;
-      if (cur_slot_val.index() == 0) {
-        Node* node = std::get<0>(cur_slot_val);
-        val = node->properties[left_feature_key];
-      } else {
-        Edge* edge = std::get<1>(cur_slot_val);
-        val = edge->properties[left_feature_key];
-      }
+      size_t slot_idx = cur.slots_mapping.map(left_alias);
+      Value val = KeyHashJoinCursor::GetValueFromSlot(cur.slots[slot_idx], left_feature_key);
+
       left_rows[val].emplace_back(cur);
     }
     it_left = left_rows.end();
@@ -368,7 +359,9 @@ namespace graph::exec {
       if (!right_cursor->next(last_right_row)) {
         return false;
       }
-      Value right_value = last_right_row.slots[last_right_row.slots_mapping.map(right_feature_key)];
+      size_t slot_idx = last_right_row.slots_mapping.map(right_feature_key);
+      Value right_value = KeyHashJoinCursor::GetValueFromSlot(last_right_row.slots[slot_idx], right_feature_key);
+
       auto it = left_rows.find(right_value);
       if (it != left_rows.end() && !it->second.empty()) {
         it_left = it;
@@ -382,7 +375,23 @@ namespace graph::exec {
     return true;
   }
 
-  void KeyHashJoinCursor::close() {}
+  void KeyHashJoinCursor::close() {
+    left_cursor->close();
+    right_cursor->close();
+  }
+
+  Value KeyHashJoinCursor::GetValueFromSlot(const RowSlot& slot, const String& feature_key) {
+    if (slot.index() == 2) {
+      if (feature_key != "") {
+        throw std::runtime_error("Error during KeyHashJoin: invalid alias or property");
+      }
+      return std::get<2>(slot);
+    }
+    if (slot.index() == 1) {
+      return std::get<1>(slot)->properties[feature_key];
+    }
+    return std::get<0>(slot)->properties[feature_key];
+  }
 
   Row exec::MergeRows(graph::exec::Row &first, graph::exec::Row &second) {
     Row ans;

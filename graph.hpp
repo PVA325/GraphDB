@@ -695,6 +695,9 @@ namespace graph::exec {
     void close() override;
 
     ~KeyHashJoinCursor() override = default;
+
+  private:
+    static Value GetValueFromSlot(const RowSlot& slot, const String& feature_key);
   };
   struct KeyHashJoinOp : public PhysicalOpBinaryChild
   {
