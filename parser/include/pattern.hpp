@@ -32,7 +32,7 @@ enum class EdgeDirection {
 // Edge pattern between nodes
 struct MatchEdgePattern {
   std::string alias;
-  std::vector<std::string> labels;
+  std::string labels;
   PropertyMap properties;
   EdgeDirection direction;
 
@@ -62,5 +62,32 @@ struct Pattern {
 
   std::string DebugString() const;
 };
+
+// Node reference in CREATE clause
+struct CreateNodeRef {
+  std::string alias;
+
+  size_t line = 0;
+  size_t col = 0;
+
+  std::string DebugString() const;
+};
+
+// CREATE edge pattern
+struct CreateEdgePattern {
+  CreateNodeRef left_node;
+  std::string alias;
+  std::string labels;
+  PropertyMap properties;
+  EdgeDirection direction;
+  CreateNodeRef right_node;
+
+  size_t line = 0;
+  size_t col = 0;
+
+  std::string DebugString() const;
+};
+
+using CreateItem = std::variant<NodePattern, CreateEdgePattern>;
 
 } // namespace ast

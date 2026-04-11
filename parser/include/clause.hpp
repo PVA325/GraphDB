@@ -82,33 +82,6 @@ struct LimitClause {
   std::string DebugString() const;
 };
 
-// Node reference in CREATE clause
-struct CreateNodeRef {
-  std::string alias;
-
-  size_t line = 0;
-  size_t col = 0;
-
-  std::string DebugString() const;
-};
-
-// CREATE edge pattern
-struct CreateEdgePattern {
-  CreateNodeRef left_node;
-  std::string alias;
-  std::vector<std::string> labels;
-  PropertyMap properties;
-  EdgeDirection direction;
-  CreateNodeRef right_node;
-
-  size_t line = 0;
-  size_t col = 0;
-
-  std::string DebugString() const;
-};
-
-using CreateItem = std::variant<NodePattern, CreateEdgePattern>;
-
 // CREATE clause
 struct CreateClause {
   std::vector<CreateItem> created_items;
