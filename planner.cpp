@@ -44,6 +44,9 @@ namespace {
         }
         ++idx;
         const auto& node_pattern = std::get<NodePattern>(pattern_vec.elements[idx].element);
+
+        std::vector<std::pair<std::string, graph::Value>> prop;
+        graph::PlannerUtils::transferProperties(prop, node_pattern.properties);
         cur_root = std::move(std::make_unique<LogicalExpand>(
           std::move(cur_root),
           cur_root->dst_alias,
@@ -51,6 +54,7 @@ namespace {
           node_pattern.alias,
           edge_pattern.label,
           node_pattern.labels,
+          prop,
           edge_pattern.direction
         ));
       }
@@ -143,9 +147,9 @@ namespace {
   using graph::logical::LogicalOpPtr;
   using graph::exec::PhysicalOp;
   using graph::exec::PhysicalOpPtr;
-  PhysicalOpPtr build_physical_impl(LogicalOpPtr op) {
-
-  }
+  // PhysicalOpPtr build_physical_impl(LogicalOpPtr op) {
+  //
+  // }
 }
 
 namespace graph::planner {

@@ -22,13 +22,13 @@ namespace graph::exec {
     alias_to_slot.emplace(key, idx);
   }
 
-  ScanNodeCursorPhysical::ScanNodeCursorPhysical(
+  NodeScanCursor::NodeScanCursor(
     std::unique_ptr<storage::NodeCursor> nodes_cursor,
     String out_alias) :
     nodes_cursor(std::move(nodes_cursor)),
     out_alias(std::move(out_alias)) {}
 
-  bool ScanNodeCursorPhysical::next(Row &out) {
+  bool NodeScanCursor::next(Row &out) {
     Node *node_ptr;
     nodes_cursor->next(node_ptr);
     if (!node_ptr) {
@@ -43,7 +43,7 @@ namespace graph::exec {
     return true;
   }
 
-  void ScanNodeCursorPhysical::close() {}
+  void NodeScanCursor::close() {}
 
   LabelIndexSeekOp::LabelIndexSeekOp(
     String label,
@@ -52,14 +52,69 @@ namespace graph::exec {
     out_alias(std::move(alias)) {}
 
   RowCursorPtr LabelIndexSeekOp::open(ExecContext &ctx) {
-    return std::make_unique<ScanNodeCursorPhysical>(
+    return std::make_unique<NodeScanCursor>(
       std::move(ctx.db->nodes_with_label(label)),
       out_alias
     );
   }
 
+  template<typename T>
+  bool isSubset(const std::vector<T>& larger, const std::vector<T>& smaller) {
+    return std::all_of(smaller.begin(), smaller.end(), [&](T x) {
+        return std::find(larger.begin(), larger.end(), x) != larger.end();
+    });
+  }
+
+  NodePropertyFilterCursor::NodePropertyFilterCursor(RowCursorPtr child_cursor, String alias,
+    std::vector<String> labels, std::vector<std::pair<String, Value>> properties):
+    child_cursor(std::move(child_cursor)),
+    alias(std::move(alias)),
+    labels(std::move(labels)),
+    properties(std::move(properties)) {}
+
+  bool NodePropertyFilterCursor::next(Row& out) {
+    bool is_ok = false;
+    while (!is_ok && child_cursor->next(out)) {
+      size_t slot_idx = out.slots_mapping.map_and_check(
+        alias,
+        std::move(std::format("NodePropertyFilterCursor: Error, no src alias", alias))
+      );
+      const auto& row_slot = out.slots[slot_idx];
+      if (row_slot.index() != 0) {
+        throw std::runtime_error("NodePropertyFilterCursor: Error not a node");
+      }
+      auto* node =std::get<Node*>(row_slot);
+      std::vector<std::pair<String, Value> > p(node->properties.begin(), node->properties.end());
+      if (isSubset(node->labels, labels)
+        && isSubset(p, properties)) {
+
+      }
+    }
+  }
+
+  void NodePropertyFilterCursor::close() {
+    child_cursor->close();
+  }
+
+  NodePropertyFilterOp::NodePropertyFilterOp(PhysicalOpPtr child, String alias, std::vector<String> labels,
+    std::vector<std::pair<String, Value>> properties):
+    PhysicalOpUnaryChild(std::move(child)),
+    alias(std::move(alias)),
+    labels(std::move(labels)),
+    properties(std::move(properties))
+  {}
+
+  RowCursorPtr NodePropertyFilterOp::open(ExecContext& ctx) {
+    return std::make_unique<NodePropertyFilterCursor>(
+      std::move(child->open(ctx)),
+      alias,
+      labels,
+      properties
+    );
+  }
+
   RowCursorPtr NodeScanOp::open(ExecContext &ctx) {
-    return std::make_unique<ScanNodeCursorPhysical>(
+    return std::make_unique<NodeScanCursor>(
       std::move(ctx.db->all_nodes()),
       out_alias
     );
@@ -115,24 +170,13 @@ namespace graph::exec {
     String src_alias,
     String dst_edge_alias,
     String dst_node_alias,
-    String edge_type,
+    std::optional<String> edge_type,
     PhysicalOpPtr child):
     PhysicalOpUnaryChild(std::move(child)),
     src_alias(std::move(src_alias)),
     dst_edge_alias(std::move(dst_edge_alias)),
     dst_node_alias(std::move(dst_node_alias)),
     edge_type(std::move(edge_type)) {}
-  
-  template<bool edge_outgoing>
-  ExpandOp<edge_outgoing>::ExpandOp(
-    String src_alias,
-    String dst_edge_alias,
-    String dst_node_alias,
-    PhysicalOpPtr child):
-    PhysicalOpUnaryChild(std::move(child)),
-    src_alias(std::move(src_alias)),
-    dst_edge_alias(std::move(dst_edge_alias)),
-    dst_node_alias(std::move(dst_node_alias)) {}
 
   template<bool edge_outgoing>
   RowCursorPtr ExpandOp<edge_outgoing>::open(ExecContext &ctx) {

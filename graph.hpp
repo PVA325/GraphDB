@@ -80,6 +80,13 @@ namespace graph::exec {
   using RowSlot = std::variant<Node *, Edge *, Value>;
   using PhysicalOpPtr = std::unique_ptr<PhysicalOp>;
   using RowCursorPtr = std::unique_ptr<RowCursor>;
+
+  struct LabelIndexSeekOp;
+  struct NodeScanOp;
+  template<bool edge_outgoing>
+  struct ExpandOp;
+  using ExpandOutgoingOp = ExpandOp<true>;
+  using ExpandIngoingOp = ExpandOp<false>;
 }
 
 namespace graph::logical {
@@ -88,7 +95,7 @@ namespace graph::logical {
 
   struct LogicalOp {
     [[nodiscard]] virtual String DebugString() const = 0;
-    // virtual exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const = 0;
+    virtual exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const = 0;
 
     [[nodiscard]] virtual String SubtreeDebugString() const = 0;
     virtual ~LogicalOp() = default;
@@ -137,6 +144,7 @@ namespace graph::logical {
 
     LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<String, Value> > property_filters);
 
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
     [[nodiscard]] String DebugString() const override;
 
     ~LogicalScan() override = default;
@@ -151,17 +159,20 @@ namespace graph::logical {
 
     std::optional<String> edge_type;
     std::vector<String> dst_vertex_labels;
+    std::vector<std::pair<String, Value>> dst_vertex_properties;
     ast::EdgeDirection direction;
 
     LogicalExpand() = delete;
 
-    LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
-                  ast::EdgeDirection direction);
+    // LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
+    //               ast::EdgeDirection direction);
 
     LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
-                  String edge_type, std::vector<String> dst_vertex_labels,
+                  std::optional<String> edge_type, std::vector<String> dst_vertex_labels,
+                  std::vector<std::pair<String, Value>> dst_vertex_properties,
                   ast::EdgeDirection direction);
 
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
     [[nodiscard]] String DebugString() const override;
 
     ~LogicalExpand() override = default;
@@ -426,19 +437,19 @@ namespace graph::exec {
     ~PhysicalOpBinaryChild() override = default;
   };
 
-  struct ScanNodeCursorPhysical : RowCursor {
+  struct NodeScanCursor : RowCursor {
     std::unique_ptr<storage::NodeCursor> nodes_cursor;
     String out_alias;
 
-    ScanNodeCursorPhysical(ScanNodeCursorPhysical &&) = default;
+    NodeScanCursor(NodeScanCursor &&) = default;
 
-    ScanNodeCursorPhysical(std::unique_ptr<storage::NodeCursor> nodes_cursor, String out_alias);
+    NodeScanCursor(std::unique_ptr<storage::NodeCursor> nodes_cursor, String out_alias);
 
     bool next(Row &out) override;
 
     void close() override;
 
-    ~ScanNodeCursorPhysical() override = default;
+    ~NodeScanCursor() override = default;
   };
 
   struct LabelIndexSeekOp : public PhysicalOpNoChild {
@@ -460,11 +471,39 @@ namespace graph::exec {
     /// co complete Node scan and return Row to every Node
     String out_alias;
 
+    NodeScanOp(String out_alias): out_alias(std::move(out_alias)) {}
     RowCursorPtr open(ExecContext &ctx) override;
 
     [[nodiscard]] String DebugString() const override;
 
     ~NodeScanOp() override = default;
+  };
+
+  struct NodePropertyFilterCursor : RowCursor {
+    RowCursorPtr child_cursor;
+    String alias;
+    std::vector<String> labels;
+    std::vector<std::pair<String, Value>> properties;
+
+    NodePropertyFilterCursor(RowCursorPtr child_cursor, String alias, std::vector<String> labels, std::vector<std::pair<String, Value>> properties);
+    bool next(Row &out) override;
+
+    void close() override;
+
+    ~NodePropertyFilterCursor() override = default;
+  };
+
+  struct NodePropertyFilterOp : PhysicalOpUnaryChild {
+    String alias;
+    std::vector<String> labels;
+    std::vector<std::pair<String, Value>> properties;
+
+    NodePropertyFilterOp(PhysicalOpPtr child, String alias, std::vector<String> labels, std::vector<std::pair<String, Value>> properties);
+    RowCursorPtr open(ExecContext &ctx) override;
+
+    [[nodiscard]] String DebugString() const override;
+
+    ~NodePropertyFilterOp() override = default;
   };
 
   template<bool edge_outgoing>
@@ -495,6 +534,7 @@ namespace graph::exec {
     ~ExpandNodeCursorPhysical() override = default;
   };
 
+
   template<bool edge_outgoing>
   struct ExpandOp : public PhysicalOpUnaryChild {
     /// write do dst_alias outgoing edge of edge_type
@@ -503,8 +543,7 @@ namespace graph::exec {
     String dst_node_alias;
     std::optional<String> edge_type;
 
-    ExpandOp(String src_alias, String dst_edge_alias, String dst_node_alias, String edge_type, PhysicalOpPtr child);
-    ExpandOp(String src_alias, String dst_edge_alias, String dst_node_alias, PhysicalOpPtr child);
+    ExpandOp(String src_alias, String dst_edge_alias, String dst_node_alias, std::optional<String> edge_type, PhysicalOpPtr child);
 
     RowCursorPtr open(ExecContext &ctx) override;
 
@@ -513,8 +552,8 @@ namespace graph::exec {
     ~ExpandOp() override = default;
   };
 
-  using ExpandOutgoingOp = ExpandOp<true>;
-  using ExpandIngoingOp = ExpandOp<false>;
+  // using ExpandOutgoingOp = ExpandOp<true>;
+  // using ExpandIngoingOp = ExpandOp<false>;
 
   struct FilterCursor : RowCursor {
     RowCursorPtr child_cursor;

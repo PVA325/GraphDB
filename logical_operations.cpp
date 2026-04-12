@@ -14,30 +14,78 @@ namespace graph::logical {
     labels(std::move(labels)),
     property_filters(std::move(property_filters)) {}
 
+  exec::PhysicalOpPtr LogicalScan::BuildPhysical(exec::ExecContext& ctx) const {
+    exec::PhysicalOpPtr physical_root;
+    if (labels.size() == 1) {
+      physical_root = std::make_unique<exec::LabelIndexSeekOp>(
+        dst_alias,
+        labels[0]
+      );
+    } else {
+      physical_root = std::make_unique<exec::NodeScanOp>(
+        dst_alias
+      );
+    }
+
+    physical_root = std::move(
+      std::make_unique<exec::NodePropertyFilterOp>(
+        std::move(physical_root),
+        dst_alias,
+        labels,
+        property_filters
+      )
+    );
+
+    return std::move(physical_root);
+  }
+
   LogicalScan::LogicalScan(std::vector<String> labels, String dst_alias) :
     AliasedLogicalOp(std::move(dst_alias)),
     labels(std::move(labels)) {}
 
-  LogicalExpand::LogicalExpand(
-    LogicalOpPtr child, String src_alias, String edge_alias,
-    String dst_alias, ast::EdgeDirection direction
-  ) :
-    AliasedLogicalOp(std::move(dst_alias)),
-    child(std::move(child)),
-    src_alias(std::move(src_alias)),
-    edge_alias(std::move(edge_alias)),
-    direction(direction) {}
-
   LogicalExpand::LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
-                  String edge_type, std::vector<String> dst_vertex_labels,
-                  ast::EdgeDirection direction):
+          std::optional<String> edge_type, std::vector<String> dst_vertex_labels,
+          std::vector<std::pair<String, Value>> dst_vertex_properties,
+          ast::EdgeDirection direction) :
     AliasedLogicalOp(std::move(dst_alias)),
     child(std::move(child)),
     src_alias(std::move(src_alias)),
     edge_alias(std::move(edge_alias)),
     edge_type(std::move(edge_type)),
     dst_vertex_labels(std::move(dst_vertex_labels)),
+    dst_vertex_properties(std::move(dst_vertex_properties)),
     direction(direction) {}
+
+
+  exec::PhysicalOpPtr LogicalExpand::BuildPhysical(exec::ExecContext& ctx) const {
+    exec::PhysicalOpPtr physical_root;
+    if (direction == ast::EdgeDirection::Right) {
+      physical_root = std::make_unique<exec::ExpandOutgoingOp>(
+        src_alias,
+        edge_alias,
+        dst_alias,
+        edge_type,
+        std::move(child->BuildPhysical(ctx))
+      );
+    } else {
+      physical_root = std::make_unique<exec::ExpandIngoingOp>(
+        src_alias,
+        edge_alias,
+        dst_alias,
+        edge_type,
+        std::move(child->BuildPhysical(ctx))
+      );
+    }
+    if (!dst_vertex_labels.empty() || !dst_vertex_properties.empty()) {
+      physical_root = std::make_unique<exec::NodePropertyFilterOp>(
+        std::move(physical_root),
+        dst_alias,
+        dst_vertex_labels,
+        dst_vertex_properties
+      );
+    }
+    return std::move(physical_root);
+  }
 
   LogicalFilter::LogicalFilter(LogicalOpPtr child, std::unique_ptr<ast::Expr> predicate) :
     LogicalOpUnaryChild(std::move(child)),
