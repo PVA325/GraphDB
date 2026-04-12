@@ -1,8 +1,27 @@
-#include <chrono>
+#include <format>
 
 #include "graph.hpp"
 
 namespace graph::exec {
+  bool SlotMapping::key_exists(const String& key) const {
+    return alias_to_slot.find(key) != alias_to_slot.end();
+  }
+
+  size_t SlotMapping::map(const String& key) const {
+    return alias_to_slot.at(key);
+  }
+  size_t SlotMapping::map_and_check(const String& key, const String& err_msg) const {
+    auto it = alias_to_slot.find(key);
+    if (it == alias_to_slot.end()) {
+      throw std::runtime_error(err_msg);
+    }
+    return it->second;
+  }
+
+  void SlotMapping::add_map(const String& key, size_t idx) {
+    alias_to_slot.emplace(key, idx);
+  }
+
   ScanNodeCursorPhysical::ScanNodeCursorPhysical(
     std::unique_ptr<storage::NodeCursor> nodes_cursor,
     String out_alias) :
@@ -10,7 +29,7 @@ namespace graph::exec {
     out_alias(std::move(out_alias)) {}
 
   bool ScanNodeCursorPhysical::next(Row &out) {
-    storage::Node *node_ptr;
+    Node *node_ptr;
     nodes_cursor->next(node_ptr);
     if (!node_ptr) {
       return false;
@@ -25,7 +44,6 @@ namespace graph::exec {
   }
 
   void ScanNodeCursorPhysical::close() {}
-
 
   LabelIndexSeekOp::LabelIndexSeekOp(
     String label,
@@ -51,23 +69,22 @@ namespace graph::exec {
   ExpandNodeCursorPhysical<edge_outgoing>::ExpandNodeCursorPhysical(
     RowCursorPtr child_cursor,
     String src_alias,
-    String dst_alias,
+    String dst_edge_alias,
+    String dst_node_alias,
     std::function<bool(Edge *)> label_predicate,
     storage::GraphDB *db):
     child_cursor(std::move(child_cursor)),
     edge_cursor(nullptr),
     label_predicate(std::move(label_predicate)),
     src_alias(std::move(src_alias)),
-    dst_alias(std::move(dst_alias)),
+    dst_edge_alias(std::move(dst_node_alias)),
+    dst_node_alias(std::move(dst_node_alias)),
     db(db) {}
 
   template<bool edge_outgoing>
   bool ExpandNodeCursorPhysical<edge_outgoing>::next(Row &out) {
     Edge *edge;
-    size_t src_idx = out.slots_mapping.map(src_alias);
-    if (out.slots_mapping.key_exists(dst_alias)) {
-      throw std::runtime_error("Invalid alias for PhysicalExpand, alias already exists");
-    }
+    size_t src_idx = out.slots_mapping.map_and_check(src_alias, "Invalid alias for PhysicalExpand, src_alias do not exists");
 
     while (edge_cursor == nullptr || !edge_cursor->next(edge)) {
       if (!child_cursor->next(out)) {
@@ -80,9 +97,10 @@ namespace graph::exec {
         edge_cursor = db->incoming_edges(node->id);
       }
     }
-    out.slots.emplace_back(edge);
-    out.slots_names.emplace_back(dst_alias);
-    out.slots_mapping.add_map(dst_alias, out.slots.size() - 1);
+
+    String error_message = "Invalid alias for PhysicalExpand, dst_alias already exists";
+    out.AddValue(edge, dst_edge_alias, error_message);
+    out.AddValue(db->get_node(edge->dst), dst_node_alias, error_message);
     return true;
   }
 
@@ -94,23 +112,35 @@ namespace graph::exec {
 
   template<bool edge_outgoing>
   ExpandOp<edge_outgoing>::ExpandOp(
-    graph::String src_alias,
-    graph::String dst_alias,
-    graph::String edge_type,
+    String src_alias,
+    String dst_edge_alias,
+    String dst_node_alias,
+    String edge_type,
     PhysicalOpPtr child):
     PhysicalOpUnaryChild(std::move(child)),
     src_alias(std::move(src_alias)),
-    dst_alias(std::move(dst_alias)),
+    dst_edge_alias(std::move(dst_edge_alias)),
+    dst_node_alias(std::move(dst_node_alias)),
     edge_type(std::move(edge_type)) {}
+  
+  template<bool edge_outgoing>
+  ExpandOp<edge_outgoing>::ExpandOp(
+    String src_alias,
+    String dst_edge_alias,
+    String dst_node_alias,
+    PhysicalOpPtr child):
+    PhysicalOpUnaryChild(std::move(child)),
+    src_alias(std::move(src_alias)),
+    dst_edge_alias(std::move(dst_edge_alias)),
+    dst_node_alias(std::move(dst_node_alias)) {}
 
   template<bool edge_outgoing>
   RowCursorPtr ExpandOp<edge_outgoing>::open(ExecContext &ctx) {
-    auto child_cursor = child->open(ctx);
-    auto label_predicate = [edge_type = edge_type](const Edge *e) { // can move edge type?
+    auto label_predicate = [edge_type = this->edge_type](const Edge *e) {
       return (edge_type.has_value() ? e->type == edge_type.value() : true);
     };
     return std::make_unique<ExpandNodeCursorPhysical<edge_outgoing>>(
-      std::move(child_cursor),
+      std::move(child->open(ctx)),
       std::move(label_predicate),
       ctx
     );
@@ -119,10 +149,10 @@ namespace graph::exec {
   FilterCursor::FilterCursor(
     RowCursorPtr child_cursor,
     String out_alias,
-    std::unique_ptr<frontend::Expr> predicate) :
+    ast::Expr *predicate) :
     child_cursor(std::move(child_cursor)),
     out_alias(std::move(out_alias)),
-    predicate(std::move(predicate)) {}
+    predicate(predicate) {}
 
   bool FilterCursor::next(Row &out) {
     bool was_writing = false;
@@ -142,27 +172,24 @@ namespace graph::exec {
   }
 
   RowCursorPtr FilterOp::open(ExecContext &ctx) {
-    debugString_ = predicate->DebugString();
-    auto child_cursor = child->open(ctx);
     return std::make_unique<FilterCursor>(
-      std::move(child_cursor),
+      std::move(child->open(ctx)),
       out_alias,
-      std::move(predicate)
+      predicate.get()
     );
   }
 
   FilterOp::FilterOp(
-    std::unique_ptr<frontend::Expr> predicate,
+    std::unique_ptr<ast::Expr> predicate,
     String out_alias,
     PhysicalOpPtr child) :
     PhysicalOpUnaryChild(std::move(child)),
     predicate(std::move(predicate)),
     out_alias(std::move(out_alias)) {}
 
-
   ProjectCursor::ProjectCursor(
     RowCursorPtr child_cursor,
-    std::vector<frontend::ReturnItem> items) :
+    std::vector<ast::ReturnItem> items) :
     child_cursor(std::move(child_cursor)),
     items(std::move(items)) {}
 
@@ -174,33 +201,45 @@ namespace graph::exec {
     for (const auto &return_item: items) {
       if (return_item.item.index() == 0) {
         String alias = std::get<0>(return_item.item);
-        if (!new_row.slots_mapping.key_exists(alias)) {
-          throw std::runtime_error("No alias for PhysicalProject");
-        }
-        new_row.slots_names.emplace_back(alias);
-        new_row.slots.emplace_back(out.slots[out.slots_mapping.map(alias)]);
-        new_row.slots_mapping.add_map(alias, new_row.slots.size() - 1);
+        size_t old_row_idx = out.slots_mapping.map_and_check(
+          alias,
+          std::move(std::format("PhysicalProject: Error, no alias \"{}\"", alias))
+        );
+
+        new_row.AddValue(
+          out.slots[old_row_idx],
+          alias,
+          std::move(std::format("PhysicalProject: Error, alias {} is already in use", alias))
+        );
         continue;
       }
       ast::PropertyExpr item = std::get<1>(return_item.item);
-      if (!new_row.slots_mapping.key_exists(item.alias)) {
-        throw std::runtime_error("No alias for PhysicalProject");
-      }
-      const auto &cur_prop_src = out.slots[out.slots_mapping.map(item.alias)];
-      String new_alias = "tmp_" + std::to_string(new_row.slots.size());
+      size_t old_row_idx = out.slots_mapping.map_and_check(
+        item.alias,
+        std::move(std::format("PhysicalProject: Error, no alias \"{}\"", item.alias))
+      );
+      const auto &cur_prop_src = out.slots[old_row_idx];
+      String new_alias = item.alias + "." + item.property;
       if (cur_prop_src.index() == 2) {
-        throw std::runtime_error("Error, trying to project from not valid source");
+        throw std::runtime_error(std::move(std::format("PhysicalProject: Error, trying to project {}.{}, but {} is Value", item.alias, item.property, item.alias)));
       }
+
+      String error_msg = std::format("PhysicalProject: {} is already in use", new_alias);
       if (cur_prop_src.index() == 0) {
         auto node = std::get<Node *>(cur_prop_src);
-        new_row.slots.emplace_back(node->properties.at(item.property));
-      } else {
-        auto edge = std::get<Edge *>(cur_prop_src);
-        new_row.slots.emplace_back(edge->properties.at(item.property));
+        new_row.AddValue(
+          node->properties.at(item.property),
+          new_alias,
+          error_msg
+        );
+        continue;
       }
-      new_row.slots_names.emplace_back(new_alias);
-      new_row.slots_mapping.add_map(new_alias, new_row.slots.size() - 1);
-
+      auto edge = std::get<Edge *>(cur_prop_src);
+      new_row.AddValue(
+        edge->properties.at(item.property),
+        new_alias,
+        error_msg
+      );
     }
     out = new_row;
     return true;
@@ -210,8 +249,7 @@ namespace graph::exec {
     child_cursor->close();
   }
 
-
-  ProjectOp::ProjectOp(std::vector<frontend::ReturnItem> items, PhysicalOpPtr child) :
+  ProjectOp::ProjectOp(std::vector<ast::ReturnItem> items, PhysicalOpPtr child) :
     PhysicalOpUnaryChild(std::move(child)),
     items(std::move(items)) {}
 
@@ -221,7 +259,6 @@ namespace graph::exec {
       items
     );
   }
-
 
   LimitCursor::LimitCursor(RowCursorPtr child_cursor, size_t limit_count) :
     child_cursor(std::move(child_cursor)),
@@ -254,7 +291,7 @@ namespace graph::exec {
   NestedLoopJoinCursor::NestedLoopJoinCursor(
     RowCursorPtr left_cursor,
     PhysicalOp *right_operation,
-    const frontend::Expr* pred,
+    const ast::Expr* pred,
     ExecContext& ctx):
     left_cursor(std::move(left_cursor)),
     right_cursor(nullptr),
@@ -291,7 +328,7 @@ namespace graph::exec {
   NestedLoopJoinOp::NestedLoopJoinOp(
     PhysicalOpPtr left,
     PhysicalOpPtr right,
-    std::unique_ptr<frontend::Expr> pred):
+    std::unique_ptr<ast::Expr> pred):
     PhysicalOpBinaryChild(std::move(left), std::move(right)),
     predicate(std::move(pred))
   {}
@@ -305,7 +342,7 @@ namespace graph::exec {
 
 
   std::string PhysicalPlan::DebugString() const {
-    return root->DebugSubtreeString();
+    return root->SubtreeDebugString();
   }
 
   RowCursorPtr NestedLoopJoinOp::open(ExecContext &ctx) {
@@ -325,11 +362,14 @@ namespace graph::exec {
   left_alias(std::move(left_alias)),
   right_alias(std::move(right_alias)),
   left_feature_key(std::move(left_feature_key)),
-  right_feature_key(std::move(right_feature_key)){
+  right_feature_key(std::move(right_feature_key)) {
     Row cur;
     while (left_cursor->next(cur)) {
-      size_t slot_idx = cur.slots_mapping.map(left_alias);
-      Value val = GetValueFromSlot(cur.slots[slot_idx], left_feature_key);
+      size_t slot_idx = cur.slots_mapping.map_and_check(
+        left_alias,
+        std::move(std::format("KeyHashJoinCursor: Error, No source alias: {}", left_alias))
+      );
+      Value val = GetFeatureFromSlot(cur.slots[slot_idx], left_feature_key);
 
       left_rows[val].emplace_back(cur);
     }
@@ -341,8 +381,11 @@ namespace graph::exec {
       if (!right_cursor->next(last_right_row)) {
         return false;
       }
-      size_t slot_idx = last_right_row.slots_mapping.map(right_feature_key);
-      Value right_value = GetValueFromSlot(last_right_row.slots[slot_idx], right_feature_key);
+      size_t slot_idx = last_right_row.slots_mapping.map_and_check(
+        right_alias,
+        std::move(std::format("KeyHashJoinCursor: Error, No source alias: {}", right_alias))
+      );
+      Value right_value = GetFeatureFromSlot(last_right_row.slots[slot_idx], right_feature_key);
 
       auto it = left_rows.find(right_value);
       if (it != left_rows.end() && !it->second.empty()) {
@@ -362,7 +405,7 @@ namespace graph::exec {
     right_cursor->close();
   }
 
-  Value GetValueFromSlot(const RowSlot& slot, const String& feature_key) {
+  Value GetFeatureFromSlot(const RowSlot& slot, const String& feature_key) {
     if (slot.index() == 2) {
       if (feature_key != "") {
         throw std::runtime_error("Error during KeyHashJoin: invalid alias or property");
@@ -375,7 +418,7 @@ namespace graph::exec {
     return std::get<0>(slot)->properties[feature_key];
   }
 
-  Row MergeRows(graph::exec::Row &first, graph::exec::Row &second) {
+  Row MergeRows(Row &first, Row &second) {
     Row ans;
     ans.slots.insert(ans.slots.end(), first.slots.begin(), first.slots.end());
     ans.slots.insert(ans.slots.end(), second.slots.begin(), second.slots.end());
@@ -409,9 +452,10 @@ namespace graph::exec {
     );
   }
 
-  SetCursor::SetCursor(RowCursorPtr child, std::vector<String> aliases,
-    std::vector<std::optional<std::vector<String>>> labels,
-    std::vector<std::optional<std::vector<std::pair<String, Value>>>> properties):
+  SetCursor::SetCursor(RowCursorPtr child,
+    std::vector<String> aliases,
+    std::vector<std::vector<String>> labels,
+    std::vector<std::vector<std::pair<String, Value>>> properties):
     child(std::move(child)),
     aliases(std::move(aliases)),
     labels(std::move(labels)),
@@ -423,7 +467,10 @@ namespace graph::exec {
     }
     for (size_t i = 0; i < aliases.size(); ++i) {
       const String& cur_alias = aliases[i];
-      size_t cur_slot_idx = out.slots_mapping.map(cur_alias);
+      size_t cur_slot_idx = out.slots_mapping.map_and_check(
+        cur_alias,
+        std::move(std::format("SetCursor: Error, no src alias {}", cur_alias)));
+
       RowSlot& row_slot = out.slots[cur_slot_idx];
       if (row_slot.index() == 2) {
         throw std::runtime_error("Error while setting, invalid type");
@@ -431,22 +478,22 @@ namespace graph::exec {
 
       auto& obj_properties = (row_slot.index() == 0 ? std::get<0>(row_slot)->properties : std::get<1>(row_slot)->properties);
 
-      if (properties[i].has_value()) {
-        for (const auto& [key, val] : properties[i].value()) {
+      if (!properties[i].empty()) {
+        for (const auto& [key, val] : properties[i]) {
           obj_properties[key] = val;
         }
       }
 
-      if (!labels[i].has_value() || labels[i].value().empty()) {
+      if (labels[i].empty()) {
         continue;
       }
       if (row_slot.index() == 1) {
-        auto& edge_label = std::get<1>(row_slot)->type;
-        edge_label = labels[i].value().back();
+        auto& edge_type = std::get<1>(row_slot)->type;
+        edge_type = labels[i].back();
         continue;
       }
       auto& node_labels = std::get<0>(row_slot)->labels;
-      for (const auto& new_label : labels[i].value()) {
+      for (const auto& new_label : labels[i]) {
         if (std::ranges::find(node_labels, new_label) == node_labels.end()) {
           node_labels.emplace_back(new_label);
         }
@@ -460,8 +507,8 @@ namespace graph::exec {
   }
 
   PhysicalSetOp::PhysicalSetOp(std::vector<String> aliases,
-    std::vector<std::optional<std::vector<String>>> labels,
-    std::vector<std::optional<std::vector<std::pair<String, Value>>>> properties, PhysicalOpPtr child):
+    std::vector<std::vector<String>> labels,
+    std::vector<std::vector<std::pair<String, Value>>> properties, PhysicalOpPtr child):
     PhysicalOpUnaryChild(std::move(child)),
     aliases(std::move(aliases)),
     labels(std::move(labels)),
@@ -477,8 +524,10 @@ namespace graph::exec {
   }
 
 
-  CreateCursor::CreateCursor(RowCursorPtr child,
-                             std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items, storage::GraphDB* db):
+  CreateCursor::CreateCursor(
+    RowCursorPtr child,
+    std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
+    storage::GraphDB* db):
     child(std::move(child)),
     items(std::move(items)),
     db(db) {}
@@ -487,7 +536,7 @@ namespace graph::exec {
     if (child == nullptr) {
       for (const auto& create_pattern : items) {
         if (create_pattern.index() != 0) {
-          throw std::runtime_error("Error invalid syntax for create edge");
+          throw std::runtime_error("CreateCursor: Error invalid syntax for create edge");
         }
         const auto& node_spec = std::get<planner::CreateNodeSpec>(create_pattern);
         std::unordered_map<String, Value> m(node_spec.properties.begin(), node_spec.properties.end());
@@ -507,29 +556,37 @@ namespace graph::exec {
         continue;
       }
       const auto& edge_spec = std::get<planner::CreateEdgeSpec>(create_pattern);
-      ;
 
-      const auto& src = out.slots[out.slots_mapping.map(edge_spec.src_alias)];
-      const auto& dst = out.slots[out.slots_mapping.map(edge_spec.src_alias)];
+      const auto& src = out.slots[
+        out.slots_mapping.map_and_check(
+          edge_spec.src_alias,
+          std::move(std::format("CreateCursor: Error, invalid src alias {}", edge_spec.src_alias)))
+      ];
+      const auto& dst = out.slots[
+        out.slots_mapping.map_and_check(
+            edge_spec.dst_alias,
+            std::move(std::format("CreateCursor: Error, invalid src alias {}", edge_spec.dst_alias))
+          )
+        ];
       if (src.index() != 0 || dst.index() != 0) {
-        throw std::runtime_error("Edge must be between vertexes");
+        throw std::runtime_error("CreateCursor: Error, edge must be between vertexes");
       }
 
-      if (edge_spec.direction == frontend::EdgeDirection::Right ||
-        edge_spec.direction == frontend::EdgeDirection::Undirected) {
+      if (edge_spec.direction == ast::EdgeDirection::Right ||
+        edge_spec.direction == ast::EdgeDirection::Undirected) {
         db->create_edge(
           std::get<0>(src)->id,
           std::get<0>(dst)->id,
-          edge_spec.label,
+          edge_spec.edge_type,
           std::move(std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end()))
         );
         }
-      if (edge_spec.direction == frontend::EdgeDirection::Left ||
-        edge_spec.direction == frontend::EdgeDirection::Undirected) {
+      if (edge_spec.direction == ast::EdgeDirection::Left ||
+        edge_spec.direction == ast::EdgeDirection::Undirected) {
         db->create_edge(
           std::get<0>(dst)->id,
           std::get<0>(src)->id,
-          edge_spec.label,
+          edge_spec.edge_type,
           std::move(std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end()))
         );
         }
@@ -570,7 +627,10 @@ namespace graph::exec {
       return false;
     }
     for (const auto& alias : aliases) {
-      size_t alias_idx = out.slots_mapping.map(alias);
+      size_t alias_idx = out.slots_mapping.map_and_check(
+        alias,
+        std::move(std::format("DeleteCursor: Error, invalid source alias {}", alias))
+      );
       const RowSlot& row_slot = out.slots[alias_idx];
       if (row_slot.index() == 2) {
         continue;
@@ -589,210 +649,4 @@ namespace graph::exec {
   }
 
   PhysicalPlan::PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}
-
-
-  template <class Range, class F>
-  String Join(const Range& r, std::string_view sep, F&& to_string) {
-    String out;
-    bool first = true;
-    for (const auto& x : r) {
-      if (!first) {
-        out += sep;
-      }
-      first = false;
-      out += to_string(x);
-    }
-    return out;
-  }
-
-  std::string ValueDebugString(const Value& v) {
-    return std::visit([](const auto& x) -> std::string {
-      using T = std::decay_t<decltype(x)>;
-      if constexpr (std::is_same_v<T, std::string>) {
-        return std::format("\"{}\"", x);
-      } else if constexpr (std::is_same_v<T, bool>) {
-        return x ? "true" : "false";
-      } else if constexpr (std::is_arithmetic_v<T>) {
-        return std::format("{}", x);
-      } else if constexpr (std::is_same_v<T, std::monostate>) {
-        return "null";
-      } else {
-        return "<value>";
-      }
-    }, v);
-  }
-
-  std::string PropertiesDebugString(const std::vector<std::pair<String, Value>>& props) {
-    return std::format(
-      "{{{}}}",
-      Join(props, ", ", [](const auto& kv) {
-        return std::format("{}: {}", kv.first, ValueDebugString(kv.second));
-      })
-    );
-  }
-
-  std::string LabelsDebugString(const std::vector<String>& labels) {
-    return std::format(
-      "[{}]",
-      Join(labels, ", ", [](const auto& s) {
-        return std::format("\"{}\"", s);
-      })
-    );
-  }
-
-  std::string OptionalLabelsDebugString(const std::optional<std::vector<String>>& labels) {
-    if (!labels.has_value()) {
-      return "";
-    }
-    return std::format("labels={}", LabelsDebugString(*labels));
-  }
-
-  std::string OptionalPropertiesDebugString(
-    const std::optional<std::vector<std::pair<String, Value>>>& props
-  ) {
-    if (!props.has_value()) {
-      return "";
-    }
-    return std::format("properties={}", PropertiesDebugString(*props));
-  }
-
-  std::string CreateNodeSpecDebugString(const planner::CreateNodeSpec& spec) {
-    return std::format(
-      "Node(labels={}, properties={})",
-      LabelsDebugString(spec.labels),
-      PropertiesDebugString(spec.properties)
-    );
-  }
-
-  std::string CreateEdgeSpecDebugString(const planner::CreateEdgeSpec& spec) {
-    std::string dir;
-    switch (spec.direction) {
-    case frontend::EdgeDirection::Right:      dir = "->"; break;
-    case frontend::EdgeDirection::Left:       dir = "<-"; break;
-    case frontend::EdgeDirection::Undirected: dir = "--"; break;
-    }
-
-    return std::format(
-      "Edge(src={}, dst={}, dir={}, label=\"{}\", properties={})",
-      spec.src_alias,
-      spec.dst_alias,
-      dir,
-      spec.label,
-      PropertiesDebugString(spec.properties)
-    );
-  }
-
-  std::string ReturnItemDebugString(const frontend::ReturnItem& item) {
-    if (item.item.index() == 0) {
-      return std::get<0>(item.item);
-    }
-    const auto& prop = std::get<1>(item.item);
-    return std::format("{}.{}", prop.alias, prop.property);
-  }
-
-  String LabelIndexSeekOp::DebugString() const {
-    return std::format("LabelIndexSeek(label=\"{}\", as={})", label, out_alias);
-  }
-
-  String NodeScanOp::DebugString() const {
-    return std::format("NodeScan(as={})", out_alias);
-  }
-
-  template <bool edge_outgoing>
-  String ExpandOp<edge_outgoing>::DebugString() const {
-    return std::format(
-      "Expand({} {} {}, type={})",
-      src_alias,
-      (edge_outgoing ? "->" : "<-"),
-      dst_alias,
-      (edge_type.has_value() ? std::format("\"{}\"", edge_type.value()) : "*")
-    );
-  }
-
-  String FilterOp::DebugString() const {
-    return std::format(
-      "Filter({})",
-      predicate ? predicate->DebugString() : "<null>"
-    );
-  }
-
-  String ProjectOp::DebugString() const {
-    return std::format(
-      "Project({})",
-      Join(items, ", ", [](const auto& item) {
-        return ReturnItemDebugString(item);
-      })
-    );
-  }
-
-  String LimitOp::DebugString() const {
-    return std::format("Limit({})", limit_size);
-  }
-
-  String NestedLoopJoinOp::DebugString() const {
-    if (predicate) {
-      return std::format("NestedLoopJoin(on={})", predicate->DebugString());
-    }
-    return "NestedLoopJoin(cross)";
-  }
-
-  String KeyHashJoinOp::DebugString() const {
-    return std::format(
-      "HashJoin(on {}.{} = {}.{})",
-      left_alias, left_feature_key,
-      right_alias, right_feature_key
-    );
-  }
-
-  String PhysicalSetOp::DebugString() const {
-    std::string ans = "Set(";
-    for (size_t i = 0; i < aliases.size(); ++i) {
-      if (i) {
-        ans += ", ";
-      }
-      ans += aliases[i];
-      ans += " {";
-
-      bool first = true;
-      if (labels[i].has_value()) {
-        ans += "labels=" + LabelsDebugString(labels[i].value());
-        first = false;
-      }
-      if (properties[i].has_value()) {
-        if (!first) {
-          ans += ", ";
-        }
-        ans += "properties=" + PropertiesDebugString(properties[i].value());
-      }
-
-      ans += "}";
-    }
-    ans += ")";
-    return ans;
-  }
-
-  String PhysicalCreateOp::DebugString() const {
-    return std::format(
-      "Create({})",
-      Join(items, ", ", [](const auto& item) {
-        return std::visit([](const auto& spec) -> String {
-          using T = std::decay_t<decltype(spec)>;
-          if constexpr (std::is_same_v<T, planner::CreateNodeSpec>) {
-            return CreateNodeSpecDebugString(spec);
-          } else {
-            return CreateEdgeSpecDebugString(spec);
-          }
-        }, item);
-      })
-    );
-  }
-
-  String PhysicalDelete::DebugString() const {
-    return std::format(
-      "Delete({})",
-      Join(aliases, ", ", [](const auto& a) {
-        return a;
-      })
-    );
-  }
 } // namespace
