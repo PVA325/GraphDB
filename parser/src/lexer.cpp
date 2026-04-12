@@ -1,11 +1,13 @@
-#include "lexer/lexer.hpp"
+#include "../include/lexer.hpp"
 
 #include <cctype>
 #include <unordered_map>
 
-#include "common/error.hpp"
+#include "../include/error.hpp"
 
 namespace lexer {
+
+namespace {
 
 class Lexer {
  public:
@@ -99,12 +101,30 @@ class Lexer {
       case ';': AddToken(TokenType::SEMICOLON); break;
       case ':': AddToken(TokenType::COLON); break;
 
+      case '!':
+        if (Match('=')) {
+          AddToken(TokenType::NOT_EQUAL);
+        } else {
+          throw LexError(line, col, "Unexpected character '!' without '='");
+        }
+        break;
+
       case '=': AddToken(TokenType::EQUAL); break;
-      case '>': AddToken(TokenType::GREATER); break;
+
+      case '>': 
+        if (Match('=')) {
+          AddToken(TokenType::GREATER_EQUAL);
+        } else {
+          AddToken(TokenType::GREATER);
+        }
+        break;
+
       case '<':
         if (Match('-')) {
           AddToken(TokenType::ARROW_LEFT);
-        } else {
+        } else if (Match('=')) {
+          AddToken(TokenType::LESS_EQUAL);
+        }  else {
           AddToken(TokenType::LESS);
         }
         break;
@@ -203,6 +223,8 @@ class Lexer {
     }
   }
 };
+
+} // namespace
 
 // Public API function to lex the input source code
 std::vector<Token> Lex(const std::string& source) {

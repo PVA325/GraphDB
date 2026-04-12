@@ -46,8 +46,11 @@ struct PropertyExpr : Expr {
 // Comparison operations
 enum class CompareOp {
   Eq,
+  NotEqual,
   Gt,
-  Lt
+  Ge,
+  Lt,
+  Le
 };
 
 // Comparison expression
