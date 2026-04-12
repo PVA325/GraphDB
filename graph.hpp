@@ -100,7 +100,7 @@ namespace graph::logical {
     explicit LogicalOpUnaryChild(LogicalOpPtr child);
 
     [[nodiscard]] String SubtreeDebugString() const override;
-    virtual ~LogicalOpUnaryChild() = default;
+    ~LogicalOpUnaryChild() override = default;
   };
 
   struct LogicalOpBinaryChild : LogicalOp {
@@ -111,14 +111,14 @@ namespace graph::logical {
 
     [[nodiscard]] String SubtreeDebugString() const override;
 
-    virtual ~LogicalOpBinaryChild() = default;
+    ~LogicalOpBinaryChild() override = default;
   };
   struct LogicalOpZeroChild : LogicalOp {
     LogicalOpZeroChild() = default;
 
     [[nodiscard]] String SubtreeDebugString() const override { return DebugString(); }
 
-    virtual ~LogicalOpZeroChild() = default;
+    ~LogicalOpZeroChild() override = default;
   };
 
   struct AliasedLogicalOp : public LogicalOpZeroChild {
@@ -641,7 +641,7 @@ namespace graph::exec {
                      std::unique_ptr<ast::Expr> pred);
     NestedLoopJoinOp(PhysicalOpPtr left, PhysicalOpPtr right);
 
-    RowCursorPtr open(class ExecContext &ctx) override;
+    RowCursorPtr open(ExecContext &ctx) override;
 
     [[nodiscard]] String DebugString() const override;
     ~NestedLoopJoinOp() override = default;
@@ -698,7 +698,7 @@ namespace graph::exec {
                   String left_alias, String right_alias,
                   String left_feature_key, String right_feature_key);
 
-    RowCursorPtr open(class ExecContext &ctx) override;
+    RowCursorPtr open(ExecContext &ctx) override;
 
     [[nodiscard]] String DebugString() const override;
     ~KeyHashJoinOp() override = default;
@@ -729,7 +729,7 @@ namespace graph::exec {
                   std::vector<std::vector<std::pair<String, Value> > > properties,
                   PhysicalOpPtr child);
 
-    RowCursorPtr open(class ExecContext &ctx) override;
+    RowCursorPtr open(ExecContext &ctx) override;
 
     [[nodiscard]] String DebugString() const override;
 
