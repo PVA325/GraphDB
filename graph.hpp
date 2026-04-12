@@ -69,17 +69,29 @@ namespace PlannerUtils {
 }
 }
 
+namespace graph::exec {
+  using storage::Node;
+  using storage::Edge;
+  struct PhysicalOp;
+  struct RowCursor;
+  struct Row;
+  struct ExecContext;
 
-namespace graph::planner {
+  using RowSlot = std::variant<Node *, Edge *, Value>;
+  using PhysicalOpPtr = std::unique_ptr<PhysicalOp>;
+  using RowCursorPtr = std::unique_ptr<RowCursor>;
+}
+
+namespace graph::logical {
   struct LogicalOp;
   using LogicalOpPtr = std::unique_ptr<LogicalOp>;
 
   struct LogicalOp {
-    virtual ~LogicalOp() = default;
-
     [[nodiscard]] virtual String DebugString() const = 0;
+    // virtual exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const = 0;
 
     [[nodiscard]] virtual String SubtreeDebugString() const = 0;
+    virtual ~LogicalOp() = default;
   };
 
   struct LogicalOpUnaryChild : LogicalOp {
@@ -88,7 +100,7 @@ namespace graph::planner {
     explicit LogicalOpUnaryChild(LogicalOpPtr child);
 
     [[nodiscard]] String SubtreeDebugString() const override;
-    ~LogicalOpUnaryChild() override = default;
+    virtual ~LogicalOpUnaryChild() = default;
   };
 
   struct LogicalOpBinaryChild : LogicalOp {
@@ -98,9 +110,18 @@ namespace graph::planner {
     LogicalOpBinaryChild(LogicalOpPtr left, LogicalOpPtr right);
 
     [[nodiscard]] String SubtreeDebugString() const override;
+
+    virtual ~LogicalOpBinaryChild() = default;
+  };
+  struct LogicalOpZeroChild : LogicalOp {
+    LogicalOpZeroChild() = default;
+
+    [[nodiscard]] String SubtreeDebugString() const override { return DebugString(); }
+
+    virtual ~LogicalOpZeroChild() = default;
   };
 
-  struct AliasedLogicalOp : public LogicalOp {
+  struct AliasedLogicalOp : public LogicalOpZeroChild {
     std::string dst_alias;
 
     AliasedLogicalOp(std::string dst_alias) : dst_alias(std::move(dst_alias)) {}
@@ -117,8 +138,6 @@ namespace graph::planner {
     LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<String, Value> > property_filters);
 
     [[nodiscard]] String DebugString() const override;
-
-    [[nodiscard]] String SubtreeDebugString() const override { return DebugString(); }
 
     ~LogicalScan() override = default;
   };
@@ -144,8 +163,6 @@ namespace graph::planner {
                   ast::EdgeDirection direction);
 
     [[nodiscard]] String DebugString() const override;
-
-    [[nodiscard]] String SubtreeDebugString() const override;
 
     ~LogicalExpand() override = default;
   };
@@ -299,7 +316,7 @@ namespace graph::planner {
     [[nodiscard]] String DebugString() const override;
   };
 
-  struct LogicalPlan : LogicalOp {
+  struct LogicalPlan : LogicalOpZeroChild {
     /// Container logical plan
     LogicalOpPtr root;
 
@@ -309,8 +326,6 @@ namespace graph::planner {
 
     [[nodiscard]] String DebugString() const override { return "LogicalPlan:"; }
 
-    [[nodiscard]] String SubtreeDebugString() const override { return root->SubtreeDebugString();}
-
     ~LogicalPlan() override = default;
   };
 
@@ -319,16 +334,6 @@ namespace graph::planner {
 
 namespace graph::exec {
   /// Operations need to live longer than cursors
-  using storage::Node;
-  using storage::Edge;
-  struct PhysicalOp;
-  struct RowCursor;
-  struct Row;
-
-  using RowSlot = std::variant<Node *, Edge *, Value>;
-  using PhysicalOpPtr = std::unique_ptr<PhysicalOp>;
-  using RowCursorPtr = std::unique_ptr<RowCursor>;
-
   struct ExecOptions {
     /// options of execution; memory, in future parallelism and spill
     size_t memory_budget_bytes = 256ULL * 1024 * 1024;
@@ -733,20 +738,20 @@ namespace graph::exec {
 
   struct CreateCursor : public RowCursor {
     RowCursorPtr child;
-    std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items;
+    std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items;
     storage::GraphDB* db;
 
     CreateCursor(RowCursorPtr child,
-                 std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
+                 std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items,
                  storage::GraphDB* db);
     bool next(Row &out) override;
     void close() override;
   };
   struct PhysicalCreateOp : PhysicalOpUnaryChild {
-    std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items;
+    std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items;
 
-    PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items);
-    PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
+    PhysicalCreateOp(std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items);
+    PhysicalCreateOp(std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items,
                      PhysicalOpPtr child);
     RowCursorPtr open(ExecContext& ctx) override;
 
@@ -804,6 +809,8 @@ namespace graph::exec {
   std::unique_ptr<ResultCursor> execute_query_ast(ast::QueryAST ast,
                                                   const storage::GraphDB &cat,
                                                   graph::exec::ExecOptions opts);
+
+  PhysicalPlan build_physical_plan(ast::QueryAST ast);
 }
 
 
@@ -829,11 +836,11 @@ struct CostModel {
   virtual ~CostModel() = default;
   // estimate cost for scanning label with optional property predicate
   [[nodiscard]] virtual CostEstimate estimate_scan(const storage::GraphDB &cat,
-                                     const LogicalScan &scan) const = 0;
+                                     const logical::LogicalScan &scan) const = 0;
 
   // estimate for expand
   [[nodiscard]] virtual CostEstimate estimate_expand(const storage::GraphDB &cat,
-                                       const LogicalExpand &expand,
+                                       const logical::LogicalExpand &expand,
                                        const CostEstimate &input) const = 0;
 
   // estimate for join
@@ -846,9 +853,9 @@ struct CostModel {
 struct DefaultCostModel : public CostModel {
   DefaultCostModel();
   [[nodiscard]] CostEstimate estimate_scan(const storage::GraphDB &cat,
-                             const LogicalScan &scan) const override;
+                             const logical::LogicalScan &scan) const override;
   [[nodiscard]] CostEstimate estimate_expand(const storage::GraphDB &cat,
-                               const LogicalExpand &expand,
+                               const logical::LogicalExpand &expand,
                                const CostEstimate &input) const override;
   CostEstimate estimate_join(const CostEstimate &left,
                              const CostEstimate &right,
@@ -859,14 +866,14 @@ struct DefaultCostModel : public CostModel {
 struct JoinOrderStrategy {
   virtual ~JoinOrderStrategy() = default;
   // choose join order given list of logical scans/joins
-  virtual std::vector<size_t> choose_order(const std::vector<LogicalOp*> &join_roots,
+  virtual std::vector<size_t> choose_order(const std::vector<logical::LogicalOp*> &join_roots,
                                            const storage::GraphDB &cat,
                                            const CostModel &cost_model) = 0;
 };
 class GreedyJoinOrder : public JoinOrderStrategy {
 public:
   std::vector<size_t> choose_order(
-    const std::vector<LogicalOp*>& joins,
+    const std::vector<logical::LogicalOp*>& joins,
     const storage::GraphDB& cat,
     const CostModel& cost_model) override {
 
@@ -885,20 +892,21 @@ public:
 //              std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<DPJoinOrder>()); /// add later
 
   // End-to-end: AST -> LogicalPlan
-  [[nodiscard]] LogicalPlan build_logical_plan(ast::QueryAST ast) const;
+  [[nodiscard]] logical::LogicalPlan build_logical_plan(ast::QueryAST ast) const;
 
+  [[nodiscard]] exec::PhysicalPlan build_physical_plan(logical::LogicalPlan ast) const;
   // Optimizations on logical plan (predicate pushdown, flattening)
-  [[nodiscard]] LogicalPlan optimize_logical_plan(planner::LogicalPlan plan) const;
+  [[nodiscard]] logical::LogicalPlan optimize_logical_plan(logical::LogicalPlan plan) const;
 
   // For each logical scan enumerate alternatives (index vs scan)
   // returns vector of alternative LogicalScan nodes (candidates)
-  [[nodiscard]] std::vector<LogicalScan> enumerate_scan_alternatives(const planner::LogicalScan &scan) const;
+  [[nodiscard]] std::vector<logical::LogicalScan> enumerate_scan_alternatives(const logical::LogicalScan &scan) const;
 
   // chooses join order (returns permutation indices)
-  [[nodiscard]] std::vector<size_t> choose_join_order(const std::vector<planner::LogicalOp*> &joins) const;
+  [[nodiscard]] std::vector<size_t> choose_join_order(const std::vector<logical::LogicalOp*> &joins) const;
 
   // Map logical -> physical (core)
-  [[nodiscard]] exec::PhysicalPlan map_logical_to_physical(const planner::LogicalPlan &logical_plan,
+  [[nodiscard]] exec::PhysicalPlan map_logical_to_physical(const logical::LogicalPlan &logical_plan,
                                              const exec::ExecOptions &opts) const;
 
   // Final physical optimizations (push limits, top-k)
@@ -910,7 +918,7 @@ public:
                                           const exec::ExecOptions &opts) const;
 
   // Debug / explain helpers
-  [[nodiscard]] String explain_logical_plan(const planner::LogicalPlan &plan) const;
+  [[nodiscard]] String explain_logical_plan(const logical::LogicalPlan &plan) const;
   [[nodiscard]] String explain_physical_plan(const exec::PhysicalPlan &plan) const;
 
 private:
@@ -922,7 +930,7 @@ private:
   // helper internal functions (signatures)
   void collect_aliases_from_match(const ast::QueryAST &ast, std::set<std::string> &out) const;
   // converts pattern fragments into LogicalScan/Expand sequence
-  [[nodiscard]] LogicalOpPtr pattern_to_logical_ops(const ast::MatchClause &match_clause) const;
+  [[nodiscard]] logical::LogicalOpPtr pattern_to_logical_ops(const ast::MatchClause &match_clause) const;
 };
 }
 

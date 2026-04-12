@@ -526,7 +526,7 @@ namespace graph::exec {
 
   CreateCursor::CreateCursor(
     RowCursorPtr child,
-    std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
+    std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items,
     storage::GraphDB* db):
     child(std::move(child)),
     items(std::move(items)),
@@ -538,7 +538,7 @@ namespace graph::exec {
         if (create_pattern.index() != 0) {
           throw std::runtime_error("CreateCursor: Error invalid syntax for create edge");
         }
-        const auto& node_spec = std::get<planner::CreateNodeSpec>(create_pattern);
+        const auto& node_spec = std::get<logical::CreateNodeSpec>(create_pattern);
         std::unordered_map<String, Value> m(node_spec.properties.begin(), node_spec.properties.end());
         db->create_node(node_spec.labels, std::move(m));
       }
@@ -550,12 +550,12 @@ namespace graph::exec {
 
     for (const auto& create_pattern : items) {
       if (create_pattern.index() == 0) {
-        const auto& node_spec = std::get<planner::CreateNodeSpec>(create_pattern);
+        const auto& node_spec = std::get<logical::CreateNodeSpec>(create_pattern);
         std::unordered_map<String, Value> m(node_spec.properties.begin(), node_spec.properties.end());
         db->create_node(node_spec.labels, std::move(m));
         continue;
       }
-      const auto& edge_spec = std::get<planner::CreateEdgeSpec>(create_pattern);
+      const auto& edge_spec = std::get<logical::CreateEdgeSpec>(create_pattern);
 
       const auto& src = out.slots[
         out.slots_mapping.map_and_check(
@@ -598,12 +598,12 @@ namespace graph::exec {
     child->close();
   }
 
-  PhysicalCreateOp::PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items):
+  PhysicalCreateOp::PhysicalCreateOp(std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items):
     PhysicalOpUnaryChild(nullptr),
     items(std::move(items))
   {}
 
-  PhysicalCreateOp::PhysicalCreateOp(std::vector<std::variant<planner::CreateNodeSpec, planner::CreateEdgeSpec>> items,
+  PhysicalCreateOp::PhysicalCreateOp(std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items,
     PhysicalOpPtr child):
     PhysicalOpUnaryChild(std::move(child)),
     items(std::move(items))
@@ -647,6 +647,20 @@ namespace graph::exec {
   void DeleteCursor::close() {
     child->close();
   }
+  PhysicalDelete::PhysicalDelete(std::vector<String> aliases, PhysicalOpPtr child):
+    PhysicalOpUnaryChild(std::move(child)),
+    aliases(std::move(aliases)) {}
+
+  RowCursorPtr PhysicalDelete::open(ExecContext& ctx) {
+    return std::make_unique<DeleteCursor>(
+      std::move(child->open(ctx)),
+      aliases,
+      ctx.db
+    );
+  }
+
 
   PhysicalPlan::PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}
 } // namespace
+
+
