@@ -14,30 +14,11 @@
 #include "graph.hpp"
 #include "storage.hpp"
 
-
-// namespace graph::frontend {
-//   using ast::Expr;
-//   using ast::ReturnItem;
-//   using ast::QueryAST;
-//   using ast::MatchClause;
-//   using storage::GraphDB;
-//   using ast::Pattern;
-//   using ast::PatternElement;
-//   using ast::NodePattern;
-//   using ast::MatchEdgePattern;
-//   using ast::EdgeDirection;
-//   using ast::OrderItem;
-//   using ast::OrderDirection;
-//   using ast::SetClause;
-//   using ast::DeleteClause;
-// }
-
 namespace graph {
 using Int = int64_t;
 using Double = double;
 using String = std::string;
 using Bool = bool;
-//  enum class EdgeDirection { Outgoing, Incoming, Undirected };
 
 using Value = std::variant<Int, Double, String, Bool>;
 
