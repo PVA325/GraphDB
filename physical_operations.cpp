@@ -4,7 +4,7 @@
 
 namespace graph::exec {
   bool SlotMapping::key_exists(const String& key) const {
-    return alias_to_slot.find(key) != alias_to_slot.end();
+    return alias_to_slot.contains(key);
   }
 
   size_t SlotMapping::map(const String& key) const {
@@ -60,7 +60,7 @@ namespace graph::exec {
 
   template<typename T>
   bool isSubset(const std::vector<T>& larger, const std::vector<T>& smaller) {
-    return std::all_of(smaller.begin(), smaller.end(), [&](T x) {
+    return std::all_of(smaller.begin(), smaller.end(), [&](const T& x) {
         return std::find(larger.begin(), larger.end(), x) != larger.end();
     });
   }
@@ -73,23 +73,26 @@ namespace graph::exec {
     properties(std::move(properties)) {}
 
   bool NodePropertyFilterCursor::next(Row& out) {
-    bool is_ok = false;
-    while (!is_ok && child_cursor->next(out)) {
+    bool found = false;
+    while (found == false && child_cursor->next(out)) {
       size_t slot_idx = out.slots_mapping.map_and_check(
         alias,
-        std::move(std::format("NodePropertyFilterCursor: Error, no src alias", alias))
+        std::format("NodePropertyFilterCursor: Error, no src alias", alias)
       );
       const auto& row_slot = out.slots[slot_idx];
       if (row_slot.index() != 0) {
         throw std::runtime_error("NodePropertyFilterCursor: Error not a node");
       }
-      auto* node =std::get<Node*>(row_slot);
+      auto* node = std::get<Node*>(row_slot);
       std::vector<std::pair<String, Value> > p(node->properties.begin(), node->properties.end());
-      if (isSubset(node->labels, labels)
-        && isSubset(p, properties)) {
+      if (isSubset(node->labels, labels) &&
+        isSubset(p, properties)) {
 
+        found = true;
+        break;
       }
     }
+    return found;
   }
 
   void NodePropertyFilterCursor::close() {
@@ -132,7 +135,7 @@ namespace graph::exec {
     edge_cursor(nullptr),
     label_predicate(std::move(label_predicate)),
     src_alias(std::move(src_alias)),
-    dst_edge_alias(std::move(dst_node_alias)),
+    dst_edge_alias(std::move(dst_edge_alias)),
     dst_node_alias(std::move(dst_node_alias)),
     db(db) {}
 
@@ -247,25 +250,25 @@ namespace graph::exec {
         String alias = std::get<0>(return_item.item);
         size_t old_row_idx = out.slots_mapping.map_and_check(
           alias,
-          std::move(std::format("PhysicalProject: Error, no alias \"{}\"", alias))
+          std::format("PhysicalProject: Error, no alias \"{}\"", alias)
         );
 
         new_row.AddValue(
           out.slots[old_row_idx],
           alias,
-          std::move(std::format("PhysicalProject: Error, alias {} is already in use", alias))
+          std::format("PhysicalProject: Error, alias {} is already in use", alias)
         );
         continue;
       }
       ast::PropertyExpr item = std::get<1>(return_item.item);
       size_t old_row_idx = out.slots_mapping.map_and_check(
         item.alias,
-        std::move(std::format("PhysicalProject: Error, no alias \"{}\"", item.alias))
+        std::format("PhysicalProject: Error, no alias \"{}\"", item.alias)
       );
       const auto &cur_prop_src = out.slots[old_row_idx];
       String new_alias = item.alias + "." + item.property;
       if (cur_prop_src.index() == 2) {
-        throw std::runtime_error(std::move(std::format("PhysicalProject: Error, trying to project {}.{}, but {} is Value", item.alias, item.property, item.alias)));
+        throw std::runtime_error(std::format("PhysicalProject: Error, trying to project {}.{}, but {} is Value", item.alias, item.property, item.alias));
       }
 
       String error_msg = std::format("PhysicalProject: {} is already in use", new_alias);
@@ -411,7 +414,7 @@ namespace graph::exec {
     while (left_cursor->next(cur)) {
       size_t slot_idx = cur.slots_mapping.map_and_check(
         left_alias,
-        std::move(std::format("KeyHashJoinCursor: Error, No source alias: {}", left_alias))
+        std::format("KeyHashJoinCursor: Error, No source alias: {}", left_alias)
       );
       Value val = GetFeatureFromSlot(cur.slots[slot_idx], left_feature_key);
 
@@ -427,7 +430,7 @@ namespace graph::exec {
       }
       size_t slot_idx = last_right_row.slots_mapping.map_and_check(
         right_alias,
-        std::move(std::format("KeyHashJoinCursor: Error, No source alias: {}", right_alias))
+        std::format("KeyHashJoinCursor: Error, No source alias: {}", right_alias)
       );
       Value right_value = GetFeatureFromSlot(last_right_row.slots[slot_idx], right_feature_key);
 
@@ -451,7 +454,7 @@ namespace graph::exec {
 
   Value GetFeatureFromSlot(const RowSlot& slot, const String& feature_key) {
     if (slot.index() == 2) {
-      if (feature_key != "") {
+      if (!feature_key.empty()) {
         throw std::runtime_error("Error during KeyHashJoin: invalid alias or property");
       }
       return std::get<2>(slot);
@@ -513,7 +516,7 @@ namespace graph::exec {
       const String& cur_alias = aliases[i];
       size_t cur_slot_idx = out.slots_mapping.map_and_check(
         cur_alias,
-        std::move(std::format("SetCursor: Error, no src alias {}", cur_alias)));
+        std::format("SetCursor: Error, no src alias {}", cur_alias));
 
       RowSlot& row_slot = out.slots[cur_slot_idx];
       if (row_slot.index() == 2) {
@@ -584,7 +587,7 @@ namespace graph::exec {
         }
         const auto& node_spec = std::get<logical::CreateNodeSpec>(create_pattern);
         std::unordered_map<String, Value> m(node_spec.properties.begin(), node_spec.properties.end());
-        db->create_node(node_spec.labels, std::move(m));
+        db->create_node(node_spec.labels, m);
       }
       return false;
     }
@@ -596,7 +599,7 @@ namespace graph::exec {
       if (create_pattern.index() == 0) {
         const auto& node_spec = std::get<logical::CreateNodeSpec>(create_pattern);
         std::unordered_map<String, Value> m(node_spec.properties.begin(), node_spec.properties.end());
-        db->create_node(node_spec.labels, std::move(m));
+        db->create_node(node_spec.labels, m);
         continue;
       }
       const auto& edge_spec = std::get<logical::CreateEdgeSpec>(create_pattern);
@@ -604,12 +607,12 @@ namespace graph::exec {
       const auto& src = out.slots[
         out.slots_mapping.map_and_check(
           edge_spec.src_alias,
-          std::move(std::format("CreateCursor: Error, invalid src alias {}", edge_spec.src_alias)))
+          std::format("CreateCursor: Error, invalid src alias {}", edge_spec.src_alias))
       ];
       const auto& dst = out.slots[
         out.slots_mapping.map_and_check(
             edge_spec.dst_alias,
-            std::move(std::format("CreateCursor: Error, invalid src alias {}", edge_spec.dst_alias))
+            std::format("CreateCursor: Error, invalid src alias {}", edge_spec.dst_alias)
           )
         ];
       if (src.index() != 0 || dst.index() != 0) {
@@ -622,7 +625,7 @@ namespace graph::exec {
           std::get<0>(src)->id,
           std::get<0>(dst)->id,
           edge_spec.edge_type,
-          std::move(std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end()))
+          std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end())
         );
         }
       if (edge_spec.direction == ast::EdgeDirection::Left ||
@@ -631,7 +634,7 @@ namespace graph::exec {
           std::get<0>(dst)->id,
           std::get<0>(src)->id,
           edge_spec.edge_type,
-          std::move(std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end()))
+          std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end())
         );
         }
     }
@@ -673,7 +676,7 @@ namespace graph::exec {
     for (const auto& alias : aliases) {
       size_t alias_idx = out.slots_mapping.map_and_check(
         alias,
-        std::move(std::format("DeleteCursor: Error, invalid source alias {}", alias))
+        std::format("DeleteCursor: Error, invalid source alias {}", alias)
       );
       const RowSlot& row_slot = out.slots[alias_idx];
       if (row_slot.index() == 2) {
