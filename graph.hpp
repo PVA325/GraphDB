@@ -87,6 +87,12 @@ namespace graph::exec {
   struct ExpandOp;
   using ExpandOutgoingOp = ExpandOp<true>;
   using ExpandIngoingOp = ExpandOp<false>;
+
+  struct NestedLoopJoinOp;
+  struct KeyHashJoinOp;
+  struct PhysicalSetOp;
+  struct PhysicalCreateOp;
+  struct PhysicalDeleteOp;
 }
 
 namespace graph::logical {
@@ -164,9 +170,6 @@ namespace graph::logical {
 
     LogicalExpand() = delete;
 
-    // LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
-    //               ast::EdgeDirection direction);
-
     LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
                   std::optional<String> edge_type, std::vector<String> dst_vertex_labels,
                   std::vector<std::pair<String, Value>> dst_vertex_properties,
@@ -187,6 +190,7 @@ namespace graph::logical {
     explicit LogicalFilter(LogicalOpPtr child, std::unique_ptr<ast::Expr> predicate);
 
     [[nodiscard]] String DebugString() const override;
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
 
     ~LogicalFilter() override = default;
   };
@@ -200,6 +204,7 @@ namespace graph::logical {
     LogicalProject(LogicalOpPtr child, std::vector<ast::ReturnItem> items);
 
     [[nodiscard]] String DebugString() const override;
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
 
     ~LogicalProject() override = default;
   };
@@ -213,6 +218,7 @@ namespace graph::logical {
     explicit LogicalLimit(LogicalOpPtr child, size_t limit_size);
 
     [[nodiscard]] String DebugString() const override;
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
 
     ~LogicalLimit() override = default;
   };
@@ -247,6 +253,7 @@ namespace graph::logical {
     LogicalJoin(LogicalOpPtr left, LogicalOpPtr right);
 
     LogicalJoin(LogicalOpPtr left, LogicalOpPtr right, std::unique_ptr<ast::Expr> predicate);
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
 
     [[nodiscard]] String DebugString() const override;
 
@@ -266,6 +273,7 @@ namespace graph::logical {
     LogicalSet(LogicalSet &&other) noexcept : LogicalOpUnaryChild(std::move(other.child)), assignment(std::move(other.assignment)) {}
 
     LogicalSet(LogicalOpPtr child, String alias, String key, Value value);
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
 
     [[nodiscard]] String DebugString() const override;
 
@@ -281,6 +289,8 @@ namespace graph::logical {
     LogicalDelete(LogicalDelete &&other) noexcept : LogicalOpUnaryChild(std::move(other.child)), target(std::move(other.target)) {}
 
     LogicalDelete(LogicalOpPtr child, std::vector<String> target);
+
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
 
     [[nodiscard]] String DebugString() const override;
 
@@ -324,6 +334,8 @@ namespace graph::logical {
 
     LogicalCreate(LogicalOpPtr child, const std::vector<ast::CreateItem> &items);
 
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
+
     [[nodiscard]] String DebugString() const override;
   };
 
@@ -333,9 +345,14 @@ namespace graph::logical {
 
     LogicalPlan() : root(nullptr) {}
     LogicalPlan(LogicalPlan &&other) noexcept : root(std::move(other.root)) {}
+    LogicalPlan& operator=(LogicalPlan &&other) noexcept {
+      root = std::move(other.root);
+      return *this;
+    }
     explicit LogicalPlan(LogicalOpPtr r) : root(std::move(r)) {}
 
     [[nodiscard]] String DebugString() const override { return "LogicalPlan:"; }
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override { return root->BuildPhysical(ctx); }
 
     ~LogicalPlan() override = default;
   };
@@ -552,19 +569,15 @@ namespace graph::exec {
     ~ExpandOp() override = default;
   };
 
-  // using ExpandOutgoingOp = ExpandOp<true>;
-  // using ExpandIngoingOp = ExpandOp<false>;
-
   struct FilterCursor : RowCursor {
     RowCursorPtr child_cursor;
-    String out_alias;
     ast::Expr *predicate;
 
     FilterCursor(const FilterCursor &) = delete;
 
     FilterCursor(FilterCursor &&) = default;
 
-    FilterCursor(RowCursorPtr child_cursor, String out_alias, ast::Expr *predicate);
+    FilterCursor(RowCursorPtr child_cursor, ast::Expr *predicate);
 
     bool next(Row &out) override;
 
@@ -575,10 +588,9 @@ namespace graph::exec {
 
   struct FilterOp : public PhysicalOpUnaryChild {
     /// do Filter operation with predicate on Child like while (!predicate(child)) { child.next(row) }
-    std::unique_ptr<ast::Expr> predicate;
-    String out_alias;
+    ast::Expr* predicate;
 
-    FilterOp(std::unique_ptr<ast::Expr> predicate, String out_alias, PhysicalOpPtr child);
+    FilterOp(ast::Expr* predicate, PhysicalOpPtr child);
 
     RowCursorPtr open(ExecContext &ctx) override;
 
@@ -674,10 +686,10 @@ namespace graph::exec {
 
   struct NestedLoopJoinOp : public PhysicalOpBinaryChild {
     /// do join for 2 expressions based on predicate
-    std::unique_ptr<ast::Expr> predicate;
+    ast::Expr* predicate;
 
     NestedLoopJoinOp(PhysicalOpPtr left, PhysicalOpPtr right,
-                     std::unique_ptr<ast::Expr> pred);
+                     ast::Expr* pred);
     NestedLoopJoinOp(PhysicalOpPtr left, PhysicalOpPtr right);
 
     RowCursorPtr open(ExecContext &ctx) override;
@@ -810,15 +822,15 @@ namespace graph::exec {
 
     ~DeleteCursor() override = default;
   };
-  struct PhysicalDelete : PhysicalOpUnaryChild {
+  struct PhysicalDeleteOp : PhysicalOpUnaryChild {
     std::vector<String> aliases;
 
-    PhysicalDelete(std::vector<String> aliases, PhysicalOpPtr child);
+    PhysicalDeleteOp(std::vector<String> aliases, PhysicalOpPtr child);
 
     RowCursorPtr open(ExecContext &ctx) override;
     [[nodiscard]] String DebugString() const override;
 
-    ~PhysicalDelete() override = default;
+    ~PhysicalDeleteOp() override = default;
   };
 
   struct PhysicalSort {}; /// todo
@@ -829,6 +841,11 @@ namespace graph::exec {
 
     PhysicalPlan() = default;
 
+    PhysicalPlan(PhysicalPlan&& other): root(std::move(other.root)) {}
+    PhysicalPlan& operator=(PhysicalPlan&& other) noexcept {
+      root = std::move(other.root);
+      return *this;
+    }
     explicit PhysicalPlan(PhysicalOpPtr root);
 
     [[nodiscard]] std::string DebugString() const;
@@ -924,16 +941,17 @@ public:
 
 class Planner {
 public:
-  explicit Planner(const storage::GraphDB &cat,
-                   PlannerConfig cfg = PlannerConfig(),
+  explicit Planner(exec::ExecContext &ctx,
+                   ast::QueryAST ast,
+                   // PlannerConfig cfg = PlannerConfig(),
                    std::unique_ptr<CostModel> cost_model = std::make_unique<DefaultCostModel>(),
                    std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<GreedyJoinOrder>());
 //              std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<DPJoinOrder>()); /// add later
 
   // End-to-end: AST -> LogicalPlan
-  [[nodiscard]] logical::LogicalPlan build_logical_plan(ast::QueryAST ast) const;
+  [[nodiscard]] void build_logical_plan();
 
-  [[nodiscard]] exec::PhysicalPlan build_physical_plan(logical::LogicalPlan ast) const;
+  [[nodiscard]] void build_physical_plan();
   // Optimizations on logical plan (predicate pushdown, flattening)
   [[nodiscard]] logical::LogicalPlan optimize_logical_plan(logical::LogicalPlan plan) const;
 
@@ -961,15 +979,16 @@ public:
   [[nodiscard]] String explain_physical_plan(const exec::PhysicalPlan &plan) const;
 
 private:
-  const storage::GraphDB &cat_;
-  PlannerConfig cfg_;
+  exec::ExecContext ctx_;
+  ast::QueryAST ast_plan_;
+  logical::LogicalOpPtr logical_plan_;
+  exec::PhysicalOpPtr physical_plan_;
+  // const storage::GraphDB &cat_;
+  // PlannerConfig cfg_;
   std::unique_ptr<CostModel> cost_model_;
   std::unique_ptr<JoinOrderStrategy> join_strategy_;
 
-  // helper internal functions (signatures)
-  void collect_aliases_from_match(const ast::QueryAST &ast, std::set<std::string> &out) const;
-  // converts pattern fragments into LogicalScan/Expand sequence
-  [[nodiscard]] logical::LogicalOpPtr pattern_to_logical_ops(const ast::MatchClause &match_clause) const;
+
 };
 }
 

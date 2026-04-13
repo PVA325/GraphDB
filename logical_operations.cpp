@@ -1,4 +1,5 @@
 #include "graph.hpp"
+#include "graph.hpp"
 
 namespace graph::logical {
   LogicalOpUnaryChild::LogicalOpUnaryChild(LogicalOpPtr child) :
@@ -91,13 +92,34 @@ namespace graph::logical {
     LogicalOpUnaryChild(std::move(child)),
     predicate(std::move(predicate)) {}
 
+  exec::PhysicalOpPtr LogicalFilter::BuildPhysical(exec::ExecContext& ctx) const {
+    return std::make_unique<exec::FilterOp>(
+      predicate.get(),
+      std::move(child->BuildPhysical(ctx))
+    );
+  }
+
   LogicalProject::LogicalProject(LogicalOpPtr child, std::vector<ast::ReturnItem> items) :
     LogicalOpUnaryChild(std::move(child)),
     items(std::move(items)) {}
 
+  exec::PhysicalOpPtr LogicalProject::BuildPhysical(exec::ExecContext& ctx) const {
+    return std::make_unique<exec::ProjectOp>(
+      items,
+      std::move(child->BuildPhysical(ctx))
+      );
+  }
+
   LogicalLimit::LogicalLimit(LogicalOpPtr child, size_t limit_size) :
     LogicalOpUnaryChild(std::move(child)),
     limit_size(limit_size) {}
+
+  exec::PhysicalOpPtr LogicalLimit::BuildPhysical(exec::ExecContext& ctx) const {
+    return std::make_unique<exec::LimitOp>(
+      limit_size,
+      child->BuildPhysical(ctx)
+    );
+  }
 
   LogicalSort::LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> keys) :
     LogicalOpUnaryChild(std::move(child)),
@@ -112,14 +134,44 @@ namespace graph::logical {
     LogicalOpBinaryChild(std::move(left), std::move(right)),
     predicate(std::move(predicate)) {}
 
+  exec::PhysicalOpPtr LogicalJoin::BuildPhysical(exec::ExecContext& ctx) const {
+    // return std::make_unique<exec::KeyHashJoinOp>(
+    //   std::move(left->BuildPhysical(ctx)),
+    //   std::move(right->BuildPhysical(ctx)),
+    //   left_alias, right_alias,
+    //   left_feature_ket, right_feature_key
+    // );
+    return std::make_unique<exec::NestedLoopJoinOp>(
+      std::move(left->BuildPhysical(ctx)),
+      std::move(right->BuildPhysical(ctx)),
+      predicate.get()
+    );
+  }
+
   LogicalSet::LogicalSet(LogicalOpPtr child, String alias, String key, Value value) :
     LogicalOpUnaryChild(std::move(child)),
     assignment{std::move(alias), std::move(key), std::move(value)} {}
 
+  exec::PhysicalOpPtr LogicalSet::BuildPhysical(exec::ExecContext& ctx) const {
+    ;
+    return std::make_unique<exec::PhysicalSetOp>( // REWRITE AFTER ARTEM CHANGES
+      std::vector<String>{assignment.alias},
+      std::vector<std::vector<String> >{}, /// ARTEM TODO
+      std::vector<std::vector<std::pair<String, Value> > >{{std::make_pair(assignment.key, assignment.value)}},
+      std::move(child->BuildPhysical(ctx))
+    );
+  }
 
   LogicalDelete::LogicalDelete(LogicalOpPtr child, std::vector<String> target) :
     LogicalOpUnaryChild(std::move(child)),
     target(std::move(target)) {}
+
+  exec::PhysicalOpPtr LogicalDelete::BuildPhysical(exec::ExecContext& ctx) const {
+    return std::make_unique<exec::PhysicalDeleteOp>(
+      target,
+      std::move(child->BuildPhysical(ctx))
+    );
+  }
 
   CreateNodeSpec::CreateNodeSpec(const ast::NodePattern &pattern) :
     labels(pattern.labels) {
@@ -159,7 +211,12 @@ namespace graph::logical {
     }
   }
 
-
+  exec::PhysicalOpPtr LogicalCreate::BuildPhysical(exec::ExecContext& ctx) const {
+    return std::make_unique<exec::PhysicalCreateOp>(
+      items,
+      std::move(child->BuildPhysical(ctx))
+    );
+  }
 }
 
 graph::String graph::PlannerUtils::EdgeStrByDirection(ast::EdgeDirection dir) {

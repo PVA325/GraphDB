@@ -195,10 +195,8 @@ namespace graph::exec {
 
   FilterCursor::FilterCursor(
     RowCursorPtr child_cursor,
-    String out_alias,
     ast::Expr *predicate) :
     child_cursor(std::move(child_cursor)),
-    out_alias(std::move(out_alias)),
     predicate(predicate) {}
 
   bool FilterCursor::next(Row &out) {
@@ -221,18 +219,15 @@ namespace graph::exec {
   RowCursorPtr FilterOp::open(ExecContext &ctx) {
     return std::make_unique<FilterCursor>(
       std::move(child->open(ctx)),
-      out_alias,
-      predicate.get()
+      predicate
     );
   }
 
   FilterOp::FilterOp(
-    std::unique_ptr<ast::Expr> predicate,
-    String out_alias,
+    ast::Expr *predicate,
     PhysicalOpPtr child) :
     PhysicalOpUnaryChild(std::move(child)),
-    predicate(std::move(predicate)),
-    out_alias(std::move(out_alias)) {}
+    predicate(predicate) {}
 
   ProjectCursor::ProjectCursor(
     RowCursorPtr child_cursor,
@@ -375,9 +370,9 @@ namespace graph::exec {
   NestedLoopJoinOp::NestedLoopJoinOp(
     PhysicalOpPtr left,
     PhysicalOpPtr right,
-    std::unique_ptr<ast::Expr> pred):
+    ast::Expr* pred):
     PhysicalOpBinaryChild(std::move(left), std::move(right)),
-    predicate(std::move(pred))
+    predicate(pred)
   {}
 
   NestedLoopJoinOp::NestedLoopJoinOp(
@@ -694,11 +689,11 @@ namespace graph::exec {
   void DeleteCursor::close() {
     child->close();
   }
-  PhysicalDelete::PhysicalDelete(std::vector<String> aliases, PhysicalOpPtr child):
+  PhysicalDeleteOp::PhysicalDeleteOp(std::vector<String> aliases, PhysicalOpPtr child):
     PhysicalOpUnaryChild(std::move(child)),
     aliases(std::move(aliases)) {}
 
-  RowCursorPtr PhysicalDelete::open(ExecContext& ctx) {
+  RowCursorPtr PhysicalDeleteOp::open(ExecContext& ctx) {
     return std::make_unique<DeleteCursor>(
       std::move(child->open(ctx)),
       aliases,

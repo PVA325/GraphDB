@@ -153,25 +153,22 @@ namespace {
 }
 
 namespace graph::planner {
-  logical::LogicalPlan Planner::build_logical_plan(ast::QueryAST ast) const {
-    using ast::QueryAST;
+  void Planner::build_logical_plan() {
     logical::LogicalPlan plan;
 
-    ApplyLogicalMatchImpl(plan, std::move(ast.match));
-    ApplyLogicalWhereImpl(plan, std::move(ast.where));
-    ApplyLogicalProjectImpl(plan, std::move(ast.return_clause));
-    ApplyLogicalSortImpl(plan, std::move(ast.order));
-    ApplyLogicalLimitImpl(plan, std::move(ast.limit));
-    ApplyLogicalSetImpl(plan, std::move(ast.set_clause));
-    ApplyLogicalDeleteImpl(plan, std::move(ast.delete_clause));
-    ApplyLogicalCreateImpl(plan, std::move(ast.create));
+    ApplyLogicalMatchImpl(plan, std::move(ast_plan_.match));
+    ApplyLogicalWhereImpl(plan, std::move(ast_plan_.where));
+    ApplyLogicalProjectImpl(plan, std::move(ast_plan_.return_clause));
+    ApplyLogicalSortImpl(plan, std::move(ast_plan_.order));
+    ApplyLogicalLimitImpl(plan, std::move(ast_plan_.limit));
+    ApplyLogicalSetImpl(plan, std::move(ast_plan_.set_clause));
+    ApplyLogicalDeleteImpl(plan, std::move(ast_plan_.delete_clause));
+    ApplyLogicalCreateImpl(plan, std::move(ast_plan_.create));
 
-    return plan;
+    logical_plan_ = std::make_unique<LogicalPlan>(std::move(plan));
   }
 
-  exec::PhysicalPlan Planner::build_physical_plan(LogicalPlan ast) const {
-    return exec::PhysicalPlan(
-      std::move(std::make_unique<exec::PhysicalOpPtr>(build_physical_impl(std::move(ast.root))))
-    );
+  void Planner::build_physical_plan() {
+    physical_plan_ = std::move(logical_plan_->BuildPhysical(ctx_));
   }
 }
