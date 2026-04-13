@@ -6,7 +6,6 @@
 #include <memory>
 #include <optional>
 #include <variant>
-#include <set>
 #include <unordered_map>
 #include <numeric>
 #include <functional>
@@ -841,7 +840,7 @@ namespace graph::exec {
 
     PhysicalPlan() = default;
 
-    PhysicalPlan(PhysicalPlan&& other): root(std::move(other.root)) {}
+    PhysicalPlan(PhysicalPlan&& other) noexcept : root(std::move(other.root)) {}
     PhysicalPlan& operator=(PhysicalPlan&& other) noexcept {
       root = std::move(other.root);
       return *this;
@@ -941,12 +940,8 @@ public:
 
 class Planner {
 public:
-  explicit Planner(exec::ExecContext &ctx,
-                   ast::QueryAST ast,
-                   // PlannerConfig cfg = PlannerConfig(),
-                   std::unique_ptr<CostModel> cost_model = std::make_unique<DefaultCostModel>(),
-                   std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<GreedyJoinOrder>());
-//              std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<DPJoinOrder>()); /// add later
+  explicit Planner(exec::ExecContext &ctx, ast::QueryAST ast):
+    ctx_(ctx), ast_plan_(std::move(ast)) {}
 
   // End-to-end: AST -> LogicalPlan
   void build_logical_plan();

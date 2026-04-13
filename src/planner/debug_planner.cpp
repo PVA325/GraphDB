@@ -356,4 +356,15 @@ namespace graph::exec {
     );
   }
 
+  String NodePropertyFilterOp::DebugString() const {
+    return std::format(
+      "PropertyFilter(labels={}, properties={})",
+      Join(labels, ", ", [](const String& s) {
+        return s;
+      }),
+      Join(properties, ", ", [](const auto& s) {
+        return std::format("\"{}\": {}", s.first, ValueDebugString(s.second));
+      })
+    );
+  }
 }
