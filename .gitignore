@@ -1,3 +1,11 @@
+tmp_folder/*
+parser*
+storage.hpp
+
+cmake-build-debug/**
+.idea/*
+CMakeLists.txt
+
 # Prerequisites
 *.d
 *.txt
