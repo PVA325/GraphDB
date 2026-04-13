@@ -11,7 +11,6 @@
 #include <numeric>
 #include <functional>
 #include "ast.hpp"
-#include "graph.hpp"
 #include "storage.hpp"
 
 namespace graph {
