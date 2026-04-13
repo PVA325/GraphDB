@@ -51,7 +51,7 @@ protected:
   size_t returned_ = 0;                            // сколько уже вернули
 
 public:
-  Cursor(GraphDB* db, const std::vector<Id>& ids,
+  inline Cursor(GraphDB* db, const std::vector<Id>& ids,
          std::function<bool(T*)> predicate = nullptr,
          size_t limit = 0)
       : db_(db), ids_(ids), predicate_(predicate), limit_(limit) {};
@@ -60,7 +60,7 @@ public:
 
   bool next(T*& out);
 
-  void reset() { index_ = 0; returned_ = 0; }
+  inline void reset() { index_ = 0; returned_ = 0; }
 
 protected:
   virtual T* get_from_db(Id id) = 0;
@@ -141,10 +141,7 @@ public:
                                             std::function<bool(Edge*)> predicate = nullptr,
                                             size_t limit = 0);
 
-
-
   size_t node_count() const;
-
 
   size_t node_count_with_label(const std::string& label) const;
 
@@ -186,3 +183,5 @@ private:
   std::unordered_map<std::string,std::vector<EdgeId>> edge_type_index_; // type index
 };
 }
+
+#include "base_cursor_storage.tpp"
