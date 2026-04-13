@@ -1,5 +1,4 @@
 #include <format>
-
 #include "graph.hpp"
 
 namespace {
@@ -92,7 +91,7 @@ namespace {
     return std::format("properties={}", PropertiesDebugString(*props));
   }
 
-  std::string CreateNodeSpecDebugString(const graph::planner::CreateNodeSpec& spec) {
+  std::string CreateNodeSpecDebugString(const graph::logical::CreateNodeSpec& spec) {
     return std::format(
       "Node(labels={}, properties={})",
       LabelsDebugString(spec.labels),
@@ -100,7 +99,7 @@ namespace {
     );
   }
 
-  std::string CreateEdgeSpecDebugString(const graph::planner::CreateEdgeSpec& spec) {
+  std::string CreateEdgeSpecDebugString(const graph::logical::CreateEdgeSpec& spec) {
     std::string dir;
     switch (spec.direction) {
     case ast::EdgeDirection::Right:      dir = "->"; break;
@@ -113,12 +112,12 @@ namespace {
       spec.src_alias,
       spec.dst_alias,
       dir,
-      spec.label,
+      spec.edge_type,
       PropertiesDebugString(spec.properties)
     );
   }
 
-  std::string ReturnItemDebugString(const graph::frontend::ReturnItem& item) {
+  std::string ReturnItemDebugString(const ast::ReturnItem& item) {
     if (item.item.index() == 0) {
       return std::get<0>(item.item);
     }
@@ -127,7 +126,7 @@ namespace {
   }
 }
 
-namespace graph::planner {
+namespace graph::logical {
   String LogicalOpUnaryChild::SubtreeDebugString() const {
     return DebugString() + "\n" + IndentBlock(child->SubtreeDebugString());
   }
@@ -159,10 +158,10 @@ namespace graph::planner {
     if (!edge_alias.empty()) {
       ans += ", edge_as=" + edge_alias;
     }
-    if (edge_label.has_value()) {
-      ans += ", edge_label= " + edge_label.value();
+    if (edge_type.has_value()) {
+      ans += ", edge_label= " + edge_type.value();
     }
-    if (dst_vertex_labels.has_value()) {
+    if (!dst_vertex_labels.empty()) {
       ans += ", dst_labels=[" + Join(dst_vertex_labels, ", ", [](const String& s) { return s; }) + "]";
     }
 
@@ -175,7 +174,7 @@ namespace graph::planner {
   }
 
   String LogicalProject::DebugString() const {
-    return "Project(" + Join(items, ", ", [](const auto& cur) {
+    return "Project(" + Join(items, ", ", [](const auto& cur) -> String {
       return cur.DebugString();
     }) + ")";
   }
@@ -185,15 +184,15 @@ namespace graph::planner {
   }
 
   String LogicalSort::DebugString() const {
-    return "Sort(" + Join(keys, ", ", [](const frontend::OrderItem& k) {
+    return "Sort(" + Join(keys, ", ", [](const ast::OrderItem& k) {
       return k.DebugString() + " " +
-             (k.direction == frontend::OrderDirection::Asc ? "ASC" : "DESC");
+             (k.direction == ast::OrderDirection::Asc ? "ASC" : "DESC");
     }) + ")";
   }
 
   String LogicalJoin::DebugString() const {
-    if (predicate.has_value()) {
-      return "Join(on=" + predicate.value()->DebugString() + ")";
+    if (predicate != nullptr) {
+      return "Join(on=" + predicate->DebugString() + ")";
     }
     return "Join(cross)";
   }
@@ -221,7 +220,7 @@ namespace graph::planner {
   String CreateEdgeSpec::DebugString() const {
     String ans = "EdgeCreate(";
     ans += src_alias + PlannerUtils::EdgeStrByDirection(direction) + dst_alias;
-    ans += ", " + label;
+    ans += ", " + edge_type;
     if (!properties.empty()) {
       ans += ", " + PlannerUtils::ConcatProperties(properties);
     }
@@ -231,7 +230,7 @@ namespace graph::planner {
 
   String LogicalCreate::DebugString() const {
     return "LogicalCreate(" + Join(items, ", ", [](const auto& pattern) {
-      return std::visit([](const auto& spec) -> String {
+      return std::visit([](const auto& spec) {
         return spec.DebugString();
       }, pattern);
     }) + ")";
@@ -262,8 +261,10 @@ namespace graph::exec {
     return std::format(
       "Expand({} {} {}, type={})",
       src_alias,
-      (edge_outgoing ? "->" : "<-"),
-      dst_alias,
+      (edge_outgoing ? "-" : "<"),
+      dst_edge_alias,
+      (edge_outgoing ? ">" : "-"),
+      dst_node_alias,
       (edge_type.has_value() ? std::format("\"{}\"", edge_type.value()) : "*")
     );
   }
@@ -313,15 +314,15 @@ namespace graph::exec {
       ans += " {";
 
       bool first = true;
-      if (labels[i].has_value()) {
-        ans += "labels=" + LabelsDebugString(labels[i].value());
+      if (!labels[i].empty()) {
+        ans += "labels=" + LabelsDebugString(labels[i]);
         first = false;
       }
-      if (properties[i].has_value()) {
+      if (!properties[i].empty()) {
         if (!first) {
           ans += ", ";
         }
-        ans += "properties=" + PropertiesDebugString(properties[i].value());
+        ans += "properties=" + PropertiesDebugString(properties[i]);
       }
 
       ans += "}";
@@ -334,9 +335,9 @@ namespace graph::exec {
     return std::format(
       "Create({})",
       Join(items, ", ", [](const auto& item) {
-        return std::visit([](const auto& spec) -> String {
+        return std::visit([](const auto& spec) {
           using T = std::decay_t<decltype(spec)>;
-          if constexpr (std::is_same_v<T, planner::CreateNodeSpec>) {
+          if constexpr (std::is_same_v<T, logical::CreateNodeSpec>) {
             return CreateNodeSpecDebugString(spec);
           } else {
             return CreateEdgeSpecDebugString(spec);
@@ -346,7 +347,7 @@ namespace graph::exec {
     );
   }
 
-  String PhysicalDelete::DebugString() const {
+  String PhysicalDeleteOp::DebugString() const {
     return std::format(
       "Delete({})",
       Join(aliases, ", ", [](const auto& a) {
