@@ -1,9 +1,9 @@
-#include "../include/lexer.hpp"
+#include "lexer.hpp"
 
 #include <cctype>
 #include <unordered_map>
 
-#include "../include/error.hpp"
+#include "error.hpp"
 
 namespace lexer {
 

@@ -1,7 +1,4 @@
-tmp_folder/*
-parser*
-storage.hpp
-
+build/*
 cmake-build-debug/**
 .idea/*
 CMakeLists.txt

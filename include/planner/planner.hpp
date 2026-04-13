@@ -948,9 +948,9 @@ public:
 //              std::unique_ptr<JoinOrderStrategy> join_strategy = std::make_unique<DPJoinOrder>()); /// add later
 
   // End-to-end: AST -> LogicalPlan
-  [[nodiscard]] void build_logical_plan();
+  void build_logical_plan();
 
-  [[nodiscard]] void build_physical_plan();
+  void build_physical_plan();
   // Optimizations on logical plan (predicate pushdown, flattening)
   [[nodiscard]] logical::LogicalPlan optimize_logical_plan(logical::LogicalPlan plan) const;
 
