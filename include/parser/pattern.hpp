@@ -32,7 +32,7 @@ enum class EdgeDirection {
 // Edge pattern between nodes
 struct MatchEdgePattern {
   std::string alias;
-  std::string labels;
+  std::string label;
   PropertyMap properties;
   EdgeDirection direction;
 
@@ -77,7 +77,7 @@ struct CreateNodeRef {
 struct CreateEdgePattern {
   CreateNodeRef left_node;
   std::string alias;
-  std::string labels;
+  std::string label;
   PropertyMap properties;
   EdgeDirection direction;
   CreateNodeRef right_node;

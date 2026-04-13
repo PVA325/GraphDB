@@ -238,6 +238,7 @@ namespace graph::logical {
     explicit LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> keys);
 
     [[nodiscard]] String DebugString() const override;
+    exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
 
     ~LogicalSort() override = default;
   };

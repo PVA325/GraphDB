@@ -1,6 +1,6 @@
 #include <format>
 
-#include "graph.hpp"
+#include "planner.hpp"
 
 namespace graph::exec {
   bool SlotMapping::key_exists(const String& key) const {
@@ -391,7 +391,7 @@ namespace graph::exec {
     return std::make_unique<NestedLoopJoinCursor>(
       left->open(ctx),
       right.get(),
-      predicate.get(),
+      predicate,
       ctx
     );
   }
