@@ -39,7 +39,7 @@ namespace {
           continue;
         }
         const auto &edge_pattern = std::get<MatchEdgePattern>(pattern.element);
-        if (idx + 1 >= ast_match->patterns.size() || pattern_vec.elements[idx + 1].element.index() != 0) {
+        if (idx + 1 >= pattern_vec.elements.size() || pattern_vec.elements[idx + 1].element.index() != 0) {
           throw std::runtime_error("Invalid syntax in match");
         }
         ++idx;
@@ -147,9 +147,6 @@ namespace {
   using graph::logical::LogicalOpPtr;
   using graph::exec::PhysicalOp;
   using graph::exec::PhysicalOpPtr;
-  // PhysicalOpPtr build_physical_impl(LogicalOpPtr op) {
-  //
-  // }
 }
 
 namespace graph::planner {
@@ -165,10 +162,10 @@ namespace graph::planner {
     ApplyLogicalDeleteImpl(plan, std::move(ast_plan_.delete_clause));
     ApplyLogicalCreateImpl(plan, std::move(ast_plan_.create));
 
-    logical_plan_ = std::make_unique<LogicalPlan>(std::move(plan));
+    logical_plan_ = std::move(plan);
   }
 
   void Planner::build_physical_plan() {
-    physical_plan_ = std::move(logical_plan_->BuildPhysical(ctx_));
+    physical_plan_ = exec::PhysicalPlan(std::move(logical_plan_.BuildPhysical(ctx_)));
   }
 }

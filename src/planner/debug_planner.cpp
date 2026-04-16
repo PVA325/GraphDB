@@ -128,13 +128,17 @@ namespace {
 
 namespace graph::logical {
   String LogicalOpUnaryChild::SubtreeDebugString() const {
-    return DebugString() + "\n" + IndentBlock(child->SubtreeDebugString());
+    return DebugString() + "\n" + (child ? IndentBlock(child->SubtreeDebugString()) : "");
+  }
+
+  String LogicalExpand::SubtreeDebugString() const {
+    return DebugString() + "\n" + (child ? IndentBlock(child->SubtreeDebugString()) : "");
   }
 
   String LogicalOpBinaryChild::SubtreeDebugString() const {
     return DebugString() + "\n"
-         + "1)\n" + IndentBlock(left->SubtreeDebugString()) + "\n"
-         + "2)\n" + IndentBlock(right->SubtreeDebugString());
+         + "1)\n" + (left ? IndentBlock(left->SubtreeDebugString()) : "") + "\n"
+         + "2)\n" + (right ? IndentBlock(right->SubtreeDebugString()) : "");
   }
 
   String LogicalScan::DebugString() const {
@@ -184,9 +188,8 @@ namespace graph::logical {
   }
 
   String LogicalSort::DebugString() const {
-    return "Sort(" + Join(keys, ", ", [](const ast::OrderItem& k) {
-      return k.DebugString() + " " +
-             (k.direction == ast::OrderDirection::Asc ? "ASC" : "DESC");
+    return "Sort(" + Join(items, ", ", [](const ast::OrderItem& k) {
+      return k.DebugString();
     }) + ")";
   }
 
@@ -200,7 +203,7 @@ namespace graph::logical {
   String LogicalSet::DebugString() const {
     return "LogicalSet(" + assignment.alias +
            ", key=" + assignment.key +
-           ", value=" + PlannerUtils::toString(assignment.value) + ")";
+           ", value=" + PlannerUtils::ValueToString(assignment.value) + ")";
   }
 
   String LogicalDelete::DebugString() const {
@@ -254,19 +257,6 @@ namespace graph::exec {
 
   String NodeScanOp::DebugString() const {
     return std::format("NodeScan(as={})", out_alias);
-  }
-
-  template <bool edge_outgoing>
-  String ExpandOp<edge_outgoing>::DebugString() const {
-    return std::format(
-      "Expand({} {} {}, type={})",
-      src_alias,
-      (edge_outgoing ? "-" : "<"),
-      dst_edge_alias,
-      (edge_outgoing ? ">" : "-"),
-      dst_node_alias,
-      (edge_type.has_value() ? std::format("\"{}\"", edge_type.value()) : "*")
-    );
   }
 
   String FilterOp::DebugString() const {
@@ -364,6 +354,15 @@ namespace graph::exec {
       }),
       Join(properties, ", ", [](const auto& s) {
         return std::format("\"{}\": {}", s.first, ValueDebugString(s.second));
+      })
+    );
+  }
+
+  String PhysicalSortOp::DebugString() const {
+    return std::format(
+      "Sort(features={})",
+      Join(items, ", ", [](const auto& cur) {
+        return std::format("{{{}}}", cur.DebugString());
       })
     );
   }

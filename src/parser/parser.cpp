@@ -372,6 +372,8 @@ std::string OrderItem::DebugString() const {
 
   if (direction == OrderDirection::Desc) {
     result += " DESC";
+  } else {
+    result += " ASC";
   }
 
   return result;

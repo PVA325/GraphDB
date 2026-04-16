@@ -1,5 +1,3 @@
-set(PARSER_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/parser")
-
 add_library(parser SHARED parser.cpp)
 target_include_directories(parser PUBLIC "${PARSER_INCLUDE_DIR}")
 

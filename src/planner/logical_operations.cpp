@@ -18,8 +18,8 @@ namespace graph::logical {
     exec::PhysicalOpPtr physical_root;
     if (labels.size() == 1) {
       physical_root = std::make_unique<exec::LabelIndexSeekOp>(
-        dst_alias,
-        labels[0]
+        labels[0],
+        dst_alias
       );
     } else {
       physical_root = std::make_unique<exec::NodeScanOp>(
@@ -120,9 +120,15 @@ namespace graph::logical {
     );
   }
 
-  LogicalSort::LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> keys) :
+  LogicalSort::LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> items) :
     LogicalOpUnaryChild(std::move(child)),
-    keys(std::move(keys)) {}
+    items(std::move(items)) {}
+  exec::PhysicalOpPtr LogicalSort::BuildPhysical(exec::ExecContext& ctx) const {
+    return std::make_unique<exec::PhysicalSortOp>(
+      std::move(child->BuildPhysical(ctx)),
+      items
+    );
+  }
 
   LogicalJoin::LogicalJoin(LogicalOpPtr left, LogicalOpPtr right) :
     LogicalOpBinaryChild(std::move(left), std::move(right)), predicate{nullptr} {}
@@ -152,10 +158,9 @@ namespace graph::logical {
     assignment{std::move(alias), std::move(key), std::move(value)} {}
 
   exec::PhysicalOpPtr LogicalSet::BuildPhysical(exec::ExecContext& ctx) const {
-    ;
     return std::make_unique<exec::PhysicalSetOp>( // REWRITE AFTER ARTEM CHANGES
       std::vector<String>{assignment.alias},
-      std::vector<std::vector<String> >{}, /// ARTEM TODO
+      std::vector<std::vector<String> >{{}}, /// ARTEM TODO
       std::vector<std::vector<std::pair<String, Value> > >{{std::make_pair(assignment.key, assignment.value)}},
       std::move(child->BuildPhysical(ctx))
     );
@@ -220,15 +225,15 @@ namespace graph::logical {
 
 graph::String graph::PlannerUtils::EdgeStrByDirection(ast::EdgeDirection dir) {
   if (dir == ast::EdgeDirection::Right) {
-    return ">";
+    return "->";
   }
   if (dir == ast::EdgeDirection::Left) {
-    return "<";
+    return "<-";
   }
   return "-";
 }
 
-graph::String graph::PlannerUtils::toString(const graph::Value &val) {
+graph::String graph::PlannerUtils::ValueToString(const graph::Value &val) {
   const auto visitor = overloads {
     [](Int cur) -> String { return std::to_string(cur); },
     [](Double cur) -> String { return std::to_string(cur); },
@@ -254,7 +259,7 @@ graph::String graph::PlannerUtils::ConcatProperties(const std::vector<std::pair<
     if (!ans.empty()) {
       ans += ", ";
     }
-    ans += cur.first + ":" + toString(cur.second);
+    ans += cur.first + ": " + ValueToString(cur.second);
   }
   return ans;
 }

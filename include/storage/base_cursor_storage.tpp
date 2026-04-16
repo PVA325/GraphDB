@@ -13,7 +13,7 @@ namespace storage {
         continue;
       }
 
-      if (predicate_(obj)) {
+      if (predicate_ && predicate_(obj)) {
         continue;
       }
 

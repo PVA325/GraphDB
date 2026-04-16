@@ -123,76 +123,6 @@ namespace graph::exec {
     );
   }
 
-  template<bool edge_outgoing>
-  ExpandNodeCursorPhysical<edge_outgoing>::ExpandNodeCursorPhysical(
-    RowCursorPtr child_cursor,
-    String src_alias,
-    String dst_edge_alias,
-    String dst_node_alias,
-    std::function<bool(Edge *)> label_predicate,
-    storage::GraphDB *db):
-    child_cursor(std::move(child_cursor)),
-    edge_cursor(nullptr),
-    label_predicate(std::move(label_predicate)),
-    src_alias(std::move(src_alias)),
-    dst_edge_alias(std::move(dst_edge_alias)),
-    dst_node_alias(std::move(dst_node_alias)),
-    db(db) {}
-
-  template<bool edge_outgoing>
-  bool ExpandNodeCursorPhysical<edge_outgoing>::next(Row &out) {
-    Edge *edge;
-    size_t src_idx = out.slots_mapping.map_and_check(src_alias, "Invalid alias for PhysicalExpand, src_alias do not exists");
-
-    while (edge_cursor == nullptr || !edge_cursor->next(edge)) {
-      if (!child_cursor->next(out)) {
-        return false;
-      }
-      Node *node = std::get<Node *>(out.slots[src_idx]);
-      if constexpr (edge_outgoing) {
-        edge_cursor = db->outgoing_edges(node->id);
-      } else {
-        edge_cursor = db->incoming_edges(node->id);
-      }
-    }
-
-    String error_message = "Invalid alias for PhysicalExpand, dst_alias already exists";
-    out.AddValue(edge, dst_edge_alias, error_message);
-    out.AddValue(db->get_node(edge->dst), dst_node_alias, error_message);
-    return true;
-  }
-
-
-  template<bool edge_outgoing>
-  void ExpandNodeCursorPhysical<edge_outgoing>::close() {
-    child_cursor->close();
-  }
-
-  template<bool edge_outgoing>
-  ExpandOp<edge_outgoing>::ExpandOp(
-    String src_alias,
-    String dst_edge_alias,
-    String dst_node_alias,
-    std::optional<String> edge_type,
-    PhysicalOpPtr child):
-    PhysicalOpUnaryChild(std::move(child)),
-    src_alias(std::move(src_alias)),
-    dst_edge_alias(std::move(dst_edge_alias)),
-    dst_node_alias(std::move(dst_node_alias)),
-    edge_type(std::move(edge_type)) {}
-
-  template<bool edge_outgoing>
-  RowCursorPtr ExpandOp<edge_outgoing>::open(ExecContext &ctx) {
-    auto label_predicate = [edge_type = this->edge_type](const Edge *e) {
-      return (edge_type.has_value() ? e->type == edge_type.value() : true);
-    };
-    return std::make_unique<ExpandNodeCursorPhysical<edge_outgoing>>(
-      std::move(child->open(ctx)),
-      std::move(label_predicate),
-      ctx
-    );
-  }
-
   FilterCursor::FilterCursor(
     RowCursorPtr child_cursor,
     ast::Expr *predicate) :
@@ -354,7 +284,7 @@ namespace graph::exec {
       if (right_cursor->next(right_row)) {
         Row new_row = MergeRows(left_row, right_row);
         ast::EvalContext exec_ctx{new_row};
-        if (predicate != nullptr && PlannerUtils::ValueToBool((*predicate)(exec_ctx))) {
+        if (predicate == nullptr || PlannerUtils::ValueToBool((*predicate)(exec_ctx))) {
           out = std::move(new_row);
           return true;
         }
@@ -468,8 +398,10 @@ namespace graph::exec {
     ans.slots_names.insert(ans.slots_names.end(), first.slots_names.begin(), first.slots_names.end());
     ans.slots_names.insert(ans.slots_names.end(), second.slots_names.begin(), second.slots_names.end());
 
-    ans.slots_mapping.alias_to_slot = first.slots_mapping.alias_to_slot;
-    ans.slots_mapping.alias_to_slot.merge(second.slots_mapping.alias_to_slot);
+    for (size_t i = 0; i < ans.slots_names.size(); ++i) {
+      ans.slots_mapping.add_map(ans.slots_names[i], i);
+    }
+
     return ans;
   }
 
@@ -701,6 +633,68 @@ namespace graph::exec {
     );
   }
 
+  SortCursor::SortCursor(RowCursorPtr child, std::vector<ast::OrderItem> items):
+    child(std::move(child)),
+    items(std::move(items)) {
+    Row cur;
+    while (child->next(cur)) {
+      rows.push_back(std::move(cur)); // move ok?
+    }
+    auto cmp = [items = std::move(this->items)](const Row& a, const Row& b) -> bool {
+      for (const auto& item : items) {
+        String err = std::format("SortCursor: Error, no such alias {}", item.property.alias);
+        size_t a_idx = a.slots_mapping.map_and_check(item.property.alias, err);
+        size_t b_idx = b.slots_mapping.map_and_check(item.property.alias, err);
+
+        Value a_feature = GetFeatureFromSlot(a.slots[a_idx], item.property.property);
+        Value b_feature = GetFeatureFromSlot(a.slots[a_idx], item.property.property);
+
+        if (a_feature.index() != b_feature.index()) {
+          throw std::runtime_error("SortCursor: Error type mistmatch");
+        }
+
+        if (a_feature != b_feature) {
+          bool is_less = std::visit([](auto&& a, auto&& b) -> bool {
+            using A = std::decay_t<decltype(a)>;
+            using B = std::decay_t<decltype(b)>;
+
+            if constexpr (std::is_same_v<A, B>) {
+              return a < b;
+            }
+            return false;
+          }, a_feature, b_feature);
+          return (item.direction == ast::OrderDirection::Asc ? is_less : !is_less);
+        }
+      }
+      return true;
+    };
+    std::sort(rows.begin(), rows.end(), cmp);
+    std::reverse(rows.begin(), rows.end());
+  }
+
+  bool SortCursor::next(Row& out) {
+    if (rows.empty()) {
+      return false;
+    }
+    out = std::move(rows.back());
+    rows.pop_back();
+    return true;
+  }
+
+  void SortCursor::close() {
+    child->close();
+  }
+
+  PhysicalSortOp::PhysicalSortOp(PhysicalOpPtr child, std::vector<ast::OrderItem> items):
+    PhysicalOpUnaryChild(std::move(child)),
+    items(std::move(items)) {}
+
+  RowCursorPtr PhysicalSortOp::open(ExecContext& ctx) {
+    return std::make_unique<SortCursor>(
+      std::move(child->open(ctx)),
+      items
+    );
+  }
 
   PhysicalPlan::PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}
 } // namespace

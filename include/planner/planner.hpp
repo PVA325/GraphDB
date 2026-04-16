@@ -35,7 +35,7 @@ namespace PlannerUtils {
   struct overloads : Types... {
     using Types::operator()...;
   };
-  String toString(const Value& val);
+  String ValueToString(const Value& val);
   String ConcatStrVector(const std::vector<String>& v);
   String ConcatProperties(const std::vector<std::pair<String, Value>>& v);
   String EdgeStrByDirection(ast::EdgeDirection dir);
@@ -175,6 +175,7 @@ namespace graph::logical {
 
     exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
     [[nodiscard]] String DebugString() const override;
+    [[nodiscard]] String SubtreeDebugString() const final;
 
     ~LogicalExpand() override = default;
   };
@@ -222,7 +223,7 @@ namespace graph::logical {
   };
 
   struct LogicalSort : LogicalOpUnaryChild {
-    /// Logical Sort - sort by expression in keys
+    /// Logical Sort - sort by expression in items
     /// for example
     /*
       {
@@ -230,11 +231,11 @@ namespace graph::logical {
         {expr2, false}   // DESC
       } and sort if by expr1 and if they are equal by expr2
      */
-    std::vector<ast::OrderItem> keys;
+    std::vector<ast::OrderItem> items;
 
     LogicalSort() = delete;
 
-    explicit LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> keys);
+    explicit LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> items);
 
     [[nodiscard]] String DebugString() const override;
     exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
@@ -351,6 +352,7 @@ namespace graph::logical {
     explicit LogicalPlan(LogicalOpPtr r) : root(std::move(r)) {}
 
     [[nodiscard]] String DebugString() const override { return "LogicalPlan:"; }
+    [[nodiscard]] String SubtreeDebugString() const override { return root ? root->SubtreeDebugString() : "<empty>"; }
     exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override { return root->BuildPhysical(ctx); }
 
     ~LogicalPlan() override = default;
@@ -367,6 +369,20 @@ namespace graph::exec {
   };
 
   struct SlotMapping {
+    SlotMapping() = default;
+    SlotMapping(const SlotMapping &) = default;
+    SlotMapping(SlotMapping&& other) noexcept: alias_to_slot(std::move(other.alias_to_slot)) {}
+
+    SlotMapping& operator=(const SlotMapping &) = default;
+    SlotMapping& operator=(SlotMapping&& other) noexcept {
+      if (this == &other) {
+        return *this;
+      }
+      alias_to_slot = std::move(other.alias_to_slot);
+      return *this;
+    }
+    ~SlotMapping() = default;
+
     bool key_exists(const std::string &key) const;
 
     size_t map(const std::string &key) const;
@@ -383,7 +399,8 @@ namespace graph::exec {
     /// Context of execution db
     storage::GraphDB *db;
     ExecOptions options;
-    ExecContext(): db{nullptr} {}
+    explicit ExecContext(): db{nullptr} {}
+    ExecContext(storage::GraphDB *db): db(db) {}
   };
 
   struct Row {
@@ -391,6 +408,29 @@ namespace graph::exec {
     std::vector<RowSlot> slots;
     std::vector<String> slots_names;
     SlotMapping slots_mapping;
+
+    void clear() {
+      slots.clear();
+      slots_names.clear();
+      slots_names.clear();
+    }
+
+    Row() = default;
+    Row(const Row& other) = default;
+    Row(Row &&other) noexcept :
+      slots(std::move(other.slots)),
+      slots_names(std::move(other.slots_names)),
+      slots_mapping(std::move(other.slots_mapping)) {}
+    Row& operator=(const Row& other) = default;
+    Row& operator=(Row&& other) noexcept {
+      if (this == &other) {
+        return *this;
+      }
+      slots = std::move(other.slots);
+      slots_names = std::move(other.slots_names);
+      slots_mapping = std::move(other.slots_mapping);
+      return *this;
+    }
 
     template<typename T>
     requires std::is_constructible_v<RowSlot, T>
@@ -402,6 +442,8 @@ namespace graph::exec {
       slots_names.emplace_back(alias);
       slots_mapping.add_map(alias, slots.size() - 1);
     }
+
+    ~Row() = default;
   };
 
   struct RowCursor {
@@ -832,7 +874,26 @@ namespace graph::exec {
     ~PhysicalDeleteOp() override = default;
   };
 
-  struct PhysicalSort {}; /// todo
+  struct SortCursor : RowCursor {
+    RowCursorPtr child;
+    std::vector<ast::OrderItem> items;
+    std::vector<Row> rows;
+
+    SortCursor(RowCursorPtr child, std::vector<ast::OrderItem> items);
+    bool next(Row &out) override;
+    void close() override;
+
+    ~SortCursor() override = default;
+  };
+  struct PhysicalSortOp: PhysicalOpUnaryChild {
+    std::vector<ast::OrderItem> items;
+    PhysicalSortOp(PhysicalOpPtr child, std::vector<ast::OrderItem> items);
+
+    RowCursorPtr open(ExecContext &ctx) override;
+    [[nodiscard]] String DebugString() const override;
+
+    ~PhysicalSortOp() override = default;
+  }; /// todo
 
   struct PhysicalPlan {
     /// creates physical plan
@@ -947,6 +1008,10 @@ public:
   void build_logical_plan();
 
   void build_physical_plan();
+
+  logical::LogicalPlan& getLogicalPlan() { return logical_plan_; }
+  exec::PhysicalPlan& getPhysicalPlan() { return physical_plan_; }
+
   // Optimizations on logical plan (predicate pushdown, flattening)
   [[nodiscard]] logical::LogicalPlan optimize_logical_plan(logical::LogicalPlan plan) const;
 
@@ -976,12 +1041,11 @@ public:
 private:
   exec::ExecContext ctx_;
   ast::QueryAST ast_plan_;
-  logical::LogicalOpPtr logical_plan_;
-  exec::PhysicalOpPtr physical_plan_;
-  // const storage::GraphDB &cat_;
+  logical::LogicalPlan logical_plan_;
+  exec::PhysicalPlan physical_plan_;
   // PlannerConfig cfg_;
-  std::unique_ptr<CostModel> cost_model_;
-  std::unique_ptr<JoinOrderStrategy> join_strategy_;
+  // std::unique_ptr<CostModel> cost_model_;
+  // std::unique_ptr<JoinOrderStrategy> join_strategy_;
 
 
 };
@@ -993,3 +1057,6 @@ namespace ast {
     graph::exec::Row& row;
   };
 }
+
+
+#include "planner.tpp"
