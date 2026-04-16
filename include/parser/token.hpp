@@ -5,20 +5,20 @@
 namespace lexer {
 
 enum class TokenType {
-  // Keywords
+  // Keywords.
   MATCH, WHERE, RETURN, DELETE, SET,
   CREATE, ORDER, BY, LIMIT,
   AND, OR,
   ASC, DESC,
 
-  // Literals / identifiers
+  // Literals / identifiers.
   IDENTIFIER,
   STRING,
   NUMBER,
   TRUE,
   FALSE,
 
-  // Symbols
+  // Symbols.
   COLON,        // :
   LPAREN,       // (
   RPAREN,       // )

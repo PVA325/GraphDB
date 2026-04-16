@@ -10,7 +10,7 @@ namespace ast {
 
 using PropertyMap = std::vector<std::pair<std::string, Literal>>;
 
-// Node pattern in MATCH clause
+// Node pattern in MATCH clause.
 struct NodePattern {
   std::string alias;
   std::vector<std::string> labels;
@@ -22,14 +22,14 @@ struct NodePattern {
   std::string DebugString() const;
 };
 
-// Edge direction
+// Edge direction.
 enum class EdgeDirection {
   Left,
   Right,
   Undirected
 };
 
-// Edge pattern between nodes
+// Edge pattern between nodes.
 struct MatchEdgePattern {
   std::string alias;
   std::string label;
@@ -44,7 +44,7 @@ struct MatchEdgePattern {
 
 using MatchItem = std::variant<NodePattern, MatchEdgePattern>;
 
-// Node or Edge pattern element
+// Node or Edge pattern element.
 struct PatternElement {
   MatchItem element;
 
@@ -56,14 +56,14 @@ struct PatternElement {
   std::string DebugString() const;
 };
 
-// Full graph pattern
+// Full graph pattern.
 struct Pattern {
   std::vector<PatternElement> elements;
 
   std::string DebugString() const;
 };
 
-// Node reference in CREATE clause
+// Node reference in CREATE clause.
 struct CreateNodeRef {
   std::string alias;
 
@@ -73,7 +73,7 @@ struct CreateNodeRef {
   std::string DebugString() const;
 };
 
-// CREATE edge pattern
+// CREATE edge pattern.
 struct CreateEdgePattern {
   CreateNodeRef left_node;
   std::string alias;
@@ -87,7 +87,5 @@ struct CreateEdgePattern {
 
   std::string DebugString() const;
 };
-
-using CreateItem = std::variant<NodePattern, CreateEdgePattern>;
 
 } // namespace ast

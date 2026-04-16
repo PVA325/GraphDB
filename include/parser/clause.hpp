@@ -11,56 +11,64 @@
 
 namespace ast {
 
-// MATCH clause
+// MATCH clause.
 struct MatchClause {
   std::vector<Pattern> patterns;
 
   std::string DebugString() const;
 };
 
-// WHERE clause
+// WHERE clause.
 struct WhereClause {
   ExprPtr expression;
 
   std::string DebugString() const;
 };
 
-// RETURN item: either alias or property
+// RETURN item: either alias or property.
 struct ReturnItem {
-  std::variant<std::string, PropertyExpr> item;
+  std::variant<std::string, PropertyExpr> return_item;
 
   std::string DebugString() const;
 };
 
-// RETURN clause
+// RETURN clause.
 struct ReturnClause {
   std::vector<ReturnItem> items;
 
   std::string DebugString() const;
 };
 
-// DELETE clause
+// DELETE clause.
 struct DeleteClause {
   std::vector<std::string> aliases;
 
   std::string DebugString() const;
 };
 
-// SET clause
-struct SetClause {
-  PropertyExpr target;
-  Literal value;
+// SET item.
+struct SetItem {
+  std::string alias;
+  std::vector<std::pair<std::string, Literal>> properties;
+  std::vector<std::string> labels;
 
   std::string DebugString() const;
 };
 
-// ORDER BY direction
+// SET clause.
+struct SetClause {
+  std::vector<SetItem> items;
+
+  std::string DebugString() const;
+};
+
+// ORDER BY direction.
 enum class OrderDirection {
   Asc,
   Desc
 };
 
-// ORDER BY item
+// ORDER BY item.
 struct OrderItem {
   PropertyExpr property;
   OrderDirection direction = OrderDirection::Asc;
@@ -68,40 +76,42 @@ struct OrderItem {
   std::string DebugString() const;
 };
 
-// ORDER BY clause
+// ORDER BY clause.
 struct OrderClause {
   std::vector<OrderItem> items;
 
   std::string DebugString() const;
 };
 
-// LIMIT clause
+// LIMIT clause.
 struct LimitClause {
   size_t limit;
 
   std::string DebugString() const;
 };
 
-// CREATE clause
+using CreateItem = std::variant<NodePattern, CreateEdgePattern>;
+
+// CREATE clause.
 struct CreateClause {
   std::vector<CreateItem> created_items;
 
   std::string DebugString() const;
 };
 
-// AST for query
+// AST for query.
 struct QueryAST {
-  std::unique_ptr<MatchClause> match;
-  std::unique_ptr<WhereClause> where;
+  std::unique_ptr<MatchClause> match_clause;
+  std::unique_ptr<WhereClause> where_clause;
 
   std::unique_ptr<ReturnClause> return_clause;
   std::unique_ptr<DeleteClause> delete_clause;
   std::unique_ptr<SetClause> set_clause;
 
-  std::unique_ptr<OrderClause> order;
-  std::unique_ptr<LimitClause> limit;
+  std::unique_ptr<OrderClause> order_clause;
+  std::unique_ptr<LimitClause> limit_clause;
 
-  std::unique_ptr<CreateClause> create;
+  std::unique_ptr<CreateClause> create_clause;
 
   std::string DebugString() const;
 };

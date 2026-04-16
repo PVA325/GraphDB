@@ -8,23 +8,23 @@
 
 namespace ast {
 
-// Forward declaration of evaluation context
+// Forward declaration of evaluation context.
 struct EvalContext;
 
-// Abstract class for all expressions in AST
+// Abstract class for all expressions in AST.
 struct Expr {
   virtual ~Expr() = default;
 
-  // Evaluate expression
+  // Evaluate expression.
   virtual Value operator()(const EvalContext& ctx) const = 0;
 
-  // Debug string representation
+  // Debug string representation.
   virtual std::string DebugString() const = 0;
 };
 
 using ExprPtr = std::unique_ptr<Expr>;
 
-// Expression representing a literal
+// Expression representing a literal.
 struct LiteralExpr : Expr {
   Literal literal;
 
@@ -33,7 +33,7 @@ struct LiteralExpr : Expr {
   std::string DebugString() const override;
 };
 
-// Access to a property: alias.property
+// Access to a property: alias.property.
 struct PropertyExpr : Expr {
   std::string alias;
   std::string property;
@@ -43,7 +43,7 @@ struct PropertyExpr : Expr {
   std::string DebugString() const override;
 };
 
-// Comparison operations
+// Comparison operations.
 enum class CompareOp {
   Eq,
   NotEqual,
@@ -53,7 +53,7 @@ enum class CompareOp {
   Le
 };
 
-// Comparison expression
+// Comparison expression.
 struct ComparisonExpr : Expr {
   ExprPtr left;
   CompareOp op;
@@ -64,13 +64,13 @@ struct ComparisonExpr : Expr {
   std::string DebugString() const override;
 };
 
-// Logical operations
+// Logical operations.
 enum class LogicalOp {
   And,
   Or
 };
 
-// Logical expression (AND / OR)
+// Logical expression (AND / OR).
 struct LogicalExpr : Expr {
   ExprPtr left_expr;
   LogicalOp op;

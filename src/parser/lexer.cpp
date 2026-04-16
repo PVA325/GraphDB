@@ -1,9 +1,9 @@
-#include "lexer.hpp"
+#include "../../include/parser/lexer.hpp"
 
 #include <cctype>
 #include <unordered_map>
 
-#include "error.hpp"
+#include "../../include/parser/error.hpp"
 
 namespace lexer {
 
@@ -14,7 +14,7 @@ class Lexer {
   explicit Lexer(const std::string& src)
       : source(src) {}
 
-  // Scans the entire source and returns the list of tokens
+  // Scans the entire source and returns the list of tokens.
   std::vector<Token> Run() {
     while (!IsAtEnd()) {
       start = current;
@@ -27,44 +27,44 @@ class Lexer {
   }
 
  private:
-  // Input source and output tokens
+  // Input source and output tokens.
   const std::string& source;
   std::vector<Token> tokens;
 
-  // Current scanning position
+  // Current scanning position.
   size_t start = 0;
   size_t current = 0;
 
-  // For error reporting
+  // For error reporting.
   size_t line = 1;
   size_t col = 1;
   size_t start_col = 1;
 
-  // Checks if we've reached the end of the source
+  // Checks if we've reached the end of the source.
   bool IsAtEnd() const {
     return current >= source.size();
   }
 
-  // Advances and returns the next character
+  // Advances and returns the next character.
   char Advance() {
     char c = source[current++];
     col++;
     return c;
   }
 
-  // Peeks at the current character without consuming it
+  // Peeks at the current character without consuming it.
   char Peek() const {
     if (IsAtEnd()) return '\0';
     return source[current];
   }
 
-  // Peeks at the next character without consuming it
+  // Peeks at the next character without consuming it.
   char PeekNext() const {
     if (current + 1 >= source.size()) return '\0';
     return source[current + 1];
   }
 
-  // Matches the expected character and advances if it matches
+  // Matches the expected character and advances if it matches.
   bool Match(char expected) {
     if (IsAtEnd()) return false;
     if (source[current] != expected) return false;
@@ -74,7 +74,7 @@ class Lexer {
     return true;
   }
 
-  // Adds a token of the given type with the current lexeme
+  // Adds a token of the given type with the current lexeme.
   void AddToken(TokenType type) {
     tokens.push_back({
       type,
@@ -84,7 +84,7 @@ class Lexer {
     });
   }
 
-  // Scans a single token and adds it to the list
+  // Scans a single token and adds it to the list.
   void ScanToken() {
     char c = Advance();
 
@@ -160,7 +160,7 @@ class Lexer {
     }
   }
 
-  // Handles string literals enclosed in double quotes
+  // Handles string literals enclosed in double quotes.
   void String() {
     while (Peek() != '"' && !IsAtEnd()) {
       if (Peek() == '\n') {
@@ -179,7 +179,7 @@ class Lexer {
     AddToken(TokenType::STRING);
   }
 
-  // Handles integer and floating-point literals
+  // Handles integer and floating-point literals.
   void Number() {
     while (std::isdigit(Peek())) Advance();
 
@@ -191,7 +191,7 @@ class Lexer {
     AddToken(TokenType::NUMBER);
   }
 
-  // Handles identifiers and keywords
+  // Handles identifiers and keywords.
   void Identifier() {
     while (std::isalnum(Peek()) || Peek() == '_') Advance();
 
@@ -226,7 +226,7 @@ class Lexer {
 
 } // namespace
 
-// Public API function to lex the input source code
+// Public API function to lex the input source code.
 std::vector<Token> Lex(const std::string& source) {
   return Lexer(source).Run();
 }
