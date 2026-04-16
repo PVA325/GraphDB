@@ -32,24 +32,37 @@ class Parser {
   void ConsumeSemicolons();
   const Token& Anchor() const;
 
+  ast::QueryAST ParseQuery();
+
   std::unique_ptr<ast::MatchClause> ParseMatch();
-  std::unique_ptr<ast::CreateClause> ParseCreate();
   std::unique_ptr<ast::WhereClause> ParseWhere();
+  void ParseMatchTail(ast::QueryAST& query);
   std::unique_ptr<ast::ReturnClause> ParseReturn();
   std::unique_ptr<ast::DeleteClause> ParseDelete();
   std::unique_ptr<ast::SetClause> ParseSet();
   std::unique_ptr<ast::OrderClause> ParseOrder();
   std::unique_ptr<ast::LimitClause> ParseLimit();
+  std::unique_ptr<ast::CreateClause> ParseCreate();
 
-  ast::Pattern ParsePattern();
+  ast::ReturnItem ParseReturnItem();
+  ast::SetItem ParseSetItem();
+  ast::OrderItem ParseOrderItem();
+  ast::CreateItem ParseCreateItem();
+  
+  ast::Pattern ParseMatchPattern();
+  ast::PropertyMap ParsePropertyMap();
   ast::NodePattern ParseNodePattern();
-  ast::MatchEdgePattern ParseEdgePattern();
+  ast::MatchEdgePattern ParseMatchEdgePattern();
+  ast::CreateNodeRef ParseCreateNodeRef();
+  ast::CreateEdgePattern ParseCreateEdgePattern(const ast::CreateNodeRef left_node_ref);
 
+  ast::Literal ParseLiteral();
   ast::ExprPtr ParseExpression();
   ast::ExprPtr ParseOr();
   ast::ExprPtr ParseAnd();
   ast::ExprPtr ParseComparison();
   ast::ExprPtr ParsePrimary();
+  ast::PropertyExpr ParsePropertyExpr();
 
   const std::vector<Token>& tokens_;
   size_t current_ = 0;
