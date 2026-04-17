@@ -16,8 +16,8 @@ namespace storage {
         .properties = props
       });
     } else {
-      id = free_node_ids.top();
-      free_node_ids.pop();
+      id = free_node_ids.back();
+      free_node_ids.pop_back();
 
       nodes_[id] = Node{
         .id = id,
@@ -104,6 +104,6 @@ namespace storage {
     node.labels.clear();
     node.properties.clear();
     nodes_[id].alive = false;
-    free_node_ids.push(id);
+    free_node_ids.push_back(id);
   }
 }

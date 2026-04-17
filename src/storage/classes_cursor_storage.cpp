@@ -2,7 +2,7 @@
 
 namespace storage {
   NodeCursor::NodeCursor(storage::GraphDB *db,
-                         const std::vector<storage::NodeId> &node_ids,
+                         const std::vector<storage::NodeId>& node_ids,
                          std::function<bool(storage::Node *)> predicate,
                          size_t limit)
       : Cursor<Node, NodeId>(db, node_ids, predicate, limit) {}
