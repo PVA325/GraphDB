@@ -833,6 +833,8 @@ namespace graph::exec {
                  storage::GraphDB* db);
     bool next(Row &out) override;
     void close() override;
+  private:
+    bool was_writing{false};
   };
   struct PhysicalCreateOp : PhysicalOpUnaryChild {
     std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items;

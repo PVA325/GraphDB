@@ -43,7 +43,7 @@ template<typename T, typename Id>
 class Cursor {
 protected:
   GraphDB* db_;
-  const std::vector<Id>& ids_; // !!!!!!!!!!!!!!!!!!! here is the problem
+  std::vector<Id> ids_; // !!!!!!!!!!!!!!!!!!! here is the problem
   std::function<bool(T*)> predicate_ = nullptr;
   size_t index_ = 0;
   size_t limit_ = 0;
@@ -107,9 +107,15 @@ private:
   static Properties deserialize_properties(std::istream& is);
 };
 
+
 class GraphDB {
 public:
   GraphDB() = default;
+
+  // GraphDB() {            !!!!!!!!!!!!!!! for tests ONLY(because of broken reference from Stas in all_nodes, nodes_with_label, create_node, create_edge and so on)
+  //   nodes_.reserve(10);
+  //   edges_.reserve(10);
+  // }
 
   NodeId create_node(const std::vector<std::string>& labels, const Properties& props);
 

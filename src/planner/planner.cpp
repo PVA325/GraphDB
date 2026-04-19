@@ -161,12 +161,12 @@ namespace graph::planner {
 
     ApplyLogicalMatchImpl(plan, std::move(ast_plan_.match_clause));
     ApplyLogicalWhereImpl(plan, std::move(ast_plan_.where_clause));
+    ApplyLogicalCreateImpl(plan, std::move(ast_plan_.create_clause));
+    ApplyLogicalSetImpl(plan, std::move(ast_plan_.set_clause));
+    ApplyLogicalDeleteImpl(plan, std::move(ast_plan_.delete_clause));
     ApplyLogicalProjectImpl(plan, std::move(ast_plan_.return_clause));
     ApplyLogicalSortImpl(plan, std::move(ast_plan_.order_clause));
     ApplyLogicalLimitImpl(plan, std::move(ast_plan_.limit_clause));
-    ApplyLogicalSetImpl(plan, std::move(ast_plan_.set_clause));
-    ApplyLogicalDeleteImpl(plan, std::move(ast_plan_.delete_clause));
-    ApplyLogicalCreateImpl(plan, std::move(ast_plan_.create_clause));
 
     logical_plan_ = std::move(plan);
   }

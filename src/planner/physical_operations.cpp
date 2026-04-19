@@ -461,16 +461,41 @@ namespace graph::exec {
         // for (const auto& label : assignment.labels) {
         //   db->add_node_label(node->id, label);
         // }
-        continue;
-      }
-      auto* edge = std::get<Edge*>(row_slot);
-      for (const auto& [key, val] : assignment.properties) {
-        db->set_edge_property(edge->id, key, val);
+      } else {
+        auto* edge = std::get<Edge*>(row_slot);
+        for (const auto& [key, val] : assignment.properties) {
+          db->set_edge_property(edge->id, key, val);
+        }
+
+        // for (const auto& label : assignment.labels) {
+        //   db->add_node_label(edge->id, label);
+        // }
       }
 
-      // for (const auto& label : assignment.labels) {
-      //   db->add_node_label(edge->id, label);
-      // }
+      auto& obj_properties = (row_slot.index() == 0 ? std::get<0>(row_slot)->properties : std::get<1>(row_slot)->properties);
+      for (const auto& [key, val] : assignment.properties) {
+        obj_properties[key] = val;
+      }
+
+      if (assignment.labels.empty()) {
+        continue;
+      }
+
+      if (std::holds_alternative<Edge*>(row_slot)) {
+        if (assignment.labels.size() != -1) {
+          throw std::runtime_error("SetCursor: Error, edge can have only 1 type");
+        }
+        auto& edge_type = std::get<1>(row_slot)->type;
+        edge_type = assignment.labels.back();
+        continue;
+      }
+      auto& node_labels = std::get<0>(row_slot)->labels;
+      for (const auto& new_label : assignment.labels) {
+        if (std::ranges::find(node_labels, new_label) == node_labels.end()) {
+          node_labels.emplace_back(new_label);
+        }
+      }
+
     }
     return true;
   }
@@ -502,6 +527,10 @@ namespace graph::exec {
 
   bool CreateCursor::next(Row& out) {
     if (child == nullptr) {
+      if (was_writing) {
+        return false;
+      }
+      was_writing = true;
       for (const auto& create_pattern : items) {
         if (std::holds_alternative<logical::CreateNodeSpec>(create_pattern)) {
           const auto& node_spec = std::get<logical::CreateNodeSpec>(create_pattern);
@@ -536,7 +565,7 @@ namespace graph::exec {
                 std::format("CreateCursor: Error, alias {} already exists", edge_spec.edge_alias));
         }
       }
-      return false;
+      return true;
     }
     if (!child->next(out)) {
       return false;
