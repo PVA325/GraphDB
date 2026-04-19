@@ -252,8 +252,6 @@ TEST(ExecutionComplex, CreateNodesAndEdge2) {
   planner.build_logical_plan();
   planner.build_physical_plan();
 
-  // std::cout << planner.getPhysicalPlan().DebugString() << std::endl;
-
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
   graph::exec::Row row;
   while (cursor->next(row)) {
@@ -680,7 +678,6 @@ TEST(ExecutionComplex, MatchExpandDeleteRemovesMatchedEdge) {
 TEST(ExecutionComplex, MatchExpandSetAndDeleteDifferentTargets) {
   storage::GraphDB db;
 
-  // a -[:KNOWS]-> b
   auto a = db.create_node({"Person"}, {{"age", storage::Value{21}}});
   auto b = db.create_node({"Person"}, {{"age", storage::Value{30}}});
   auto e = db.create_edge(a, b, "KNOWS", {});
