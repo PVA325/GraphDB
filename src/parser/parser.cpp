@@ -205,10 +205,8 @@ std::string MatchEdgePattern::DebugString() const {
   }
 
   result += EdgeLabelsToString(label);
-  result += EdgeLabelsToString(label);
 
   if (!properties.empty()) {
-    if (!alias.empty() || !label.empty()) {
     if (!alias.empty() || !label.empty()) {
       result += ' ';
     }
@@ -283,10 +281,8 @@ std::string CreateEdgePattern::DebugString() const {
   }
 
   result += EdgeLabelsToString(label);
-  result += EdgeLabelsToString(label);
 
   if (!properties.empty()) {
-    if (!alias.empty() || !label.empty()) {
     if (!alias.empty() || !label.empty()) {
       result += ' ';
     }
