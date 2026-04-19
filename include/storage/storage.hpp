@@ -44,14 +44,14 @@ template<typename T, typename Id>
 class Cursor {
 protected:
   GraphDB* db_;
-  const std::vector<Id>& ids_;                     // вектор ID для перебора
+  std::vector<Id> ids_;                     // вектор ID для перебора
   std::function<bool(T*)> predicate_ = nullptr;    // фильтр, может быть сложный
   size_t index_ = 0;                               // текущая позиция
   size_t limit_ = 0;                               // лимит, 0 = без лимита
   size_t returned_ = 0;                            // сколько уже вернули
 
 public:
-  inline Cursor(GraphDB* db, const std::vector<Id>& ids,
+  Cursor(GraphDB* db, const std::vector<Id>& ids,
          std::function<bool(T*)> predicate = nullptr,
          size_t limit = 0)
       : db_(db), ids_(ids), predicate_(predicate), limit_(limit) {};

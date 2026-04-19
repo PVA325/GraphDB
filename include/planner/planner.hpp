@@ -264,15 +264,15 @@ namespace graph::logical {
     /// Create LogicalSet; can set only 1 parameter through execution
     struct Assignment {
       String alias;
-      String key;
-      Value value;
+      std::vector<String> labels;
+      std::vector<std::pair<String, Value>> properties;
     };
-    Assignment assignment;
+    std::vector<Assignment> assignment;
 
     LogicalSet(const LogicalSet&) = delete;
     LogicalSet(LogicalSet &&other) noexcept : LogicalOpUnaryChild(std::move(other.child)), assignment(std::move(other.assignment)) {}
 
-    LogicalSet(LogicalOpPtr child, String alias, String key, Value value);
+    LogicalSet(LogicalOpPtr child, std::vector<Assignment> assignment);
     exec::PhysicalOpPtr BuildPhysical(exec::ExecContext& ctx) const override;
 
     [[nodiscard]] String DebugString() const override;
@@ -298,6 +298,7 @@ namespace graph::logical {
   };
 
   struct CreateNodeSpec {
+    String dst_alias;
     std::vector<String> labels;
     std::vector<std::pair<String, Value>> properties;
 
@@ -312,7 +313,8 @@ namespace graph::logical {
 
   struct CreateEdgeSpec {
     String src_alias;
-    String dst_alias;
+    String dst_node_alias;
+    String edge_alias;
     String edge_type;
     std::vector<std::pair<String, Value>> properties;
     ast::EdgeDirection direction;
@@ -389,6 +391,8 @@ namespace graph::exec {
     size_t map_and_check(const String& key, const String& err_msg = "") const;
 
     void add_map(const String &key, size_t idx);
+
+    void clear() { alias_to_slot.clear(); }
   private:
     std::unordered_map<std::string, size_t> alias_to_slot;
 
@@ -412,7 +416,7 @@ namespace graph::exec {
     void clear() {
       slots.clear();
       slots_names.clear();
-      slots_names.clear();
+      slots_mapping.clear();
     }
 
     Row() = default;
@@ -512,11 +516,10 @@ namespace graph::exec {
 
   struct LabelIndexSeekOp : public PhysicalOpNoChild {
     /// used for node filtering(for more optimized by label we dont need to do all node scan)
-    String label;
     String out_alias;
+    String label;
 
-    LabelIndexSeekOp(String label,
-                     String alias);
+    LabelIndexSeekOp(String alias, String label);
 
     RowCursorPtr open(ExecContext &ctx) override;
 
@@ -752,7 +755,7 @@ namespace graph::exec {
   };
 
   Value GetFeatureFromSlot(const RowSlot& slot, const String& feature_key);
-  struct KeyHashJoinCursor : public RowCursor {
+  struct KeyHashJoinCursor : public RowCursor {      /// add mark
     /// do join for 2 NestedLoopJoin Cursor expressions based on predicate
 
     RowCursorPtr left_cursor;
@@ -798,28 +801,20 @@ namespace graph::exec {
 
   struct SetCursor : RowCursor {
     RowCursorPtr child;
-    std::vector<String> aliases;
-    std::vector<std::vector<String> > labels;
-    std::vector<std::vector<std::pair<String, Value> > > properties;
+    std::vector<logical::LogicalSet::Assignment> assignments;
+    storage::GraphDB* db;
 
     SetCursor(RowCursorPtr child,
-              std::vector<String> aliases,
-              std::vector<std::vector<String> > labels,
-              std::vector<std::vector<std::pair<String, Value> > > properties);
+              std::vector<logical::LogicalSet::Assignment> assignments,
+              storage::GraphDB* db);
     bool next(Row &out) override;
     void close() override;
   };
 
   struct PhysicalSetOp : public PhysicalOpUnaryChild {
-    PhysicalOpPtr child;
-    std::vector<String> aliases;
-    std::vector<std::vector<String> > labels;
-    std::vector<std::vector<std::pair<String, Value> > > properties;
+    std::vector<logical::LogicalSet::Assignment> assignments;
 
-    PhysicalSetOp(std::vector<String> aliases,
-                  std::vector<std::vector<String> > labels,
-                  std::vector<std::vector<std::pair<String, Value> > > properties,
-                  PhysicalOpPtr child);
+    PhysicalSetOp(PhysicalOpPtr child, std::vector<logical::LogicalSet::Assignment> assignments);
 
     RowCursorPtr open(ExecContext &ctx) override;
 

@@ -21,13 +21,19 @@ namespace graph::exec {
   template<bool edge_outgoing>
   bool ExpandNodeCursorPhysical<edge_outgoing>::next(Row &out) {
     Edge *edge;
-    size_t src_idx = out.slots_mapping.map_and_check(src_alias, "Invalid alias for PhysicalExpand, src_alias do not exists");
+    Row mark = out;
 
-    while (edge_cursor == nullptr || !edge_cursor->next(edge)) {
+    while (edge_cursor == nullptr || !edge_cursor->next(edge) ||
+          (label_predicate != nullptr && !label_predicate(edge))) {
+      out = mark;
       if (!child_cursor->next(out)) {
         return false;
       }
-      Node *node = std::get<Node *>(out.slots[src_idx]);
+      size_t src_idx = out.slots_mapping.map_and_check(src_alias, "Invalid alias for PhysicalExpand, src_alias do not exists");
+      if (!std::holds_alternative<Node*>(out.slots[src_idx])) {
+        throw std::logic_error("Invalid PhysicalExpand, src_alias is not a Node");
+      }
+      auto node = std::get<Node *>(out.slots[src_idx]);
       if constexpr (edge_outgoing) {
         edge_cursor = db->outgoing_edges(node->id);
       } else {
@@ -87,4 +93,4 @@ namespace graph::exec {
       (edge_type.has_value() ? std::format("\"{}\"", edge_type.value()) : "*")
     );
   }
-} // namespace graph::exec
+}

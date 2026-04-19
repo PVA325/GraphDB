@@ -18,8 +18,8 @@ namespace graph::logical {
     exec::PhysicalOpPtr physical_root;
     if (labels.size() == 1) {
       physical_root = std::make_unique<exec::LabelIndexSeekOp>(
-        labels[0],
-        dst_alias
+        dst_alias,
+        labels[0]
       );
     } else {
       physical_root = std::make_unique<exec::NodeScanOp>(
@@ -153,16 +153,14 @@ namespace graph::logical {
     );
   }
 
-  LogicalSet::LogicalSet(LogicalOpPtr child, String alias, String key, Value value) :
+  LogicalSet::LogicalSet(LogicalOpPtr child, std::vector<Assignment> assignment) :
     LogicalOpUnaryChild(std::move(child)),
-    assignment{std::move(alias), std::move(key), std::move(value)} {}
+    assignment(std::move(assignment)) {}
 
   exec::PhysicalOpPtr LogicalSet::BuildPhysical(exec::ExecContext& ctx) const {
     return std::make_unique<exec::PhysicalSetOp>( // REWRITE AFTER ARTEM CHANGES
-      std::vector<String>{assignment.alias},
-      std::vector<std::vector<String> >{{}}, /// ARTEM TODO
-      std::vector<std::vector<std::pair<String, Value> > >{{std::make_pair(assignment.key, assignment.value)}},
-      std::move(child->BuildPhysical(ctx))
+      std::move(child->BuildPhysical(ctx)),
+      assignment
     );
   }
 
@@ -178,18 +176,21 @@ namespace graph::logical {
   }
 
   CreateNodeSpec::CreateNodeSpec(const ast::NodePattern &pattern) :
+    dst_alias(pattern.alias),
     labels(pattern.labels) {
     PlannerUtils::transferProperties(properties, pattern.properties);
   }
 
   CreateNodeSpec::CreateNodeSpec(ast::NodePattern &&pattern) :
+    dst_alias(std::move(pattern.alias)),
     labels(std::move(pattern.labels)) {
     PlannerUtils::transferProperties(properties, std::move(pattern.properties));
   }
 
   CreateEdgeSpec::CreateEdgeSpec(const ast::CreateEdgePattern &pattern) :
     src_alias(pattern.left_node.alias),
-    dst_alias(pattern.right_node.alias),
+    edge_alias(pattern.alias),
+    dst_node_alias(pattern.right_node.alias),
     edge_type(pattern.label),
     direction(pattern.direction) {
     PlannerUtils::transferProperties(properties, pattern.properties);
@@ -197,7 +198,8 @@ namespace graph::logical {
 
   CreateEdgeSpec::CreateEdgeSpec(ast::CreateEdgePattern &&pattern) :
     src_alias(std::move(pattern.left_node.alias)),
-    dst_alias(std::move(pattern.right_node.alias)),
+    edge_alias(std::move(pattern.alias)),
+    dst_node_alias(std::move(pattern.right_node.alias)),
     edge_type(std::move(pattern.label)),
     direction(pattern.direction) {
     PlannerUtils::transferProperties(properties, std::move(pattern.properties));
@@ -218,7 +220,7 @@ namespace graph::logical {
   exec::PhysicalOpPtr LogicalCreate::BuildPhysical(exec::ExecContext& ctx) const {
     return std::make_unique<exec::PhysicalCreateOp>(
       items,
-      std::move(child->BuildPhysical(ctx))
+      (child != nullptr ? std::move(child->BuildPhysical(ctx)) : nullptr)
     );
   }
 }
