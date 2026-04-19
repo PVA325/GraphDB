@@ -32,8 +32,8 @@ ast::Pattern MakeSingleNodePattern(const String& alias, std::initializer_list<St
 
 ast::QueryAST MakeQueryWithMatch(const String& alias = "a") {
   ast::QueryAST q;
-  q.match = std::make_unique<ast::MatchClause>();
-  q.match->patterns.push_back(MakeSingleNodePattern(alias, {"Person"}));
+  q.match_clause = std::make_unique<ast::MatchClause>();
+  q.match_clause->patterns.push_back(MakeSingleNodePattern(alias, {"Person"}));
   return q;
 }
 
@@ -113,9 +113,9 @@ ast::Pattern MakeEdgePattern(const String& left_alias,
 
 ast::QueryAST MakeSelectQueryTwoPatterns() {
   ast::QueryAST q;
-  q.match = std::make_unique<ast::MatchClause>();
-  q.match->patterns.push_back(MakeNodePattern("a", {"Person"}));
-  q.match->patterns.push_back(MakeNodePattern("b", {"City"}));
+  q.match_clause = std::make_unique<ast::MatchClause>();
+  q.match_clause->patterns.push_back(MakeNodePattern("a", {"Person"}));
+  q.match_clause->patterns.push_back(MakeNodePattern("b", {"City"}));
 
   q.return_clause = std::make_unique<ast::ReturnClause>();
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"a"}});
