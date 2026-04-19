@@ -115,17 +115,19 @@ public:
 
   void set_node_property(NodeId id, const std::string& key, const Value& val);
 
-  void set_node_labels(NodeId id, const std::vector<std::string>& labels);
+  void set_node_label(NodeId id, const std::string& label);
 
   void delete_node(NodeId id);
 
-  void delete_label(NodeId id, const std::string& label);
+  void delete_node_label(NodeId id, const std::string& label);
 
   Node* get_node(NodeId id);
 
   EdgeId create_edge(NodeId src, NodeId dst, const std::string& type, const Properties& props);
 
   void set_edge_property(EdgeId id, const std::string& key, const Value& val);
+
+  void set_edge_type(EdgeId id, const std::string& type);
 
   void delete_edge(EdgeId id);
 

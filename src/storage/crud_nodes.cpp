@@ -57,17 +57,17 @@ namespace storage {
     property_index_[key][val].push_back(id);
   }
 
-  void GraphDB::set_node_labels(NodeId id, const std::vector<std::string>& labels) {
+  void GraphDB::set_node_label(NodeId id, const std::string& label) {
     assert(id < nodes_.size());
     assert(nodes_[id].alive);
 
     Node& node = nodes_[id];
 
-    for (const std::string& label: labels) {
-      label_index_[label].erase(std::remove(label_index_[label].begin(), label_index_[label].end(), id), label_index_[label].end());
+    auto it = std::find(node.labels.begin(), node.labels.end(), label);
+    if (it == node.labels.end()) {
+      label_index_[label].emplace_back(id);
+      node.labels.emplace_back(label);
     }
-
-    node.labels = labels;
   }
 
   Node* GraphDB::get_node(NodeId id) {
@@ -120,7 +120,7 @@ namespace storage {
     free_node_ids.push_back(id);
   }
 
-  void GraphDB::delete_label(NodeId id, const std::string& label) {
+  void GraphDB::delete_node_label(NodeId id, const std::string& label) {
     label_index_[label].erase(std::remove(label_index_[label].begin(), label_index_[label].end(), id), label_index_[label].end());
 
     auto labels = nodes_[id].labels;

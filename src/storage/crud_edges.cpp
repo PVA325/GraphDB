@@ -56,12 +56,6 @@ namespace storage {
     assert(edges_[id].alive);
 
     Edge& edge = edges_[id];
-
-    auto it = edge.properties.find(key);
-    if (it != edge.properties.end()) {
-      const Value& old_val = it->second;
-    }
-
     edge.properties[key] = val;
   }
 
@@ -87,5 +81,18 @@ namespace storage {
 
     free_edge_ids.push_back(id);
   }
+
+  void GraphDB::set_edge_type(EdgeId id, const std::string& type) {
+    Edge& edge = edges_[id];
+
+    auto it = edge_type_index_.find(edge.type);
+    if (it != edge_type_index_.end()) {
+      it->second.erase(std::remove(it->second.begin(), it->second.end(), id), it->second.end());
+    }
+
+    edge.type = type;
+    edge_type_index_[type].emplace_back(id);
+  }
+
 
 }
