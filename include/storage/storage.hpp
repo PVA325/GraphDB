@@ -43,7 +43,7 @@ template<typename T, typename Id>
 class Cursor {
 protected:
   GraphDB* db_;
-  const std::vector<Id>& ids_;
+  const std::vector<Id>& ids_; // !!!!!!!!!!!!!!!!!!! here is the problem
   std::function<bool(T*)> predicate_ = nullptr;
   size_t index_ = 0;
   size_t limit_ = 0;
