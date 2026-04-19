@@ -57,6 +57,19 @@ namespace storage {
     property_index_[key][val].push_back(id);
   }
 
+  void GraphDB::set_node_labels(NodeId id, const std::vector<std::string>& labels) {
+    assert(id < nodes_.size());
+    assert(nodes_[id].alive);
+
+    Node& node = nodes_[id];
+
+    for (const std::string& label: labels) {
+      label_index_[label].erase(std::remove(label_index_[label].begin(), label_index_[label].end(), id), label_index_[label].end());
+    }
+
+    node.labels = labels;
+  }
+
   Node* GraphDB::get_node(NodeId id) {
     if (id >= nodes_.size() || !nodes_[id].alive) {
       return nullptr;    // возвращаем nullptr, если узел удалён
@@ -105,5 +118,12 @@ namespace storage {
     node.properties.clear();
     nodes_[id].alive = false;
     free_node_ids.push_back(id);
+  }
+
+  void GraphDB::delete_label(NodeId id, const std::string& label) {
+    label_index_[label].erase(std::remove(label_index_[label].begin(), label_index_[label].end(), id), label_index_[label].end());
+
+    auto labels = nodes_[id].labels;
+    labels.erase(std::remove(labels.begin(), labels.end(), label), labels.end());
   }
 }

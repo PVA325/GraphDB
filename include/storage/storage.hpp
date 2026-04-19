@@ -115,7 +115,11 @@ public:
 
   void set_node_property(NodeId id, const std::string& key, const Value& val);
 
+  void set_node_labels(NodeId id, const std::vector<std::string>& labels);
+
   void delete_node(NodeId id);
+
+  void delete_label(NodeId id, const std::string& label);
 
   Node* get_node(NodeId id);
 
