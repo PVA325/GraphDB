@@ -16,8 +16,8 @@ TEST(BuildLogicalPlan, MatchOnlyBuildsScan) {
 
 TEST(BuildLogicalPlan, MatchWhereBuildsFilterOverScan) {
   auto q = MakeQueryWithMatch("a");
-  q.where = std::make_unique<ast::WhereClause>();
-  q.where->expression = std::make_unique<FakeExpr>("a.age > 18");
+  q.where_clause = std::make_unique<ast::WhereClause>();
+  q.where_clause->expression = std::make_unique<FakeExpr>("a.age > 18");
 
   auto planner = MakePlanner(std::move(q));
   planner.build_logical_plan();
@@ -50,8 +50,8 @@ TEST(BuildLogicalPlan, MatchReturnBuildsProjectOverScan) {
 
 TEST(BuildLogicalPlan, MatchWhereReturnBuildsProjectFilterScanChain) {
   auto q = MakeQueryWithMatch("a");
-  q.where = std::make_unique<ast::WhereClause>();
-  q.where->expression = std::make_unique<FakeExpr>("a.age > 18");
+  q.where_clause = std::make_unique<ast::WhereClause>();
+  q.where_clause->expression = std::make_unique<FakeExpr>("a.age > 18");
 
   q.return_clause = std::make_unique<ast::ReturnClause>();
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"a"}});
@@ -75,15 +75,15 @@ TEST(BuildLogicalPlan, MatchOrderByLimitReturnBuildsAllExpectedNodes) {
   q.return_clause = std::make_unique<ast::ReturnClause>();
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"a"}});
 
-  q.order = std::make_unique<ast::OrderClause>();
+  q.order_clause = std::make_unique<ast::OrderClause>();
   ast::OrderItem item;
   item.property.alias = "a";
   item.property.property = "age";
   item.direction = ast::OrderDirection::Desc;
-  q.order->items.push_back(item);
+  q.order_clause->items.push_back(item);
 
-  q.limit = std::make_unique<ast::LimitClause>();
-  q.limit->limit = 10;
+  q.limit_clause = std::make_unique<ast::LimitClause>();
+  q.limit_clause->limit = 10;
 
   auto planner = MakePlanner(std::move(q));
   planner.build_logical_plan();
@@ -100,9 +100,7 @@ TEST(BuildLogicalPlan, MatchOrderByLimitReturnBuildsAllExpectedNodes) {
 TEST(BuildLogicalPlan, MatchSetBuildsLogicalSet) {
   auto q = MakeQueryWithMatch("a");
   q.set_clause = std::make_unique<ast::SetClause>();
-  q.set_clause->target.alias = "a";
-  q.set_clause->target.property = "age";
-  q.set_clause->value = ast::Literal{21};
+  q.set_clause->items = {ast::SetItem{"a", {std::make_pair("age", ast::Literal{21})}, {}}};
 
   auto planner = MakePlanner(std::move(q));
   planner.build_logical_plan();
@@ -110,7 +108,7 @@ TEST(BuildLogicalPlan, MatchSetBuildsLogicalSet) {
   const auto& plan = planner.getLogicalPlan();
   const auto s = plan.SubtreeDebugString();
 
-  EXPECT_THAT(s, ::testing::HasSubstr("LogicalSet(a, key=age, value=21)"));
+  EXPECT_THAT(s, ::testing::HasSubstr("LogicalSet(alias=a, labels=, properties={age=21}"));
   EXPECT_THAT(s, ::testing::HasSubstr("LogicalScan(as=a, labels=[Person])"));
 }
 
@@ -131,7 +129,7 @@ TEST(BuildLogicalPlan, MatchDeleteBuildsLogicalDelete) {
 
 TEST(BuildLogicalPlan, CreateClauseBuildsLogicalCreate) {
   ast::QueryAST q;
-  q.create = std::make_unique<ast::CreateClause>();
+  q.create_clause = std::make_unique<ast::CreateClause>();
 
   ast::NodePattern node;
   node.alias = "a";
@@ -144,8 +142,8 @@ TEST(BuildLogicalPlan, CreateClauseBuildsLogicalCreate) {
   edge.label = "KNOWS";
   edge.direction = ast::EdgeDirection::Right;
 
-  q.create->created_items.emplace_back(node);
-  q.create->created_items.emplace_back(edge);
+  q.create_clause->created_items.emplace_back(node);
+  q.create_clause->created_items.emplace_back(edge);
 
   auto planner = MakePlanner(std::move(q));
   planner.build_logical_plan();
@@ -177,8 +175,8 @@ TEST(BuildLogicalPlanComplex, TwoMatchPatternsBuildJoinTree) {
 
 TEST(BuildLogicalPlanComplex, MatchWithEdgePatternBuildsExpand) {
   ast::QueryAST q;
-  q.match = std::make_unique<ast::MatchClause>();
-  q.match->patterns.push_back(
+  q.match_clause = std::make_unique<ast::MatchClause>();
+  q.match_clause->patterns.push_back(
       MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
   );
 
@@ -200,18 +198,18 @@ TEST(BuildLogicalPlanComplex, MatchWithEdgePatternBuildsExpand) {
 TEST(BuildLogicalPlanComplex, TwoPatternsWithWhereReturnSortLimitContainsAllMainNodes) {
   ast::QueryAST q = MakeSelectQueryTwoPatterns();
 
-  q.where = std::make_unique<ast::WhereClause>();
-  q.where->expression = std::make_unique<FakeExpr>("a.age > b.age");
+  q.where_clause = std::make_unique<ast::WhereClause>();
+  q.where_clause->expression = std::make_unique<FakeExpr>("a.age > b.age");
 
-  q.order = std::make_unique<ast::OrderClause>();
+  q.order_clause = std::make_unique<ast::OrderClause>();
   ast::OrderItem ord;
   ord.property.alias = "a";
   ord.property.property = "age";
   ord.direction = ast::OrderDirection::Desc;
-  q.order->items.push_back(ord);
+  q.order_clause->items.push_back(ord);
 
-  q.limit = std::make_unique<ast::LimitClause>();
-  q.limit->limit = 5;
+  q.limit_clause = std::make_unique<ast::LimitClause>();
+  q.limit_clause->limit = 5;
 
   graph::exec::ExecContext ctx;
   graph::planner::Planner planner(ctx, std::move(q));
@@ -229,13 +227,11 @@ TEST(BuildLogicalPlanComplex, TwoPatternsWithWhereReturnSortLimitContainsAllMain
 
 TEST(BuildLogicalPlanComplex, SetQueryKeepsMatchAndAddsLogicalSet) {
   ast::QueryAST q;
-  q.match = std::make_unique<ast::MatchClause>();
-  q.match->patterns.push_back(MakeNodePattern("a", {"Person"}));
+  q.match_clause = std::make_unique<ast::MatchClause>();
+  q.match_clause->patterns.push_back(MakeNodePattern("a", {"Person"}));
 
   q.set_clause = std::make_unique<ast::SetClause>();
-  q.set_clause->target.alias = "a";
-  q.set_clause->target.property = "age";
-  q.set_clause->value = ast::Literal{21};
+  q.set_clause->items = {ast::SetItem{"a", {std::make_pair("age", ast::Literal{21})}, {}}};
 
   graph::exec::ExecContext ctx;
   graph::planner::Planner planner(ctx, std::move(q));
@@ -243,15 +239,15 @@ TEST(BuildLogicalPlanComplex, SetQueryKeepsMatchAndAddsLogicalSet) {
 
   const auto& s = planner.getLogicalPlan().SubtreeDebugString();
 
-  EXPECT_THAT(s, ::testing::HasSubstr("LogicalSet(a, key=age, value=21)"));
+  EXPECT_THAT(s, ::testing::HasSubstr("LogicalSet(alias=a, labels=, properties={age=21}"));
   EXPECT_THAT(s, ::testing::HasSubstr("LogicalScan(as=a, labels=[Person])"));
 }
 
 TEST(BuildLogicalPlanComplex, DeleteQueryWithTwoAliasesBuildsBinaryTree) {
   ast::QueryAST q;
-  q.match = std::make_unique<ast::MatchClause>();
-  q.match->patterns.push_back(MakeNodePattern("a", {"Person"}));
-  q.match->patterns.push_back(MakeNodePattern("b", {"City"}));
+  q.match_clause = std::make_unique<ast::MatchClause>();
+  q.match_clause->patterns.push_back(MakeNodePattern("a", {"Person"}));
+  q.match_clause->patterns.push_back(MakeNodePattern("b", {"City"}));
 
   q.delete_clause = std::make_unique<ast::DeleteClause>();
   q.delete_clause->aliases = {"a", "b"};
@@ -269,7 +265,7 @@ TEST(BuildLogicalPlanComplex, DeleteQueryWithTwoAliasesBuildsBinaryTree) {
 
 TEST(BuildLogicalPlanComplex, CreateQueryWithSeveralItemsBuildsLogicalCreate) {
   ast::QueryAST q;
-  q.create = std::make_unique<ast::CreateClause>();
+  q.create_clause = std::make_unique<ast::CreateClause>();
 
   ast::NodePattern node;
   node.alias = "a";
@@ -284,8 +280,8 @@ TEST(BuildLogicalPlanComplex, CreateQueryWithSeveralItemsBuildsLogicalCreate) {
   edge.direction = ast::EdgeDirection::Right;
   edge.properties = {{"weight", ast::Literal{graph::Value{3}}}};
 
-  q.create->created_items.push_back(node);
-  q.create->created_items.push_back(edge);
+  q.create_clause->created_items.push_back(node);
+  q.create_clause->created_items.push_back(edge);
 
   graph::exec::ExecContext ctx;
   graph::planner::Planner planner(ctx, std::move(q));
@@ -303,12 +299,12 @@ TEST(BuildLogicalPlanComplex, CreateQueryWithSeveralItemsBuildsLogicalCreate) {
 TEST(BuildLogicalPlanComplex, MatchTwoPatternsWhereUsesBothSides) {
   ast::QueryAST q;
 
-  q.match = std::make_unique<ast::MatchClause>();
-  q.match->patterns.push_back(MakeNodePattern("a", {"Person"}));
-  q.match->patterns.push_back(MakeNodePattern("b", {"City"}));
+  q.match_clause = std::make_unique<ast::MatchClause>();
+  q.match_clause->patterns.push_back(MakeNodePattern("a", {"Person"}));
+  q.match_clause->patterns.push_back(MakeNodePattern("b", {"City"}));
 
-  q.where = std::make_unique<ast::WhereClause>();
-  q.where->expression = std::make_unique<FakeExpr>("a.age > b.population");
+  q.where_clause = std::make_unique<ast::WhereClause>();
+  q.where_clause->expression = std::make_unique<FakeExpr>("a.age > b.population");
 
   q.return_clause = std::make_unique<ast::ReturnClause>();
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"a"}});

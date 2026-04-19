@@ -114,11 +114,17 @@ namespace {
       return;
     }
 
+    std::vector<LogicalSet::Assignment> assignments;
+    for (const auto& item : ast_set->items) {
+      LogicalSet::Assignment cur;
+      cur.alias = item.alias;
+      cur.labels = item.labels;
+      graph::PlannerUtils::transferProperties(cur.properties, item.properties);
+      assignments.push_back(std::move(cur));
+    }
     plan.root = std::make_unique<LogicalSet>(
       std::move(plan.root),
-      std::move(ast_set->target.alias),
-      std::move(ast_set->target.property),
-      std::move(ast_set->value.value)
+      assignments
     );
   }
 
@@ -153,14 +159,14 @@ namespace graph::planner {
   void Planner::build_logical_plan() {
     logical::LogicalPlan plan;
 
-    ApplyLogicalMatchImpl(plan, std::move(ast_plan_.match));
-    ApplyLogicalWhereImpl(plan, std::move(ast_plan_.where));
+    ApplyLogicalMatchImpl(plan, std::move(ast_plan_.match_clause));
+    ApplyLogicalWhereImpl(plan, std::move(ast_plan_.where_clause));
     ApplyLogicalProjectImpl(plan, std::move(ast_plan_.return_clause));
-    ApplyLogicalSortImpl(plan, std::move(ast_plan_.order));
-    ApplyLogicalLimitImpl(plan, std::move(ast_plan_.limit));
+    ApplyLogicalSortImpl(plan, std::move(ast_plan_.order_clause));
+    ApplyLogicalLimitImpl(plan, std::move(ast_plan_.limit_clause));
     ApplyLogicalSetImpl(plan, std::move(ast_plan_.set_clause));
     ApplyLogicalDeleteImpl(plan, std::move(ast_plan_.delete_clause));
-    ApplyLogicalCreateImpl(plan, std::move(ast_plan_.create));
+    ApplyLogicalCreateImpl(plan, std::move(ast_plan_.create_clause));
 
     logical_plan_ = std::move(plan);
   }

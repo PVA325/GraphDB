@@ -108,9 +108,10 @@ namespace {
     }
 
     return std::format(
-      "Edge(src={}, dst={}, dir={}, label=\"{}\", properties={})",
+      "Edge(src={}, alias={}, dst={}, dir={}, label=\"{}\", properties={})",
       spec.src_alias,
-      spec.dst_alias,
+      spec.edge_alias,
+      spec.dst_node_alias,
       dir,
       spec.edge_type,
       PropertiesDebugString(spec.properties)
@@ -118,10 +119,10 @@ namespace {
   }
 
   std::string ReturnItemDebugString(const ast::ReturnItem& item) {
-    if (item.item.index() == 0) {
-      return std::get<0>(item.item);
+    if (item.return_item.index() == 0) {
+      return std::get<0>(item.return_item);
     }
-    const auto& prop = std::get<1>(item.item);
+    const auto& prop = std::get<1>(item.return_item);
     return std::format("{}.{}", prop.alias, prop.property);
   }
 }
@@ -201,9 +202,16 @@ namespace graph::logical {
   }
 
   String LogicalSet::DebugString() const {
-    return "LogicalSet(" + assignment.alias +
-           ", key=" + assignment.key +
-           ", value=" + PlannerUtils::ValueToString(assignment.value) + ")";
+    // return "LogicalSet(" + assignment.alias +
+    //        ", key=" + assignment.key +
+    //        ", value=" + PlannerUtils::ValueToString(assignment.value) + ")";
+    return std::format("LogicalSet({})", Join(assignment, "; ", [](const Assignment& cur) {
+      return std::format("alias={}, labels={}, properties={{{}}}", cur.alias, Join(cur.labels, ", ", [](const String& cur) {
+          return cur;
+        }), Join(cur.properties, ", ", [](const auto& cur) {
+        return std::format("{}={}", cur.first, PlannerUtils::ValueToString(cur.second));
+      }));
+    }));
   }
 
   String LogicalDelete::DebugString() const {
@@ -221,8 +229,8 @@ namespace graph::logical {
   }
 
   String CreateEdgeSpec::DebugString() const {
-    String ans = "EdgeCreate(";
-    ans += src_alias + PlannerUtils::EdgeStrByDirection(direction) + dst_alias;
+    String ans = "EdgeCreate(edge_alias=" + edge_alias + ", ";
+    ans += src_alias + PlannerUtils::EdgeStrByDirection(direction) + dst_node_alias;
     ans += ", " + edge_type;
     if (!properties.empty()) {
       ans += ", " + PlannerUtils::ConcatProperties(properties);
@@ -242,7 +250,7 @@ namespace graph::logical {
 
 namespace graph::exec {
   String PhysicalOpUnaryChild::SubtreeDebugString() const {
-    return DebugString() + "\n" + IndentBlock(child->SubtreeDebugString());
+    return DebugString() + "\n" + (child != nullptr ? IndentBlock(child->SubtreeDebugString()) : "");
   }
 
   String PhysicalOpBinaryChild::SubtreeDebugString() const {
@@ -295,30 +303,13 @@ namespace graph::exec {
   }
 
   String PhysicalSetOp::DebugString() const {
-    std::string ans = "Set(";
-    for (size_t i = 0; i < aliases.size(); ++i) {
-      if (i) {
-        ans += ", ";
-      }
-      ans += aliases[i];
-      ans += " {";
-
-      bool first = true;
-      if (!labels[i].empty()) {
-        ans += "labels=" + LabelsDebugString(labels[i]);
-        first = false;
-      }
-      if (!properties[i].empty()) {
-        if (!first) {
-          ans += ", ";
-        }
-        ans += "properties=" + PropertiesDebugString(properties[i]);
-      }
-
-      ans += "}";
-    }
-    ans += ")";
-    return ans;
+    return std::format("LogicalSet({})", Join(assignments, "; ", [](const logical::LogicalSet::Assignment& cur) {
+      return std::format("alias={}, labels={}, properties={{{}}}", cur.alias, Join(cur.labels, ", ", [](const String& cur) {
+          return cur;
+        }), Join(cur.properties, ", ", [](const auto& cur) {
+        return std::format("{}={}", cur.first, PlannerUtils::ValueToString(cur.second));
+      }));
+    }));
   }
 
   String PhysicalCreateOp::DebugString() const {
