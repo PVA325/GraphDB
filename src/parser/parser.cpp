@@ -205,15 +205,13 @@ std::string MatchEdgePattern::DebugString() const {
   }
 
   result += EdgeLabelsToString(label);
-  result += EdgeLabelsToString(label);
 
   if (!properties.empty()) {
     if (!alias.empty() || !label.empty()) {
-      if (!alias.empty() || !label.empty()) {
-        result += ' ';
-      }
-      result += PropertyMapToString(properties);
+      result += ' ';
     }
+    result += PropertyMapToString(properties);
+  }
 
     result += "]";
 
@@ -284,13 +282,12 @@ std::string CreateEdgePattern::DebugString() const {
   }
 
   result += EdgeLabelsToString(label);
-  result += EdgeLabelsToString(label);
 
   if (!properties.empty()) {
     if (!alias.empty() || !label.empty()) {
-      if (!alias.empty() || !label.empty()) {
-        result += ' ';
-      }
+    if (!alias.empty() || !label.empty()) {
+      result += ' ';
+    }
 
       result += PropertyMapToString(properties);
     }
