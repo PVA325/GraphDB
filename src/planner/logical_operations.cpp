@@ -223,7 +223,7 @@ namespace graph::logical {
       (child != nullptr ? std::move(child->BuildPhysical(ctx)) : nullptr)
     );
   }
-}
+}  // namespace graph::logical
 
 graph::String graph::PlannerUtils::EdgeStrByDirection(ast::EdgeDirection dir) {
   if (dir == ast::EdgeDirection::Right) {

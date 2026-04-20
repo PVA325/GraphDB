@@ -174,4 +174,4 @@ namespace graph::planner {
   void Planner::build_physical_plan() {
     physical_plan_ = exec::PhysicalPlan(std::move(logical_plan_.BuildPhysical(ctx_)));
   }
-}
+}  // namespace graph::planner

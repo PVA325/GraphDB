@@ -28,9 +28,9 @@ struct PlannerError : public std::runtime_error { // todo at the end
 struct ExecutionError : public std::runtime_error { // todo at the end
   explicit ExecutionError(const std::string &msg);
 };
+}  // namespace graph
 
-
-namespace PlannerUtils {
+namespace graph::PlannerUtils {
   template<typename... Types>
   struct overloads : Types... {
     using Types::operator()...;
@@ -64,8 +64,7 @@ namespace PlannerUtils {
     }
   }
   bool ValueToBool(Value val);
-}
-}
+} // namespace graph::PlannerUtils
 
 namespace graph::exec {
   using storage::Node;
@@ -91,7 +90,7 @@ namespace graph::exec {
   struct PhysicalSetOp;
   struct PhysicalCreateOp;
   struct PhysicalDeleteOp;
-}
+}  // namespace graph::exec
 
 namespace graph::logical {
   struct LogicalOp;
@@ -359,8 +358,7 @@ namespace graph::logical {
 
     ~LogicalPlan() override = default;
   };
-
-}
+}  // namespace graph::logical
 
 
 namespace graph::exec {
@@ -1103,17 +1101,15 @@ private:
   // PlannerConfig cfg_;
   // std::unique_ptr<CostModel> cost_model_;
   // std::unique_ptr<JoinOrderStrategy> join_strategy_;
-
-
 };
-}
+}   // namespace graph::logical
 
 
 namespace ast {
   struct EvalContext {
     graph::exec::Row& row;
   };
-}
+}  // namespace ast
 
 
 #include "planner.tpp"

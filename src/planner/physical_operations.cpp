@@ -746,6 +746,6 @@ namespace graph::exec {
   }
 
   PhysicalPlan::PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}
-} // namespace
+}  // namespace graph::exec
 
 
