@@ -938,63 +938,123 @@ struct PlannerConfig {
 };
 
 // Cost estimates structure
+
 struct CostEstimate {
-  double row_count = 0.0;
-  double cpu_cost = 0.0;
-  double io_cost = 0.0;
+  double row_count{0.0};          // count of rows that operator gives us
+  double cpu_cost{0.0};           // nominal cost of cpu
+  double io_cost{0.0};            // nominal cost if read/write(or other heavy operations with ram, not cache) operations(for example for index scan)
+  double startup_cost{0.0};       // cost to give first row
+
+  [[nodiscard]] double total() const { return startup_cost + cpu_cost + 5.0 * io_cost; } // FOR TEST ONLY, REWRITE
 };
 
 // Cost model interface
 struct CostModel {
   virtual ~CostModel() = default;
-  // estimate cost for scanning label with optional property predicate
-  [[nodiscard]] virtual CostEstimate estimate_scan(const storage::GraphDB &cat,
-                                     const logical::LogicalScan &scan) const = 0;
 
-  // estimate for expand
-  [[nodiscard]] virtual CostEstimate estimate_expand(const storage::GraphDB &cat,
-                                       const logical::LogicalExpand &expand,
-                                       const CostEstimate &input) const = 0;
+  virtual CostEstimate EstimateAllNodeScan(const storage::GraphDB* db, const logical::LogicalScan& scan) const = 0;
 
-  // estimate for join
-  virtual CostEstimate estimate_join(const CostEstimate &left,
-                                     const CostEstimate &right,
-                                     const ast::Expr *pred) const = 0;
+  /// return estimated cost and label on which we should do index
+  virtual std::pair<CostEstimate, String> EstimateIndexSeekLabel(const storage::GraphDB* db, const logical::LogicalScan& scan) const = 0;
+
+  virtual CostEstimate EstimateExpand(
+    const storage::GraphDB* db,
+    const logical::LogicalExpand& expand,
+    const CostEstimate& input) const = 0;
+
+  virtual CostEstimate EstimateFilter(
+    const storage::GraphDB* db,
+    const CostEstimate& input,
+    const ast::Expr* pred) const = 0;
+
+  virtual CostEstimate EstimateNestedJoin(
+    const storage::GraphDB* db,
+    const CostEstimate& left,
+    const CostEstimate& right,
+    const ast::Expr* pred) const = 0;
+
+  virtual CostEstimate EstimateHashJoin(
+    const storage::GraphDB* db,
+    const CostEstimate& left,
+    const CostEstimate& right,
+    const ast::Expr* pred) const = 0;
+
+  virtual CostEstimate EstimateSort(const storage::GraphDB* db, const CostEstimate& input) const = 0;
+
+  virtual CostEstimate EstimateLimit(const storage::GraphDB* db, const CostEstimate& input, size_t limit) const = 0;
+private:
+  double cpu_cost = 1.0;
+  double io_cost = 3.0;
 };
 
-// Default cost model
-struct DefaultCostModel : public CostModel {
-  DefaultCostModel();
-  [[nodiscard]] CostEstimate estimate_scan(const storage::GraphDB &cat,
-                             const logical::LogicalScan &scan) const override;
-  [[nodiscard]] CostEstimate estimate_expand(const storage::GraphDB &cat,
-                               const logical::LogicalExpand &expand,
-                               const CostEstimate &input) const override;
-  CostEstimate estimate_join(const CostEstimate &left,
-                             const CostEstimate &right,
-                             const ast::Expr *pred) const override;
+struct DefaultCostModel : CostModel {
+  ~DefaultCostModel() override = default;
+  CostEstimate EstimateAllNodeScan(const storage::GraphDB* db, const logical::LogicalScan& scan) const override;
+  std::pair<CostEstimate, String> EstimateIndexSeekLabel(const storage::GraphDB* db, const logical::LogicalScan& scan) const override;
+
+
+  CostEstimate EstimateExpand(
+    const storage::GraphDB* db,
+    const logical::LogicalExpand& expand,
+    const CostEstimate& input) const override;
+
+  CostEstimate EstimateFilter(
+    const storage::GraphDB* db,
+    const CostEstimate& input,
+    const ast::Expr* pred) const override;
+
+  CostEstimate EstimateNestedJoin(
+    const storage::GraphDB* db,
+    const CostEstimate& left,
+    const CostEstimate& right,
+    const ast::Expr* pred) const override;
+
+  CostEstimate EstimateHashJoin(
+    const storage::GraphDB* db,
+    const CostEstimate& left,
+    const CostEstimate& right,
+    const ast::Expr* pred) const override;
+
+  CostEstimate EstimateSort(const storage::GraphDB* db, const CostEstimate& input) const override;
+
+  CostEstimate EstimateLimit(const storage::GraphDB* db, const CostEstimate& input, size_t limit) const override;
+private:
+  [[nodiscard]] double EstimateNodePropertySelectivity(const std::vector<std::pair<String, Value> >& props, const storage::GraphDB* gb) const;
+  [[nodiscard]] double EstimateNodeLabelsSelectivity(const std::vector<String>& labels, const storage::GraphDB* gb) const;
+  [[nodiscard]] std::pair<double, String> EstimateBiggestLabelSelectivity(const std::vector<String>& labels, const storage::GraphDB* gb) const;
+  [[no_discard]] double EstimateEdgeTypeSelectivity(const std::optional<std::string>& label, const storage::GraphDB* db) const;
+
+  static constexpr double kRandomReadCost = 1.5;
+  static constexpr double kSeqReadCost = 0.3;
+  static constexpr double kCpuPerRow = 1.0;
+  static constexpr double kIoPerRow = 1.0;
+  static constexpr double kFilterCpu = 0.5;
+  static constexpr double kCpuPerEdge = 1.0;
+  static constexpr double kIoPerEdge = 1.0;
+  static constexpr double kCpuHashBuild = 5.0;
+  static constexpr double kCpuHashProbe = 5.0;
 };
 
 // Join ordering strategy interface
-struct JoinOrderStrategy {
-  virtual ~JoinOrderStrategy() = default;
-  // choose join order given list of logical scans/joins
-  virtual std::vector<size_t> choose_order(const std::vector<logical::LogicalOp*> &join_roots,
-                                           const storage::GraphDB &cat,
-                                           const CostModel &cost_model) = 0;
-};
-class GreedyJoinOrder : public JoinOrderStrategy {
-public:
-  std::vector<size_t> choose_order(
-    const std::vector<logical::LogicalOp*>& joins,
-    const storage::GraphDB& cat,
-    const CostModel& cost_model) override {
-
-    std::vector<size_t> order(joins.size());
-    std::iota(order.begin(), order.end(), 0);
-    return order;
-  }
-};
+// struct JoinOrderStrategy {
+//   virtual ~JoinOrderStrategy() = default;
+//   // choose join order given list of logical scans/joins
+//   virtual std::vector<size_t> choose_order(const std::vector<logical::LogicalOp*> &join_roots,
+//                                            const storage::GraphDB &cat,
+//                                            const CostModel &cost_model) = 0;
+// };
+// class GreedyJoinOrder : public JoinOrderStrategy {
+// public:
+//   std::vector<size_t> choose_order(
+//     const std::vector<logical::LogicalOp*>& joins,
+//     const storage::GraphDB* db,
+//     const CostModel& cost_model) override {
+//
+//     std::vector<size_t> order(joins.size());
+//     std::iota(order.begin(), order.end(), 0);
+//     return order;
+//   }
+// };
 
 class Planner {
 public:
