@@ -205,4 +205,50 @@ CostEstimate DefaultCostModel::EstimateLimit(
   return limit_cost;
 }
 
+double DefaultCostModel::EstimateNodePropertySelectivity(const std::vector<std::pair<String, Value>>& props,
+  const storage::GraphDB* db) const {
+  double selectivity = 1.0;
+  for (const auto [key, _] : props) {
+    std::optional<size_t> cur_distinct_cnt = db->property_distinct_count("", key);
+    double cur_sel =
+      (cur_distinct_cnt.has_value() ? static_cast<double>(cur_distinct_cnt.value()) : db->node_count()) / db->node_count();
+    selectivity *= cur_sel;
+  }
+  return selectivity;
+}
+
+double DefaultCostModel::EstimateNodeLabelsSelectivity(const std::vector<String>& labels,
+  const storage::GraphDB* db) const {
+  double selectivity = 1.0;
+  for (const auto label : labels) {
+    double label_nodes_cnt = static_cast<double>(db->node_count_with_label(label));
+    selectivity *= label_nodes_cnt / db->node_count();
+  }
+  return selectivity;
+}
+
+std::pair<double, String> DefaultCostModel::EstimateBiggestLabelSelectivity(const std::vector<String>& labels,
+  const storage::GraphDB* db) const {
+  if (labels.empty()) {
+    return {1.0, ""};
+  }
+  double best_selectivity = 1.0;
+  String best_label = "";
+  for (const auto label : labels) {
+    double cur_sel = static_cast<double>(db->node_count_with_label(label)) / db->node_count();
+    if (cur_sel < best_selectivity) {
+      best_selectivity = cur_sel;
+      best_label = label;
+    }
+  }
+  return {best_selectivity, best_label};
+}
+
+double DefaultCostModel::EstimateEdgeTypeSelectivity(const std::optional<std::string>& label,
+  const storage::GraphDB* db) const {
+  if (!label.has_value()) {
+    return 1.0;
+  }
+  return db->edge_count_with_label(label.value() / db->node_count());
+}
 } // namespace graph::planner

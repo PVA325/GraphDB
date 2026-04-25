@@ -1033,31 +1033,12 @@ private:
   static constexpr double kCpuHashProbe = 5.0;
 };
 
-// Join ordering strategy interface
-// struct JoinOrderStrategy {
-//   virtual ~JoinOrderStrategy() = default;
-//   // choose join order given list of logical scans/joins
-//   virtual std::vector<size_t> choose_order(const std::vector<logical::LogicalOp*> &join_roots,
-//                                            const storage::GraphDB &cat,
-//                                            const CostModel &cost_model) = 0;
-// };
-// class GreedyJoinOrder : public JoinOrderStrategy {
-// public:
-//   std::vector<size_t> choose_order(
-//     const std::vector<logical::LogicalOp*>& joins,
-//     const storage::GraphDB* db,
-//     const CostModel& cost_model) override {
-//
-//     std::vector<size_t> order(joins.size());
-//     std::iota(order.begin(), order.end(), 0);
-//     return order;
-//   }
-// };
-
 class Planner {
 public:
   explicit Planner(exec::ExecContext &ctx, ast::QueryAST ast):
-    ctx_(ctx), ast_plan_(std::move(ast)) {}
+    ctx_(ctx), ast_plan_(std::move(ast)) {
+    cost_model_ = std::make_unique<DefaultCostModel>();
+  }
 
   // End-to-end: AST -> LogicalPlan
   void build_logical_plan();
@@ -1098,8 +1079,9 @@ private:
   ast::QueryAST ast_plan_;
   logical::LogicalPlan logical_plan_;
   exec::PhysicalPlan physical_plan_;
+  std::unique_ptr<CostModel> cost_model_;
   // PlannerConfig cfg_;
-  // std::unique_ptr<CostModel> cost_model_;
+
   // std::unique_ptr<JoinOrderStrategy> join_strategy_;
 };
 }   // namespace graph::logical
