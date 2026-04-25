@@ -9,6 +9,9 @@ namespace storage {
   }
 
   size_t GraphDB::node_count_with_label(const std::string& label) const {
+    if (label_index_.find(label) == label_index_.end()) {
+      return 0;
+    }
     return label_index_.at(label).size();
   }
 

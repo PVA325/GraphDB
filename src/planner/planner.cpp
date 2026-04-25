@@ -171,7 +171,9 @@ namespace graph::planner {
     logical_plan_ = std::move(plan);
   }
 
-  void Planner::build_physical_plan() {
-    physical_plan_ = exec::PhysicalPlan(std::move(logical_plan_.BuildPhysical(ctx_)));
+  CostEstimate Planner::build_physical_plan() {
+    auto child_build = logical_plan_.BuildPhysical(ctx_, cost_model_.get(), db_);
+    physical_plan_ = exec::PhysicalPlan(std::move(child_build.first));
+    return child_build.second;
   }
 }  // namespace graph::planner

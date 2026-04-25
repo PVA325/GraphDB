@@ -205,8 +205,26 @@ CostEstimate DefaultCostModel::EstimateLimit(
   return limit_cost;
 }
 
+CostEstimate DefaultCostModel::EstimateSet(const storage::GraphDB* db, const CostEstimate& input,
+  const logical::LogicalSet& set) const {
+
+  return input;
+}
+
+CostEstimate DefaultCostModel::EstimateCreate(const storage::GraphDB* db, const CostEstimate& input,
+  const logical::LogicalCreate& create) const {
+
+  return input;
+}
+
+CostEstimate DefaultCostModel::EstimateDelete(const storage::GraphDB* db, const CostEstimate& input,
+  const logical::LogicalDelete& del) const {
+
+  return input;
+}
+
 double DefaultCostModel::EstimateNodePropertySelectivity(const std::vector<std::pair<String, Value>>& props,
-  const storage::GraphDB* db) const {
+                                                         const storage::GraphDB* db) const {
   double selectivity = 1.0;
   for (const auto [key, _] : props) {
     std::optional<size_t> cur_distinct_cnt = db->property_distinct_count("", key);
@@ -249,6 +267,16 @@ double DefaultCostModel::EstimateEdgeTypeSelectivity(const std::optional<std::st
   if (!label.has_value()) {
     return 1.0;
   }
-  return db->edge_count_with_label(label.value() / db->node_count());
+  return (1.0 * db->edge_count_with_label(label.value()) / db->node_count());
+}
+
+CostEstimate DefaultCostModel::EstimateProject(
+  const storage::GraphDB* db, const CostEstimate& child,
+  const logical::LogicalProject& proj) const {
+
+  CostEstimate cost = child;
+  cost.cpu_cost += child.row_count * proj.items.size() * kCpuPerRow;
+
+  return cost;
 }
 } // namespace graph::planner

@@ -49,7 +49,7 @@ void ExpectInOrder(const String& s, std::initializer_list<String> needles) {
 graph::planner::Planner MakePlanner(ast::QueryAST q) {
   graph::exec::ExecContext ctx;
   ctx.db = nullptr;
-  return graph::planner::Planner(ctx, std::move(q));
+  return graph::planner::Planner(ctx, nullptr, std::move(q));
 }
 
 using graph::String;
@@ -63,7 +63,6 @@ size_t CountSubstr(const String& s, const String& needle) {
   }
   return count;
 }
-
 
 ast::Pattern MakeNodePattern(const String& alias, std::initializer_list<String> labels = {}) {
   ast::NodePattern node;
@@ -121,4 +120,10 @@ ast::QueryAST MakeSelectQueryTwoPatterns() {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"a"}});
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"b"}});
   return q;
+}
+
+graph::planner::Planner MakePlanner(ast::QueryAST q, storage::GraphDB* db = nullptr) {
+  graph::exec::ExecContext ctx;
+  ctx.db = db;
+  return graph::planner::Planner(ctx, db, std::move(q));
 }

@@ -30,10 +30,14 @@ TEST(BuildPhysicalPlanComplex, MatchWhereReturnOrderLimitMapsToPhysicalTree) {
   q.limit_clause->limit = 7;
 
   graph::exec::ExecContext ctx;
-  graph::planner::Planner planner(ctx, std::move(q));
+  storage::GraphDB db;
+  ctx.db = &db;
+
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   const auto s = planner.getPhysicalPlan().DebugString();
 
@@ -63,10 +67,14 @@ TEST(BuildPhysicalPlanComplex, MatchExpandSetMapsToExpandAndSet) {
   q.set_clause->items = {ast::SetItem{"a", {std::make_pair("age", ast::Literal{42})}, {}}};
 
   graph::exec::ExecContext ctx;
-  graph::planner::Planner planner(ctx, std::move(q));
+  storage::GraphDB db;
+  ctx.db = &db;
+
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   const auto s = planner.getPhysicalPlan().DebugString();
 
@@ -85,24 +93,6 @@ static void SeedGraph1(storage::GraphDB& db) {
   db.create_node({"City"}, {{"population", storage::Value{30}}});
 }
 
-static std::unique_ptr<ast::Expr> MakeAgeGreaterThanPopulationExpr() {
-  auto left = std::make_unique<ast::PropertyExpr>();
-  left->alias = "a";
-  left->property = "age";
-
-  auto right = std::make_unique<ast::PropertyExpr>();
-  right->alias = "b";
-  right->property = "population";
-
-  auto cmp = std::make_unique<ast::ComparisonExpr>();
-  cmp->left = std::move(left);
-  cmp->op = ast::CompareOp::Gt;
-  cmp->right = std::move(right);
-
-  return cmp;
-}
-
-
 static void SeedGraph2(storage::GraphDB& db) {
   auto p1 = db.create_node({"Person"}, {{"age", storage::Value{10}}});
   auto p2 = db.create_node({"Person"}, {{"age", storage::Value{40}}});
@@ -114,6 +104,7 @@ static void SeedGraph2(storage::GraphDB& db) {
   db.create_edge(p3, p1, "KNOWS", {});
   db.create_edge(p1, c1, "LIVES_IN", {});
 }
+
 TEST(ExecutionComplex, MatchExpandJoinProjectLimit2) {
   storage::GraphDB db;
   SeedGraph2(db);
@@ -136,10 +127,11 @@ TEST(ExecutionComplex, MatchExpandJoinProjectLimit2) {
   q.limit_clause->limit = 3;
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -177,10 +169,11 @@ TEST(ExecutionComplex, MatchSetAddsProperty2) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"a"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -207,10 +200,11 @@ TEST(ExecutionComplex, MatchDeleteRemovesNode2) {
   q.delete_clause->aliases = {"a"};
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
   graph::exec::Row row;
@@ -247,10 +241,11 @@ TEST(ExecutionComplex, CreateNodesAndEdge2) {
   q.create_clause->created_items.emplace_back(e);
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
   graph::exec::Row row;
@@ -279,10 +274,11 @@ TEST(ExecutionComplex, MatchExpandReturnsNodeEdgeNode) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"b"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -332,10 +328,11 @@ TEST(ExecutionComplex, MatchTwoNodePatternsProducesCartesianProduct) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"b"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -386,10 +383,11 @@ TEST(ExecutionComplex, MatchSetUpdatesMultipleProperties) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"a"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -437,10 +435,11 @@ TEST(ExecutionComplex, CreateNodeAndEdgeWithProperties) {
   q.create_clause->created_items.emplace_back(e);
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -501,10 +500,11 @@ TEST(ExecutionComplex, MatchExpandJoinProjectTogether) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"c"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -562,10 +562,11 @@ TEST(ExecutionComplex, MatchExpandThenSetPropertyOnMatchedNode) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"b"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -604,10 +605,11 @@ TEST(ExecutionComplex, MatchTwoPatternsJoinThenProjectAndReturnOnlyAliases) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"b"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -659,10 +661,11 @@ TEST(ExecutionComplex, MatchExpandDeleteRemovesMatchedEdge) {
   q.delete_clause->aliases = {"e"};
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -703,10 +706,11 @@ TEST(ExecutionComplex, MatchExpandSetAndDeleteDifferentTargets) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"y"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -772,10 +776,11 @@ TEST(ExecutionComplex, CreateNodesAndEdgeThenReturnAliases) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"e"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
@@ -834,10 +839,11 @@ TEST(ExecutionComplex, CreateSingleNodeWithPropertyAndReturn) {
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"n"}});
 
   graph::exec::ExecContext ctx(&db);
-  graph::planner::Planner planner(ctx, std::move(q));
+  graph::planner::Planner planner(ctx, &db, std::move(q));
 
   planner.build_logical_plan();
-  planner.build_physical_plan();
+  const auto cost = planner.build_physical_plan();
+  (void)cost;
 
   auto cursor = planner.getPhysicalPlan().root->open(ctx);
 
