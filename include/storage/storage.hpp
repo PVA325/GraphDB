@@ -39,31 +39,38 @@ struct Edge {
 
 class GraphDB;
 
-template<typename T, typename Id>
-class Cursor {
-protected:
-  GraphDB* db_;
-  const std::vector<Id>& ids_;
-  std::function<bool(T*)> predicate_ = nullptr;
-  size_t index_ = 0;
-  size_t limit_ = 0;
-  size_t returned_ = 0;
+  template<typename T, typename Id>
+  class Cursor {
+  protected:
+    GraphDB* db_;
+    std::optional<std::vector<Id>> owned_ids_;
+    const std::vector<Id>* ids_;
+    std::function<bool(T*)> predicate_ = nullptr;
+    size_t index_ = 0;
+    size_t limit_ = 0;
+    size_t returned_ = 0;
 
-public:
-  inline Cursor(GraphDB* db, const std::vector<Id>& ids,
-         std::function<bool(T*)> predicate = nullptr,
-         size_t limit = 0)
-      : db_(db), ids_(ids), predicate_(predicate), limit_(limit) {};
+  public:
+    inline Cursor(GraphDB* db, const std::vector<Id>& ids,
+                  std::function<bool(T*)> predicate = nullptr,
+                  size_t limit = 0)
+      : db_(db), ids_(&ids), predicate_(predicate), limit_(limit) {}
 
-  virtual ~Cursor() = default;
+    inline Cursor(GraphDB* db, std::vector<Id>&& ids,
+                  std::function<bool(T*)> predicate = nullptr,
+                  size_t limit = 0)
+      : db_(db), owned_ids_(std::move(ids)), ids_(&*owned_ids_),
+        predicate_(predicate), limit_(limit) {}
 
-  bool next(T*& out);
+    virtual ~Cursor() = default;
 
-  inline void reset() { index_ = 0; returned_ = 0; }
+    bool next(T*& out);
 
-protected:
-  virtual T* get_from_db(Id id) = 0;
-};
+    inline void reset() { index_ = 0; returned_ = 0; }
+
+  protected:
+    virtual T* get_from_db(Id id) = 0;
+  };
 
 class NodeCursor : public Cursor<Node, NodeId> {
 public:
@@ -112,20 +119,15 @@ class GraphDB {
 public:
   GraphDB() = default;
 
-  // GraphDB() {            !!!!!!!!!!!!!!! for tests ONLY(because of broken reference from Stas in all_nodes, nodes_with_label, create_node, create_edge and so on)
-  //   nodes_.reserve(10);
-  //   edges_.reserve(10);
-  // }
-
   NodeId create_node(const std::vector<std::string>& labels, const Properties& props);
 
   void set_node_property(NodeId id, const std::string& key, const Value& val);
 
-  void set_node_labels(NodeId id, const std::vector<std::string>& labels);
+  void set_node_label(NodeId, const std::string& label);
 
   void delete_node(NodeId id);
 
-  void delete_label(NodeId id, const std::string& label);
+  void delete_node_label(NodeId id, const std::string& label);
 
   Node* get_node(NodeId id);
 
@@ -134,6 +136,8 @@ public:
   void set_edge_property(EdgeId id, const std::string& key, const Value& val);
 
   void delete_edge(EdgeId id);
+
+  void set_edge_type(EdgeId id, const std::string& type);
 
   Edge* get_edge(EdgeId id);
 
@@ -171,13 +175,17 @@ public:
 
   size_t node_count() const;
 
+  size_t edge_count_with_type(const std::string& type) const;
+
   size_t node_count_with_label(const std::string& label) const;
 
-  std::optional<size_t> property_distinct_count(const std::string& label, const std::string& property) const;
+  std::optional<size_t> property_distinct_count(const std::string& property, const std::string& label) const;
 
   double avg_out_degree(const std::string& label) const;
 
   bool has_property_index(const std::string& label, const std::string& property) const;
+
+  size_t property_count(const std::string& property,const Value& value, const std::string& label) const;
 
 private:
 
@@ -193,6 +201,18 @@ private:
   std::unordered_map<NodeId,std::vector<EdgeId>> outgoing_;
   std::unordered_map<NodeId,std::vector<EdgeId>> incoming_;
   std::unordered_map<std::string,std::vector<EdgeId>> edge_type_index_;
+
+  std::unordered_map<std::string,
+    std::unordered_set<Value>> property_distinct_;
+
+  std::unordered_map<std::string,
+    std::unordered_map<std::string,
+      std::unordered_set<Value>>> label_property_distinct_;
+
+
+  std::unordered_map<std::string,std::unordered_map<std::string,
+      std::unordered_map<Value, size_t>>> label_property_count_;
+  std::unordered_map<std::string, size_t> label_total_out_degree_;
 };
 }
 

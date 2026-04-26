@@ -9,66 +9,78 @@ namespace storage {
   }
 
   size_t GraphDB::node_count_with_label(const std::string& label) const {
-    return label_index_.at(label).size();
-  }
-
-  std::optional<size_t> GraphDB::property_distinct_count(
-      const std::string& label,
-      const std::string& property) const{
     auto it = label_index_.find(label);
     if (it == label_index_.end()) {
-      return std::nullopt;
+      return 0;
     }
-
-    std::unordered_set<Value> distinct;
-    for (auto id: it->second) {
-      const auto& node = nodes_[id];
-
-      auto pit = node.properties.find(property);
-      if (pit != node.properties.end()) {
-        distinct.insert(pit->second);
-      }
-    }
-
-    return distinct.size();
+    return it->second.size();
   }
+
+  size_t GraphDB::edge_count_with_type(const std::string& type) const {
+    auto it = edge_type_index_.find(type);
+    if (it == edge_type_index_.end()) return 0;
+    return it->second.size();
+  }
+
+
 
   double GraphDB::avg_out_degree(const std::string& label) const {
-    auto it = label_index_.find(label);
-    if (it == label_index_.end()) {
+    auto lit = label_index_.find(label);
+    if (lit == label_index_.end()) {
       return 0.0;
     }
-
-    size_t total = 0;
-    size_t count = 0;
-    for (auto id: it->second) {
-      auto oit = outgoing_.find(id);
-      if (oit != outgoing_.end()) {
-        total += oit->second.size();
-      }
-      ++count;
+    size_t count = lit->second.size();
+    if (count == 0) {
+      return 0.0;
     }
-
-    return count? static_cast<double>(total) / count : 0.0;
+    return static_cast<double>(label_total_out_degree_.at(label)) / count;
   }
 
   bool GraphDB::has_property_index(const std::string& label,
-                          const std::string& property) const {
-    auto it = label_index_.find(label);
-    if (it == label_index_.end()) {
-      return false;
+                                   const std::string& property) const {
+    auto lit = label_property_count_.find(label);
+    if (lit == label_property_count_.end()) return false;
+    auto pit = lit->second.find(property);
+    if (pit == lit->second.end()) return false;
+    return !pit->second.empty();
+  }
+
+  std::optional<size_t> GraphDB::property_distinct_count(
+    const std::string& property,
+    const std::string& label) const {
+
+    if (label.empty()) {
+      auto it = property_distinct_.find(property);
+      if (it == property_distinct_.end()) return 0;
+      return it->second.size();
     }
 
-    if (property_index_.find(property) == property_index_.end()) {
-      return false;
+    auto lit = label_property_distinct_.find(label);
+    if (lit == label_property_distinct_.end()) return 0;
+    auto pit = lit->second.find(property);
+    if (pit == lit->second.end()) return 0;
+    return pit->second.size();
+  }
+
+  size_t GraphDB::property_count(
+    const std::string& property,
+    const Value& value,
+    const std::string& label) const {
+
+    if (label.empty()) {
+      auto pit = property_index_.find(property);
+      if (pit == property_index_.end()) return 0;
+      auto vit = pit->second.find(value);
+      if (vit == pit->second.end()) return 0;
+      return vit->second.size();
     }
 
-    for (auto id: it->second) {
-      const auto& node = nodes_[id];
-      if (node.properties.count(property)) {
-        return true;
-      }
-    }
-    return false;
+    auto lit = label_property_count_.find(label);
+    if (lit == label_property_count_.end()) return 0;
+    auto pit = lit->second.find(property);
+    if (pit == lit->second.end()) return 0;
+    auto vit = pit->second.find(value);
+    if (vit == pit->second.end()) return 0;
+    return vit->second;
   }
 } // namespace

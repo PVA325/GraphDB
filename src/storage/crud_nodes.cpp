@@ -27,14 +27,22 @@ namespace storage {
       };
     }
 
-    // refresh label_index
     for (const auto& label : labels) {
       label_index_[label].push_back(id);
     }
 
-    // refresh property_index
     for (const auto& [key, value] : props) {
       property_index_[key][value].push_back(id);
+    }
+
+    for (const auto& label : labels) {
+      for (const auto& [key, val] : props) {
+        label_property_distinct_[label][key].insert(val);
+        label_property_count_[label][key][val]++;
+      }
+    }
+    for (const auto& [key, val] : props) {
+      property_distinct_[key].insert(val);
     }
 
     return id;
@@ -68,6 +76,10 @@ namespace storage {
       label_index_[label].emplace_back(id);
       node.labels.emplace_back(label);
     }
+    auto oit = outgoing_.find(id);
+    if (oit != outgoing_.end()) {
+      label_total_out_degree_[label] += oit->second.size();
+    }
   }
 
   Node* GraphDB::get_node(NodeId id) {
@@ -84,20 +96,22 @@ namespace storage {
 
     Node& node = nodes_[id];
 
-    // delete from label_index
     for (const auto& label : node.labels) {
       auto& vec = label_index_[label];
       vec.erase(std::remove(vec.begin(), vec.end(), id), vec.end());
     }
 
-    // delete from property_index
     for (const auto& [key, value] : node.properties) {
       auto& vec = property_index_[key][value];
       vec.erase(std::remove(vec.begin(), vec.end(), id), vec.end());
     }
 
-
-    // delete incedent edges
+    for (const auto& label : node.labels) {
+      auto oit = outgoing_.find(id);
+      if (oit != outgoing_.end()) {
+        label_total_out_degree_[label] -= oit->second.size();
+      }
+    }
     if (outgoing_.count(id)) {
       auto edges = outgoing_[id];
       for (auto eid : edges) {
@@ -123,6 +137,10 @@ namespace storage {
   void GraphDB::delete_node_label(NodeId id, const std::string& label) {
     label_index_[label].erase(std::remove(label_index_[label].begin(), label_index_[label].end(), id), label_index_[label].end());
 
+    auto oit = outgoing_.find(id);
+    if (oit != outgoing_.end()) {
+      label_total_out_degree_[label] -= oit->second.size();
+    }
     auto labels = nodes_[id].labels;
     labels.erase(std::remove(labels.begin(), labels.end(), label), labels.end());
   }

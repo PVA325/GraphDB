@@ -34,6 +34,9 @@ namespace storage {
     }
 
     outgoing_[src].push_back(id);
+    for (const auto& label : nodes_[src].labels) {
+      label_total_out_degree_[label]++;
+    }
     incoming_[dst].push_back(id);
 
     edge_type_index_[type].push_back(id);
@@ -77,6 +80,9 @@ namespace storage {
 
     edge.properties.clear();
     edge.type.clear();
+    for (const auto& label : nodes_[edge.src].labels) {
+      label_total_out_degree_[label]--;
+    }
     edges_[id].alive = false;
 
     free_edge_ids.push_back(id);
