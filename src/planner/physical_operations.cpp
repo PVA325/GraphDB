@@ -452,25 +452,28 @@ namespace graph::exec {
         throw std::runtime_error("Error while setting, invalid type");
       }
 
-      if (std::holds_alternative<Node*>(row_slot)) {
-        auto* node = std::get<Node*>(row_slot);
-        for (const auto& [key, val] : assignment.properties) {
-          db->set_node_property(node->id, key, val);
-        }
+      auto& obj_properties = (row_slot.index() == 0 ? std::get<0>(row_slot)->properties : std::get<1>(row_slot)->properties);
 
-        // for (const auto& label : assignment.labels) {
-        //   db->add_node_label(node->id, label);
-        // }
+      if (!properties[i].empty()) {
+        for (const auto& [key, val] : properties[i]) {
+          obj_properties[key] = val;
+        }
+      }
+
+      if (labels[i].empty()) {
         continue;
       }
-      auto* edge = std::get<Edge*>(row_slot);
-      for (const auto& [key, val] : assignment.properties) {
-        db->set_edge_property(edge->id, key, val);
+      if (row_slot.index() == 1) {
+        auto& edge_type = std::get<1>(row_slot)->type;
+        edge_type = labels[i].back();
+        continue;
       }
-
-      // for (const auto& label : assignment.labels) {
-      //   db->add_node_label(edge->id, label);
-      // }
+      auto& node_labels = std::get<0>(row_slot)->labels;
+      for (const auto& new_label : labels[i]) {
+        if (std::ranges::find(node_labels, new_label) == node_labels.end()) {
+          node_labels.emplace_back(new_label);
+        }
+      }
     }
     return true;
   }
@@ -502,6 +505,10 @@ namespace graph::exec {
 
   bool CreateCursor::next(Row& out) {
     if (child == nullptr) {
+      if (was_writing) {
+        return false;
+      }
+      was_writing = true;
       for (const auto& create_pattern : items) {
         if (std::holds_alternative<logical::CreateNodeSpec>(create_pattern)) {
           const auto& node_spec = std::get<logical::CreateNodeSpec>(create_pattern);
@@ -536,7 +543,7 @@ namespace graph::exec {
                 std::format("CreateCursor: Error, alias {} already exists", edge_spec.edge_alias));
         }
       }
-      return false;
+      return true;
     }
     if (!child->next(out)) {
       return false;

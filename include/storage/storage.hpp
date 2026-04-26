@@ -43,7 +43,7 @@ template<typename T, typename Id>
 class Cursor {
 protected:
   GraphDB* db_;
-  const std::vector<Id>& ids_; // !!!!!!!!!!!!!!!!!!! here is the problem
+  const std::vector<Id>& ids_;
   std::function<bool(T*)> predicate_ = nullptr;
   size_t index_ = 0;
   size_t limit_ = 0;
@@ -107,27 +107,31 @@ private:
   static Properties deserialize_properties(std::istream& is);
 };
 
+
 class GraphDB {
 public:
   GraphDB() = default;
+
+  // GraphDB() {            !!!!!!!!!!!!!!! for tests ONLY(because of broken reference from Stas in all_nodes, nodes_with_label, create_node, create_edge and so on)
+  //   nodes_.reserve(10);
+  //   edges_.reserve(10);
+  // }
 
   NodeId create_node(const std::vector<std::string>& labels, const Properties& props);
 
   void set_node_property(NodeId id, const std::string& key, const Value& val);
 
-  void set_node_label(NodeId id, const std::string& label);
+  void set_node_labels(NodeId id, const std::vector<std::string>& labels);
 
   void delete_node(NodeId id);
 
-  void delete_node_label(NodeId id, const std::string& label);
+  void delete_label(NodeId id, const std::string& label);
 
   Node* get_node(NodeId id);
 
   EdgeId create_edge(NodeId src, NodeId dst, const std::string& type, const Properties& props);
 
   void set_edge_property(EdgeId id, const std::string& key, const Value& val);
-
-  void set_edge_type(EdgeId id, const std::string& type);
 
   void delete_edge(EdgeId id);
 
