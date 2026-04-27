@@ -8,8 +8,12 @@
 
 namespace ast {
 
-// Forward declaration of evaluation context.
-struct EvalContext;
+// Context for evaluating expressions.
+struct EvalContext {
+  std::unordered_map<std::string, std::unordered_map<std::string, Value>> data;
+
+  Value GetProperty(const std::string& alias, const std::string& property) const;
+};
 
 // Abstract class for all expressions in AST.
 struct Expr {

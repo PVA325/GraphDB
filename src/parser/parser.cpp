@@ -98,6 +98,53 @@ std::string CompareOpToString(CompareOp op) {
   return "?";
 }
 
+// Compares two values with the given comparison operator.
+bool CompareValues(const Value& lhs, const Value& rhs, CompareOp op) {
+  return std::visit([&](auto&& l, auto&& r) -> bool {
+    using L = std::decay_t<decltype(l)>;
+    using R = std::decay_t<decltype(r)>;
+
+    if constexpr ((std::is_same_v<L, int64_t> || std::is_same_v<L, double>) &&
+                  (std::is_same_v<R, int64_t> || std::is_same_v<R, double>)) {
+      double dl = static_cast<double>(l);
+      double dr = static_cast<double>(r);
+
+      switch (op) {
+        case CompareOp::Eq: return dl == dr;
+        case CompareOp::NotEqual: return dl != dr;
+        case CompareOp::Lt: return dl < dr;
+        case CompareOp::Le: return dl <= dr;
+        case CompareOp::Gt: return dl > dr;
+        case CompareOp::Ge: return dl >= dr;
+      }
+    }
+
+    else if constexpr (std::is_same_v<L, std::string> &&
+                       std::is_same_v<R, std::string>) {
+      switch (op) {
+        case CompareOp::Eq: return l == r;
+        case CompareOp::NotEqual: return l != r;
+        case CompareOp::Lt: return l < r;
+        case CompareOp::Le: return l <= r;
+        case CompareOp::Gt: return l > r;
+        case CompareOp::Ge: return l >= r;
+      }
+    }
+
+    else if constexpr (std::is_same_v<L, bool> &&
+                       std::is_same_v<R, bool>) {
+      switch (op) {
+        case CompareOp::Eq: return l == r;
+        case CompareOp::NotEqual: return l != r;
+        default:
+          throw std::runtime_error("Invalid comparison operator for boolean values");
+      }
+    }
+
+    throw std::runtime_error("Cannot compare values of different or unsupported types");
+  }, lhs, rhs);
+}
+
 // Converts a logical operator to a string for debug output.
 std::string LogicalOpToString(LogicalOp op) {
   switch (op) {
@@ -108,7 +155,51 @@ std::string LogicalOpToString(LogicalOp op) {
   return "?";
 }
 
+// Converts a Value to a boolean for logical operations.
+bool ToBool(const Value& v) {
+  return std::visit([](auto&& val) -> bool {
+    using T = std::decay_t<decltype(val)>;
+
+    if constexpr (std::is_same_v<T, bool>) {
+      return val;
+    }
+
+    if constexpr (std::is_same_v<T, int64_t>) {
+      return val != 0;
+    }
+
+    if constexpr (std::is_same_v<T, double>) {
+      return val != 0.0;
+    }
+
+    if constexpr (std::is_same_v<T, std::string>) {
+      return !val.empty();
+    }
+
+    return false;
+  }, v);
+}
+
 } // namespace
+
+// Evaluation context implementation.
+struct EvalContext {
+  std::unordered_map<std::string, std::unordered_map<std::string, Value>> data;
+
+  Value GetProperty(const std::string& alias, const std::string& property) const {
+    auto alias_it = data.find(alias);
+    if (alias_it == data.end()) {
+      throw std::runtime_error("Unknown alias: '" + alias + "'");
+    }
+
+    auto prop_it = alias_it->second.find(property);
+    if (prop_it == alias_it->second.end()) {
+      throw std::runtime_error("Unknown property: '" + property + "' for alias '" + alias + "'");
+    }
+
+    return prop_it->second;
+  }
+}
 
 // Debug string implementations for AST nodes.
 std::string Literal::DebugString() const {
@@ -116,7 +207,7 @@ std::string Literal::DebugString() const {
 }
 
 // LiteralExpr evaluation simply returns the literal value.
-Value LiteralExpr::operator()(const EvalContext&) const {
+Value LiteralExpr::operator()(const EvalContext& ctx) const {
   return literal.value;
 }
 
@@ -125,9 +216,9 @@ std::string LiteralExpr::DebugString() const {
   return literal.DebugString();
 }
 
-// Placeholders for expression evaluation.
-Value PropertyExpr::operator()(const EvalContext&) const {
-  throw std::logic_error("PropertyExpr evaluation is not implemented in parser.cpp");
+// Evaluation of property access expressions retrieves the property value from the context.
+Value PropertyExpr::operator()(const EvalContext& ctx) const {
+  return ctx.GetProperty(alias, property);
 }
 
 // Debug string for property access expressions.
@@ -135,9 +226,12 @@ std::string PropertyExpr::DebugString() const {
   return "Property(" + alias + "." + property + ")";
 }
 
-// Placeholder for comparison expression evaluation.
-Value ComparisonExpr::operator()(const EvalContext&) const {
-  throw std::logic_error("ComparisonExpr evaluation is not implemented in parser.cpp");
+// Evaluation of comparison expressions.
+Value ComparisonExpr::operator()(const EvalContext& ctx) const {
+  Value l = (*left)(ctx);
+  Value r = (*right)(ctx);
+
+  return CompareValues(l, r, op);
 }
 
 // Debug string for comparison expressions.
@@ -151,9 +245,27 @@ std::string ComparisonExpr::DebugString() const {
       ")";
 }
 
-// Placeholder for logical expression evaluation.
-Value LogicalExpr::operator()(const EvalContext&) const {
-  throw std::logic_error("LogicalExpr evaluation is not implemented in parser.cpp");
+// Evaluation of logical expressions.
+Value LogicalExpr::operator()(const EvalContext& ctx) const {
+  bool lhs = ToBool((*left_expr)(ctx));
+
+  if (op == LogicalOp::And) {
+    if (!lhs) {
+      return false;
+    }
+
+    return lhs && ToBool((*right_expr)(ctx));
+  }
+
+  if (op == LogicalOp::Or) {
+    if (lhs) {
+      return true;
+    }
+
+    return lhs || ToBool((*right_expr)(ctx));
+  }
+
+  throw std::runtime_error("Unknown logical operator");
 }
 
 // Debug string for logical expressions.
