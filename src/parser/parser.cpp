@@ -322,8 +322,8 @@ std::string MatchEdgePattern::DebugString() const {
     if (!alias.empty() || !label.empty()) {
       result += ' ';
     }
+
     result += PropertyMapToString(properties);
-  }
 
     result += "]";
 
@@ -401,8 +401,7 @@ std::string CreateEdgePattern::DebugString() const {
       result += ' ';
     }
 
-      result += PropertyMapToString(properties);
-    }
+    result += PropertyMapToString(properties);
 
     result += "]";
 
