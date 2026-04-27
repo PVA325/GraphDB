@@ -1105,14 +1105,14 @@ struct DefaultCostModel : CostModel {
   CostEstimate EstimateDelete(const storage::GraphDB* db, const CostEstimate& input, const logical::LogicalDelete& del) const override;
 
 private:
-  [[nodiscard]] double EstimateNodePropertySelectivity(const std::vector<std::pair<String, Value>>& props,
-                                                       const storage::GraphDB* gb) const;
-  [[nodiscard]] double EstimateNodeLabelsSelectivity(const std::vector<String>& labels,
-                                                     const storage::GraphDB* gb) const;
-  [[nodiscard]] std::pair<double, String> EstimateBiggestLabelSelectivity(
-    const std::vector<String>& labels, const storage::GraphDB* gb) const;
-  [[no_discard]] double EstimateEdgeTypeSelectivity(const std::optional<std::string>& label,
-                                                    const storage::GraphDB* db) const;
+  [[nodiscard]] static double EstimateNodePropertySelectivity(const std::vector<std::pair<String, Value>>& props,
+                                                              const storage::GraphDB* gb);
+  [[nodiscard]] static double EstimateNodeLabelsSelectivity(const std::vector<String>& labels,
+                                                     const storage::GraphDB* gb);
+  [[nodiscard]] static std::pair<double, String> EstimateBiggestLabelSelectivity(
+    const std::vector<String>& labels, const storage::GraphDB* gb);
+  [[no_discard]] static double EstimateEdgeTypeSelectivity(const std::optional<std::string>& label,
+                                                    const storage::GraphDB* db);
 
   static constexpr double kRandomReadCost = 1.5;
   static constexpr double kSeqReadCost = 0.3;

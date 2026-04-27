@@ -1,4 +1,5 @@
 #include <cmath>
+#include <sys/stat.h>
 
 #include "planner.hpp"
 
@@ -12,7 +13,7 @@ CostEstimate DefaultCostModel::EstimateAllNodeScan(
     throw std::runtime_error("DefaultCostModel(estimate_all_node_scan): Error, db is null");
   }
 
-  double total_nodes = static_cast<double>(db->node_count());
+  auto total_nodes = static_cast<double>(db->node_count());
   const double labels_sel = EstimateNodeLabelsSelectivity(scan.labels, db);
   const double prop_sel = EstimateNodePropertySelectivity(scan.property_filters, db);
 
@@ -37,7 +38,7 @@ std::pair<CostEstimate, String> DefaultCostModel::EstimateIndexSeekLabel(
     throw std::runtime_error("DefaultCostModel(estimate_index_seek_label): Error, db is null");
   }
 
-  double total_nodes = static_cast<double>(db->node_count());
+  auto total_nodes = static_cast<double>(db->node_count());
   const double labels_sel = EstimateNodeLabelsSelectivity(scan.labels, db);
   const auto [best_label_sel, best_label] = EstimateBiggestLabelSelectivity(scan.labels, db);
   const double prop_sel = EstimateNodePropertySelectivity(scan.property_filters, db);
@@ -208,52 +209,81 @@ CostEstimate DefaultCostModel::EstimateLimit(
 CostEstimate DefaultCostModel::EstimateSet(const storage::GraphDB* db, const CostEstimate& input,
   const logical::LogicalSet& set) const {
 
-  return input;
+  if (!db) {
+    throw std::runtime_error("DefaultCostModel(EstimateSet): Error, db is null");
+  }
+
+  CostEstimate set_cost = input;
+  set_cost.cpu_cost += input.row_count * kCpuPerRow * static_cast<double>(set.assignment.size());
+  set_cost.io_cost += input.row_count * kIoPerRow * static_cast<double>(set.assignment.size());
+
+  return set_cost;
 }
 
 CostEstimate DefaultCostModel::EstimateCreate(const storage::GraphDB* db, const CostEstimate& input,
   const logical::LogicalCreate& create) const {
 
-  return input;
+  if (!db) {
+    throw std::runtime_error("DefaultCostModel(EstimateCreate): Error, db is null");
+  }
+
+  CostEstimate set_cost = input;
+  set_cost.cpu_cost += input.row_count * kCpuPerRow * static_cast<double>(create.items.size());
+  set_cost.io_cost += input.row_count * kIoPerRow * static_cast<double>(create.items.size());
+
+  return set_cost;
 }
 
 CostEstimate DefaultCostModel::EstimateDelete(const storage::GraphDB* db, const CostEstimate& input,
   const logical::LogicalDelete& del) const {
 
-  return input;
+  if (!db) {
+    throw std::runtime_error("DefaultCostModel(EstimateDelete): Error, db is null");
+  }
+
+  CostEstimate del_cost = input;
+  del_cost.cpu_cost += input.row_count * kCpuPerRow * static_cast<double>(del.target.size());
+  del_cost.io_cost += input.row_count * kIoPerRow * static_cast<double>(del.target.size());
+
+  return del_cost;
 }
 
 double DefaultCostModel::EstimateNodePropertySelectivity(const std::vector<std::pair<String, Value>>& props,
-                                                         const storage::GraphDB* db) const {
+                                                         const storage::GraphDB* db) {
   double selectivity = 1.0;
-  for (const auto [key, _] : props) {
+  auto node_count = static_cast<double>(db->node_count());
+  for (const auto& [key, _] : props) {
     std::optional<size_t> cur_distinct_cnt = db->property_distinct_count("", key);
     double cur_sel =
-      (cur_distinct_cnt.has_value() ? static_cast<double>(cur_distinct_cnt.value()) : db->node_count()) / db->node_count();
+      (cur_distinct_cnt.has_value() ? static_cast<double>(cur_distinct_cnt.value()) : node_count) / node_count;
     selectivity *= cur_sel;
   }
   return selectivity;
 }
 
 double DefaultCostModel::EstimateNodeLabelsSelectivity(const std::vector<String>& labels,
-  const storage::GraphDB* db) const {
+  const storage::GraphDB* db) {
   double selectivity = 1.0;
-  for (const auto label : labels) {
-    double label_nodes_cnt = static_cast<double>(db->node_count_with_label(label));
-    selectivity *= label_nodes_cnt / db->node_count();
+  auto node_count = static_cast<double>(db->node_count());
+
+  for (const auto& label : labels) {
+    auto label_nodes_cnt = static_cast<double>(db->node_count_with_label(label));
+    selectivity *= label_nodes_cnt / node_count;
   }
   return selectivity;
 }
 
 std::pair<double, String> DefaultCostModel::EstimateBiggestLabelSelectivity(const std::vector<String>& labels,
-  const storage::GraphDB* db) const {
+  const storage::GraphDB* db) {
   if (labels.empty()) {
     return {1.0, ""};
   }
   double best_selectivity = 1.0;
-  String best_label = "";
-  for (const auto label : labels) {
-    double cur_sel = static_cast<double>(db->node_count_with_label(label)) / db->node_count();
+  String best_label;
+  auto node_count = static_cast<double>(db->node_count());
+
+  for (const auto& label : labels) {
+    double cur_sel = static_cast<double>(db->node_count_with_label(label)) / node_count;
     if (cur_sel < best_selectivity) {
       best_selectivity = cur_sel;
       best_label = label;
@@ -263,11 +293,12 @@ std::pair<double, String> DefaultCostModel::EstimateBiggestLabelSelectivity(cons
 }
 
 double DefaultCostModel::EstimateEdgeTypeSelectivity(const std::optional<std::string>& label,
-  const storage::GraphDB* db) const {
+  const storage::GraphDB* db) {
   if (!label.has_value()) {
     return 1.0;
   }
-  return (1.0 * db->edge_count_with_label(label.value()) / db->node_count());
+  auto node_count = static_cast<double>(db->node_count());
+  return static_cast<double>(db->edge_count_with_label(label.value())) / node_count;
 }
 
 CostEstimate DefaultCostModel::EstimateProject(
@@ -275,7 +306,7 @@ CostEstimate DefaultCostModel::EstimateProject(
   const logical::LogicalProject& proj) const {
 
   CostEstimate cost = child;
-  cost.cpu_cost += child.row_count * proj.items.size() * kCpuPerRow;
+  cost.cpu_cost += child.row_count * kCpuPerRow * static_cast<double>(proj.items.size());
 
   return cost;
 }
