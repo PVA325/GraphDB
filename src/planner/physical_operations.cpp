@@ -452,28 +452,50 @@ namespace graph::exec {
         throw std::runtime_error("Error while setting, invalid type");
       }
 
-      auto& obj_properties = (row_slot.index() == 0 ? std::get<0>(row_slot)->properties : std::get<1>(row_slot)->properties);
-
-      if (!properties[i].empty()) {
-        for (const auto& [key, val] : properties[i]) {
-          obj_properties[key] = val;
+      if (std::holds_alternative<Node*>(row_slot)) {
+        auto* node = std::get<Node*>(row_slot);
+        for (const auto& [key, val] : assignment.properties) {
+          db->set_node_property(node->id, key, val);
         }
+
+        // for (const auto& label : assignment.labels) {
+        //   db->add_node_label(node->id, label);
+        // }
+      } else {
+        auto* edge = std::get<Edge*>(row_slot);
+        for (const auto& [key, val] : assignment.properties) {
+          db->set_edge_property(edge->id, key, val);
+        }
+
+        // for (const auto& label : assignment.labels) {
+        //   db->add_node_label(edge->id, label);
+        // }
       }
 
-      if (labels[i].empty()) {
+      auto& obj_properties = (row_slot.index() == 0 ? std::get<0>(row_slot)->properties : std::get<1>(row_slot)->properties);
+      for (const auto& [key, val] : assignment.properties) {
+        obj_properties[key] = val;
+      }
+
+      if (assignment.labels.empty()) {
         continue;
       }
-      if (row_slot.index() == 1) {
+
+      if (std::holds_alternative<Edge*>(row_slot)) {
+        if (assignment.labels.size() != -1) {
+          throw std::runtime_error("SetCursor: Error, edge can have only 1 type");
+        }
         auto& edge_type = std::get<1>(row_slot)->type;
-        edge_type = labels[i].back();
+        edge_type = assignment.labels.back();
         continue;
       }
       auto& node_labels = std::get<0>(row_slot)->labels;
-      for (const auto& new_label : labels[i]) {
+      for (const auto& new_label : assignment.labels) {
         if (std::ranges::find(node_labels, new_label) == node_labels.end()) {
           node_labels.emplace_back(new_label);
         }
       }
+
     }
     return true;
   }
@@ -724,6 +746,6 @@ namespace graph::exec {
   }
 
   PhysicalPlan::PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}
-} // namespace
+}  // namespace graph::exec
 
 

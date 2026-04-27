@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <memory>
 #include <optional>
+#include <unordered_set>
 
 namespace storage {
 
@@ -117,7 +118,12 @@ private:
 
 class GraphDB {
 public:
-  GraphDB() = default;
+  // GraphDB() = default;
+
+  GraphDB() {//            !!!!!!!!!!!!!!! for tests ONLY(because of broken reference from Stas in all_nodes, nodes_with_label, create_node, create_edge and so on)
+    nodes_.reserve(10);
+    edges_.reserve(10);
+  }
 
   NodeId create_node(const std::vector<std::string>& labels, const Properties& props);
 

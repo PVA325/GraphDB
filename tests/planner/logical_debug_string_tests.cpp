@@ -13,8 +13,11 @@ struct TestLeafOp final : graph::logical::LogicalOpZeroChild {
     return debug_;
   }
 
-  graph::exec::PhysicalOpPtr BuildPhysical(graph::exec::ExecContext&) const override {
-    return {};
+  graph::logical::BuildPhysicalType BuildPhysical(
+      graph::exec::ExecContext&,
+      graph::planner::CostModel*,
+      storage::GraphDB*) const override {
+    return {nullptr, graph::planner::CostEstimate{}};
   }
 
   String debug_;
@@ -28,8 +31,11 @@ struct TestUnaryOp final : graph::logical::LogicalOpUnaryChild {
     return debug_;
   }
 
-  graph::exec::PhysicalOpPtr BuildPhysical(graph::exec::ExecContext&) const override {
-    return {};
+  graph::logical::BuildPhysicalType BuildPhysical(
+      graph::exec::ExecContext&,
+      graph::planner::CostModel*,
+      storage::GraphDB*) const override {
+    return {nullptr, graph::planner::CostEstimate{}};
   }
 
   String debug_;
@@ -46,8 +52,11 @@ struct TestBinaryOp final : graph::logical::LogicalOpBinaryChild {
     return debug_;
   }
 
-  graph::exec::PhysicalOpPtr BuildPhysical(graph::exec::ExecContext&) const override {
-    return {};
+  graph::logical::BuildPhysicalType BuildPhysical(
+      graph::exec::ExecContext&,
+      graph::planner::CostModel*,
+      storage::GraphDB*) const override {
+    return {nullptr, graph::planner::CostEstimate{}};
   }
 
   String debug_;

@@ -159,19 +159,21 @@ namespace graph::planner {
   void Planner::build_logical_plan() {
     logical::LogicalPlan plan;
 
-    ApplyLogicalMatchImpl(plan, std::move(ast_plan_.match));
-    ApplyLogicalWhereImpl(plan, std::move(ast_plan_.where));
-    ApplyLogicalProjectImpl(plan, std::move(ast_plan_.return_clause));
-    ApplyLogicalSortImpl(plan, std::move(ast_plan_.order));
-    ApplyLogicalLimitImpl(plan, std::move(ast_plan_.limit));
+    ApplyLogicalMatchImpl(plan, std::move(ast_plan_.match_clause));
+    ApplyLogicalWhereImpl(plan, std::move(ast_plan_.where_clause));
+    ApplyLogicalCreateImpl(plan, std::move(ast_plan_.create_clause));
     ApplyLogicalSetImpl(plan, std::move(ast_plan_.set_clause));
     ApplyLogicalDeleteImpl(plan, std::move(ast_plan_.delete_clause));
-    ApplyLogicalCreateImpl(plan, std::move(ast_plan_.create));
+    ApplyLogicalProjectImpl(plan, std::move(ast_plan_.return_clause));
+    ApplyLogicalSortImpl(plan, std::move(ast_plan_.order_clause));
+    ApplyLogicalLimitImpl(plan, std::move(ast_plan_.limit_clause));
 
     logical_plan_ = std::move(plan);
   }
 
-  void Planner::build_physical_plan() {
-    physical_plan_ = exec::PhysicalPlan(std::move(logical_plan_.BuildPhysical(ctx_)));
+  CostEstimate Planner::build_physical_plan() {
+    auto child_build = logical_plan_.BuildPhysical(ctx_, cost_model_.get(), db_);
+    physical_plan_ = exec::PhysicalPlan(std::move(child_build.first));
+    return child_build.second;
   }
-}
+}  // namespace graph::planner

@@ -93,4 +93,4 @@ namespace graph::exec {
       (edge_type.has_value() ? std::format("\"{}\"", edge_type.value()) : "*")
     );
   }
-}
+}  // namespace graph::exec
