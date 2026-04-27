@@ -32,8 +32,8 @@ ast::Pattern MakeSingleNodePattern(const String& alias, std::initializer_list<St
 
 ast::QueryAST MakeQueryWithMatch(const String& alias = "a") {
   ast::QueryAST q;
-  q.match = std::make_unique<ast::MatchClause>();
-  q.match->patterns.push_back(MakeSingleNodePattern(alias, {"Person"}));
+  q.match_clause = std::make_unique<ast::MatchClause>();
+  q.match_clause->patterns.push_back(MakeSingleNodePattern(alias, {"Person"}));
   return q;
 }
 
@@ -49,7 +49,7 @@ void ExpectInOrder(const String& s, std::initializer_list<String> needles) {
 graph::planner::Planner MakePlanner(ast::QueryAST q) {
   graph::exec::ExecContext ctx;
   ctx.db = nullptr;
-  return graph::planner::Planner(ctx, std::move(q));
+  return graph::planner::Planner(ctx, nullptr, std::move(q));
 }
 
 using graph::String;
@@ -63,7 +63,6 @@ size_t CountSubstr(const String& s, const String& needle) {
   }
   return count;
 }
-
 
 ast::Pattern MakeNodePattern(const String& alias, std::initializer_list<String> labels = {}) {
   ast::NodePattern node;
@@ -113,12 +112,18 @@ ast::Pattern MakeEdgePattern(const String& left_alias,
 
 ast::QueryAST MakeSelectQueryTwoPatterns() {
   ast::QueryAST q;
-  q.match = std::make_unique<ast::MatchClause>();
-  q.match->patterns.push_back(MakeNodePattern("a", {"Person"}));
-  q.match->patterns.push_back(MakeNodePattern("b", {"City"}));
+  q.match_clause = std::make_unique<ast::MatchClause>();
+  q.match_clause->patterns.push_back(MakeNodePattern("a", {"Person"}));
+  q.match_clause->patterns.push_back(MakeNodePattern("b", {"City"}));
 
   q.return_clause = std::make_unique<ast::ReturnClause>();
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"a"}});
   q.return_clause->items.push_back(ast::ReturnItem{std::string{"b"}});
   return q;
+}
+
+graph::planner::Planner MakePlanner(ast::QueryAST q, storage::GraphDB* db = nullptr) {
+  graph::exec::ExecContext ctx;
+  ctx.db = db;
+  return graph::planner::Planner(ctx, db, std::move(q));
 }

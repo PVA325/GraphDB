@@ -12,7 +12,7 @@ namespace storage {
       ids.push_back(i);
     }
 
-    return std::make_unique<NodeCursor>(this, ids, predicate, limit);
+    return std::make_unique<NodeCursor>(this, std::move(ids), predicate, limit);
   }
 
   std::unique_ptr<NodeCursor> GraphDB::nodes_with_label(

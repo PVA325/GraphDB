@@ -1,4 +1,4 @@
-#include "../../include/parser/parser.hpp"
+#include "parser.hpp"
 
 #include <cctype>
 #include <sstream>
@@ -8,8 +8,8 @@
 #include <unordered_set>
 #include <utility>
 
-#include "../../include/parser/error.hpp"
-#include "../../include/parser/lexer.hpp"
+#include "error.hpp"
+#include "lexer.hpp"
 
 namespace ast {
 namespace {
@@ -213,15 +213,16 @@ std::string MatchEdgePattern::DebugString() const {
     result += PropertyMapToString(properties);
   }
 
-  result += "]";
+    result += "]";
 
-  if (direction == EdgeDirection::Right) {
-    result += "->";
-  } else {
-    result += "-";
+    if (direction == EdgeDirection::Right) {
+      result += "->";
+    } else {
+      result += "-";
+    }
+
+    return result;
   }
-
-  return result;
 }
 
 // Checks if the pattern element is a node.
@@ -287,19 +288,20 @@ std::string CreateEdgePattern::DebugString() const {
       result += ' ';
     }
 
-    result += PropertyMapToString(properties);
+      result += PropertyMapToString(properties);
+    }
+
+    result += "]";
+
+    if (direction == EdgeDirection::Right) {
+      result += "->";
+    } else {
+      result += "-";
+    }
+
+    result += right_node.DebugString();
+    return result;
   }
-
-  result += "]";
-
-  if (direction == EdgeDirection::Right) {
-    result += "->";
-  } else {
-    result += "-";
-  }
-
-  result += right_node.DebugString();
-  return result;
 }
 
 // Debug string for MATCH clause.

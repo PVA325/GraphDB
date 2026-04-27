@@ -4,13 +4,13 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
-#include <stack>
 #include <string>
+#include <variant>
 #include <vector>
 #include <unordered_map>
 #include <memory>
-#include <variant>
 #include <optional>
+#include <unordered_set>
 
 namespace storage {
 
@@ -40,34 +40,39 @@ struct Edge {
 
 class GraphDB;
 
-template<typename T, typename Id>
-class Cursor {
-protected:
-  GraphDB* db_;
-  const std::vector<Id>& ids_;                     // вектор ID для перебора
-  std::function<bool(T*)> predicate_ = nullptr;    // фильтр, может быть сложный
-  size_t index_ = 0;                               // текущая позиция
-  size_t limit_ = 0;                               // лимит, 0 = без лимита
-  size_t returned_ = 0;                            // сколько уже вернули
+  template<typename T, typename Id>
+  class Cursor {
+  protected:
+    GraphDB* db_;
+    std::optional<std::vector<Id>> owned_ids_;
+    const std::vector<Id>* ids_;
+    std::function<bool(T*)> predicate_ = nullptr;
+    size_t index_ = 0;
+    size_t limit_ = 0;
+    size_t returned_ = 0;
 
-public:
-  inline Cursor(GraphDB* db, const std::vector<Id>& ids,
-         std::function<bool(T*)> predicate = nullptr,
-         size_t limit = 0)
-      : db_(db), ids_(ids), predicate_(predicate), limit_(limit) {};
+  public:
+    inline Cursor(GraphDB* db, const std::vector<Id>& ids,
+                  std::function<bool(T*)> predicate = nullptr,
+                  size_t limit = 0)
+      : db_(db), ids_(&ids), predicate_(predicate), limit_(limit) {}
 
-  virtual ~Cursor() = default;
+    inline Cursor(GraphDB* db, std::vector<Id>&& ids,
+                  std::function<bool(T*)> predicate = nullptr,
+                  size_t limit = 0)
+      : db_(db), owned_ids_(std::move(ids)), ids_(&*owned_ids_),
+        predicate_(predicate), limit_(limit) {}
 
-  bool next(T*& out);
+    virtual ~Cursor() = default;
 
-  inline void reset() { index_ = 0; returned_ = 0; }
+    bool next(T*& out);
 
-protected:
-  virtual T* get_from_db(Id id) = 0;
-};
+    inline void reset() { index_ = 0; returned_ = 0; }
 
-// ===================== NodeCursor =====================
-// fix constructors
+  protected:
+    virtual T* get_from_db(Id id) = 0;
+  };
+
 class NodeCursor : public Cursor<Node, NodeId> {
 public:
   NodeCursor(GraphDB* db, const std::vector<NodeId>& node_ids,
@@ -78,7 +83,6 @@ protected:
   Node* get_from_db(NodeId id) override;
 };
 
-// ===================== EdgeCursor =====================
 class EdgeCursor : public Cursor<Edge, EdgeId> {
 public:
   EdgeCursor(GraphDB* db, const std::vector<EdgeId>& edge_ids,
@@ -89,35 +93,70 @@ protected:
   Edge* get_from_db(EdgeId id) override;
 };
 
+class GraphStorage {
+public:
+  static bool save(const GraphDB& db, const std::string& path);
+  static bool load(GraphDB& db, const std::string& path);
+
+private:
+  struct FileHeader {
+    uint32_t magic = 0x12345678;
+    uint16_t version = 1;
+    uint16_t header_size = sizeof(FileHeader);
+
+    uint64_t node_count = 0;
+    uint64_t edge_count = 0;
+  };
+
+  static void serialize_value(std::ostream& os, const Value& val);
+  static Value deserialize_value(std::istream& is);
+
+  static void serialize_properties(std::ostream& os, const Properties& props);
+  static Properties deserialize_properties(std::istream& is);
+};
+
 
 class GraphDB {
 public:
-  GraphDB() = default;
+  // GraphDB() = default;
 
-  // ======= CRUD Nodes =======
+  GraphDB() {//            !!!!!!!!!!!!!!! for tests ONLY(because of broken reference from Stas in all_nodes, nodes_with_label, create_node, create_edge and so on)
+    nodes_.reserve(10);
+    edges_.reserve(10);
+  }
+
   NodeId create_node(const std::vector<std::string>& labels, const Properties& props);
 
   void set_node_property(NodeId id, const std::string& key, const Value& val);
 
+  void set_node_label(NodeId, const std::string& label);
+
   void delete_node(NodeId id);
+
+  void delete_node_label(NodeId id, const std::string& label);
 
   Node* get_node(NodeId id);
 
-  // ======= CRUD Edges =======
   EdgeId create_edge(NodeId src, NodeId dst, const std::string& type, const Properties& props);
 
   void set_edge_property(EdgeId id, const std::string& key, const Value& val);
 
   void delete_edge(EdgeId id);
 
+  void set_edge_type(EdgeId id, const std::string& type);
+
   Edge* get_edge(EdgeId id);
 
-  // Upload/Download
-  bool save_to_file(const std::string& path);
-  bool load_from_file(const std::string& path);
+  friend class GraphStorage;
 
+  inline bool save_to_file(const std::string& path) const {
+    return GraphStorage::save(*this, path);
+  }
 
-  // ======= Node Cursors =======
+  inline bool load_from_file(const std::string& path) {
+    return GraphStorage::load(*this, path);
+  }
+
   std::unique_ptr<NodeCursor> all_nodes(std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
 
   std::unique_ptr<NodeCursor> nodes_with_label(const std::string& label,
@@ -128,7 +167,6 @@ public:
                                                   std::function<bool(Node*)> predicate = nullptr,
                                                   size_t limit = 0);
 
-  // ======= Edge Cursors =======
   std::unique_ptr<EdgeCursor> outgoing_edges(NodeId node_id,
                                              std::function<bool(Edge*)> predicate = nullptr,
                                              size_t limit = 0);
@@ -143,44 +181,44 @@ public:
 
   size_t node_count() const;
 
+  size_t edge_count_with_type(const std::string& type) const;
+
   size_t node_count_with_label(const std::string& label) const;
 
-  // количество различных значений свойства для узлов с меткой
-  std::optional<size_t> property_distinct_count(const std::string& label, const std::string& property) const;
+  std::optional<size_t> property_distinct_count(const std::string& property, const std::string& label) const;
 
-  // среднее количество исходящих ребер для узлов с меткой
   double avg_out_degree(const std::string& label) const;
 
-  // проверка, есть ли индекс по свойству для узлов с меткой
   bool has_property_index(const std::string& label, const std::string& property) const;
+
+  size_t property_count(const std::string& property,const Value& value, const std::string& label) const;
 
 private:
 
-  // ===== Graph structure =====
-  std::vector<Node> nodes_; // nodes
-  std::vector<Edge> edges_; // edges
+  std::vector<Node> nodes_;
+  std::vector<Edge> edges_;
 
-  std::stack<NodeId> free_node_ids; // node ids for second using
-  std::stack<EdgeId> free_edge_ids; // edge ids for second using
-  std::unordered_map<std::string,std::vector<NodeId>> label_index_; // label_index
+  std::vector<NodeId> free_node_ids;
+  std::vector<EdgeId> free_edge_ids;
+  std::unordered_map<std::string,std::vector<NodeId>> label_index_;
 
-  // в далеком будушем я возможно перепеши это на B+ tree, чтобы фильтр работал быстрее
-  std::unordered_map<std::string, std::unordered_map<Value, std::vector<NodeId>>> property_index_; // property_index
+  std::unordered_map<std::string, std::unordered_map<Value, std::vector<NodeId>>> property_index_;
 
-  void serialize_value(std::ostream& os, const Value& val);
-  Value deserialize_value(std::istream& is);
+  std::unordered_map<NodeId,std::vector<EdgeId>> outgoing_;
+  std::unordered_map<NodeId,std::vector<EdgeId>> incoming_;
+  std::unordered_map<std::string,std::vector<EdgeId>> edge_type_index_;
 
-  void serialize_properties(std::ostream& os, const Properties& props);
-  Properties deserialize_properties(std::istream& is);
+  std::unordered_map<std::string,
+    std::unordered_set<Value>> property_distinct_;
 
-  // Метод для пересчета всех индексов после загрузки данных
-  // (Индексы обычно не сохраняют в файл, чтобы не дублировать данные,
-  // их быстрее перестроить в памяти при старте)
-  void rebuild_indexes();
+  std::unordered_map<std::string,
+    std::unordered_map<std::string,
+      std::unordered_set<Value>>> label_property_distinct_;
 
-  std::unordered_map<NodeId,std::vector<EdgeId>> outgoing_; // adjacency
-  std::unordered_map<NodeId,std::vector<EdgeId>> incoming_; // adjacency
-  std::unordered_map<std::string,std::vector<EdgeId>> edge_type_index_; // type index
+
+  std::unordered_map<std::string,std::unordered_map<std::string,
+      std::unordered_map<Value, size_t>>> label_property_count_;
+  std::unordered_map<std::string, size_t> label_total_out_degree_;
 };
 }
 

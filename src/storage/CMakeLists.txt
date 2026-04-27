@@ -4,6 +4,7 @@ add_library(storage SHARED
         crud_edges.cpp
         crud_nodes.cpp
         cursor_methods_storage.cpp
+	load_storage.cpp
+	save_storage.cpp
 )
 target_include_directories(storage PUBLIC "${STORAGE_INCLUDE_DIR}")
-

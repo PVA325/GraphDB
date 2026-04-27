@@ -13,8 +13,11 @@ struct TestLeafOp final : graph::logical::LogicalOpZeroChild {
     return debug_;
   }
 
-  graph::exec::PhysicalOpPtr BuildPhysical(graph::exec::ExecContext&) const override {
-    return {};
+  graph::logical::BuildPhysicalType BuildPhysical(
+      graph::exec::ExecContext&,
+      graph::planner::CostModel*,
+      storage::GraphDB*) const override {
+    return {nullptr, graph::planner::CostEstimate{}};
   }
 
   String debug_;
@@ -28,8 +31,11 @@ struct TestUnaryOp final : graph::logical::LogicalOpUnaryChild {
     return debug_;
   }
 
-  graph::exec::PhysicalOpPtr BuildPhysical(graph::exec::ExecContext&) const override {
-    return {};
+  graph::logical::BuildPhysicalType BuildPhysical(
+      graph::exec::ExecContext&,
+      graph::planner::CostModel*,
+      storage::GraphDB*) const override {
+    return {nullptr, graph::planner::CostEstimate{}};
   }
 
   String debug_;
@@ -46,8 +52,11 @@ struct TestBinaryOp final : graph::logical::LogicalOpBinaryChild {
     return debug_;
   }
 
-  graph::exec::PhysicalOpPtr BuildPhysical(graph::exec::ExecContext&) const override {
-    return {};
+  graph::logical::BuildPhysicalType BuildPhysical(
+      graph::exec::ExecContext&,
+      graph::planner::CostModel*,
+      storage::GraphDB*) const override {
+    return {nullptr, graph::planner::CostEstimate{}};
   }
 
   String debug_;
@@ -183,15 +192,14 @@ TEST(LogicalDebugString, LogicalJoinWithPredicate) {
 
 TEST(LogicalDebugString, LogicalSetDebugString) {
   auto child = std::make_unique<TestLeafOp>("Child");
+  graph::logical::LogicalSet::Assignment ass{"n", {}, {std::make_pair("age", graph::Value(21))}};
   graph::logical::LogicalSet op(
       std::move(child),
-      "n",
-      "age",
-      graph::Value{21}
+      {ass}
   );
 
-  EXPECT_EQ(op.DebugString(), "LogicalSet(n, key=age, value=21)");
-  EXPECT_EQ(op.SubtreeDebugString(), "LogicalSet(n, key=age, value=21)\n  Child");
+  EXPECT_EQ(op.DebugString(), "LogicalSet(alias=n, labels=, properties={age=21})");
+  EXPECT_EQ(op.SubtreeDebugString(), "LogicalSet(alias=n, labels=, properties={age=21})\n  Child");
 }
 
 TEST(LogicalDebugString, LogicalDeleteDebugString) {
