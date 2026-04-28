@@ -33,13 +33,18 @@ namespace storage {
       });
     }
 
-    outgoing_[src].push_back(id);
+    outgoing_.try_emplace(src, new EdgeIdList{});
+    outgoing_[src]->data.push_back(id);
+
     for (const auto& label : nodes_[src].labels) {
       label_total_out_degree_[label]++;
     }
-    incoming_[dst].push_back(id);
 
-    edge_type_index_[type].push_back(id);
+    incoming_.try_emplace(dst, new EdgeIdList{});
+    incoming_[dst]->data.push_back(id);
+
+    edge_type_index_.try_emplace(type, new EdgeIdList{});
+    edge_type_index_[type]->data.push_back(id);
 
     return id;
   }
@@ -69,13 +74,13 @@ namespace storage {
 
     Edge& edge = edges_[id];
 
-    auto& out_vec = outgoing_[edge.src];
+    auto& out_vec = outgoing_[edge.src]->data;
     out_vec.erase(std::remove(out_vec.begin(), out_vec.end(), id), out_vec.end());
 
-    auto& in_vec = incoming_[edge.dst];
+    auto& in_vec = incoming_[edge.dst]->data;
     in_vec.erase(std::remove(in_vec.begin(), in_vec.end(), id), in_vec.end());
 
-    auto& type_vec = edge_type_index_[edge.type];
+    auto& type_vec = edge_type_index_[edge.type]->data;
     type_vec.erase(std::remove(type_vec.begin(), type_vec.end(), id), type_vec.end());
 
     edge.properties.clear();
@@ -93,11 +98,14 @@ namespace storage {
 
     auto it = edge_type_index_.find(edge.type);
     if (it != edge_type_index_.end()) {
-      it->second.erase(std::remove(it->second.begin(), it->second.end(), id), it->second.end());
+      it->second->data.erase(std::remove(it->second->data.begin(), it->second->data.end(), id),
+                             it->second->data.end());
     }
 
     edge.type = type;
-    edge_type_index_[type].emplace_back(id);
+
+    edge_type_index_.try_emplace(type, new EdgeIdList{});
+    edge_type_index_[type]->data.emplace_back(id);
   }
 
 

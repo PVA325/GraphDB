@@ -1,12 +1,12 @@
 namespace storage {
   template<typename T, typename Id>
   bool Cursor<T, Id>::next(T*& out) {
-    while (index_ < ids_->size()) {
+    while (index_ < ids_->data.size()) {
       if (limit_ && limit_ <= returned_) {
         return false;
       }
 
-      Id id = (*ids_)[index_++];
+      Id id = ids_->data[index_++];
       T* obj = get_from_db(id);
 
       if (!obj || !obj->alive) {

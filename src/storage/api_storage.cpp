@@ -13,13 +13,13 @@ namespace storage {
     if (it == label_index_.end()) {
       return 0;
     }
-    return it->second.size();
+    return it->second->data.size();
   }
 
   size_t GraphDB::edge_count_with_type(const std::string& type) const {
     auto it = edge_type_index_.find(type);
     if (it == edge_type_index_.end()) return 0;
-    return it->second.size();
+    return it->second->data.size();
   }
 
 
@@ -29,7 +29,7 @@ namespace storage {
     if (lit == label_index_.end()) {
       return 0.0;
     }
-    size_t count = lit->second.size();
+    size_t count = lit->second->data.size();
     if (count == 0) {
       return 0.0;
     }
@@ -72,7 +72,7 @@ namespace storage {
       if (pit == property_index_.end()) return 0;
       auto vit = pit->second.find(value);
       if (vit == pit->second.end()) return 0;
-      return vit->second.size();
+      return vit->second->data.size();
     }
 
     auto lit = label_property_count_.find(label);

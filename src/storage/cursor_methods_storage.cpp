@@ -4,15 +4,7 @@ namespace storage {
   std::unique_ptr<NodeCursor> GraphDB::all_nodes(
     std::function<bool(Node*)> predicate,
     size_t limit) {
-
-    std::vector<NodeId> ids;
-    ids.reserve(nodes_.size());
-
-    for (NodeId i = 0; i < nodes_.size(); ++i) {
-      ids.push_back(i);
-    }
-
-    return std::make_unique<NodeCursor>(this, std::move(ids), predicate, limit);
+    return std::unique_ptr<NodeCursor>(new AllNodesCursor(this, predicate, limit));
   }
 
   std::unique_ptr<NodeCursor> GraphDB::nodes_with_label(

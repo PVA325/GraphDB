@@ -9,7 +9,7 @@ namespace storage {
     if (free_node_ids.empty()) {
       id = nodes_.size();
 
-      nodes_.push_back(Node{
+      nodes_.emplace_back(Node{
         .id = id,
         .alive = true,
         .labels = labels,
@@ -28,11 +28,13 @@ namespace storage {
     }
 
     for (const auto& label : labels) {
-      label_index_[label].push_back(id);
+      label_index_.try_emplace(label, new NodeIdList{});
+      label_index_[label]->data.emplace_back(id);
     }
 
     for (const auto& [key, value] : props) {
-      property_index_[key][value].push_back(id);
+      property_index_[key].try_emplace(value, new NodeIdList{});
+      property_index_[key][value]->data.emplace_back(id);
     }
 
     for (const auto& label : labels) {
@@ -57,12 +59,13 @@ namespace storage {
     auto it = node.properties.find(key);
     if (it != node.properties.end()) {
       const Value& old_val = it->second;
-      auto& vec = property_index_[key][old_val];
+      auto& vec = property_index_[key][old_val]->data;
       vec.erase(std::remove(vec.begin(), vec.end(), id), vec.end());
     }
 
     node.properties[key] = val;
-    property_index_[key][val].push_back(id);
+    property_index_[key].try_emplace(val, new NodeIdList{});
+    property_index_[key][val]->data.emplace_back(id);
   }
 
   void GraphDB::set_node_label(NodeId id, const std::string& label) {
@@ -73,12 +76,14 @@ namespace storage {
 
     auto it = std::find(node.labels.begin(), node.labels.end(), label);
     if (it == node.labels.end()) {
-      label_index_[label].emplace_back(id);
+      label_index_.try_emplace(label, new NodeIdList{});
+      label_index_[label]->data.emplace_back(id);
       node.labels.emplace_back(label);
-    }
-    auto oit = outgoing_.find(id);
-    if (oit != outgoing_.end()) {
-      label_total_out_degree_[label] += oit->second.size();
+
+      auto oit = outgoing_.find(id);
+      if (oit != outgoing_.end()) {
+        label_total_out_degree_[label] += oit->second->data.size();
+      }
     }
   }
 
@@ -97,23 +102,23 @@ namespace storage {
     Node& node = nodes_[id];
 
     for (const auto& label : node.labels) {
-      auto& vec = label_index_[label];
+      auto& vec = label_index_[label]->data;
       vec.erase(std::remove(vec.begin(), vec.end(), id), vec.end());
     }
 
     for (const auto& [key, value] : node.properties) {
-      auto& vec = property_index_[key][value];
+      auto& vec = property_index_[key][value]->data;
       vec.erase(std::remove(vec.begin(), vec.end(), id), vec.end());
     }
 
     for (const auto& label : node.labels) {
       auto oit = outgoing_.find(id);
       if (oit != outgoing_.end()) {
-        label_total_out_degree_[label] -= oit->second.size();
+        label_total_out_degree_[label] -= oit->second->data.size();
       }
     }
     if (outgoing_.count(id)) {
-      auto edges = outgoing_[id];
+      auto edges = outgoing_[id]->data;
       for (auto eid : edges) {
         delete_edge(eid);
       }
@@ -121,7 +126,7 @@ namespace storage {
     }
 
     if (incoming_.count(id)) {
-      auto edges = incoming_[id];
+      auto edges = incoming_[id]->data;
       for (auto eid : edges) {
         delete_edge(eid);
       }
@@ -131,17 +136,18 @@ namespace storage {
     node.labels.clear();
     node.properties.clear();
     nodes_[id].alive = false;
-    free_node_ids.push_back(id);
+    free_node_ids.emplace_back(id);
   }
 
   void GraphDB::delete_node_label(NodeId id, const std::string& label) {
-    label_index_[label].erase(std::remove(label_index_[label].begin(), label_index_[label].end(), id), label_index_[label].end());
+    auto& vec = label_index_[label]->data;
+    vec.erase(std::remove(vec.begin(), vec.end(), id), vec.end());
 
     auto oit = outgoing_.find(id);
     if (oit != outgoing_.end()) {
-      label_total_out_degree_[label] -= oit->second.size();
+      label_total_out_degree_[label] -= oit->second->data.size();
     }
-    auto labels = nodes_[id].labels;
+    auto& labels = nodes_[id].labels;
     labels.erase(std::remove(labels.begin(), labels.end(), label), labels.end());
   }
 }
