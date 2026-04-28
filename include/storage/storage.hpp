@@ -1,6 +1,8 @@
 // include guards?
 #pragma once
 
+#include <boost/intrusive_ptr.hpp>
+#include <deque>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -19,6 +21,20 @@ using EdgeId = size_t;
 
 using Value = std::variant<int64_t, double, std::string, bool>;
 using Properties = std::unordered_map<std::string, Value>;
+
+template<typename T>
+struct RefCountedVector {
+  std::vector<T> data;
+  mutable int ref_count = 0;
+
+  friend void intrusive_ptr_add_ref(const RefCountedVector* p) { ++p->ref_count; }
+  friend void intrusive_ptr_release(const RefCountedVector* p) {
+    if (--p->ref_count == 0) delete p;
+  }
+};
+
+using NodeIdList = RefCountedVector<NodeId>;
+using EdgeIdList = RefCountedVector<EdgeId>;
 
 struct Node {
   NodeId id;
@@ -40,42 +56,45 @@ struct Edge {
 
 class GraphDB;
 
-  template<typename T, typename Id>
-  class Cursor {
-  protected:
-    GraphDB* db_;
-    std::optional<std::vector<Id>> owned_ids_;
-    const std::vector<Id>* ids_;
-    std::function<bool(T*)> predicate_ = nullptr;
-    size_t index_ = 0;
-    size_t limit_ = 0;
-    size_t returned_ = 0;
+template<typename T, typename Id>
+class Cursor {
+protected:
+  GraphDB* db_;
+  boost::intrusive_ptr<RefCountedVector<Id>> ids_;
+  std::function<bool(T*)> predicate_ = nullptr;
+  size_t index_ = 0;
+  size_t limit_ = 0;
+  size_t returned_ = 0;
 
-  public:
-    inline Cursor(GraphDB* db, const std::vector<Id>& ids,
-                  std::function<bool(T*)> predicate = nullptr,
-                  size_t limit = 0)
-      : db_(db), ids_(&ids), predicate_(predicate), limit_(limit) {}
+public:
+  inline Cursor(GraphDB* db, boost::intrusive_ptr<RefCountedVector<Id>> ids,
+                std::function<bool(T*)> predicate = nullptr,
+                size_t limit = 0)
+    : db_(db), ids_(ids), predicate_(predicate), limit_(limit) {}
 
-    inline Cursor(GraphDB* db, std::vector<Id>&& ids,
-                  std::function<bool(T*)> predicate = nullptr,
-                  size_t limit = 0)
-      : db_(db), owned_ids_(std::move(ids)), ids_(&*owned_ids_),
-        predicate_(predicate), limit_(limit) {}
+  inline Cursor(GraphDB* db, std::vector<Id>&& ids,
+                std::function<bool(T*)> predicate = nullptr,
+                size_t limit = 0)
+    : db_(db), ids_(new RefCountedVector<Id>{std::move(ids)}),
+      predicate_(predicate), limit_(limit) {}
 
-    virtual ~Cursor() = default;
+  virtual ~Cursor() = default;
 
-    bool next(T*& out);
+  virtual bool next(T*& out);
 
-    inline void reset() { index_ = 0; returned_ = 0; }
+  inline void reset() { index_ = 0; returned_ = 0; }
 
-  protected:
-    virtual T* get_from_db(Id id) = 0;
-  };
+protected:
+  virtual T* get_from_db(Id id) = 0;
+};
 
 class NodeCursor : public Cursor<Node, NodeId> {
 public:
-  NodeCursor(GraphDB* db, const std::vector<NodeId>& node_ids,
+  NodeCursor(GraphDB* db, boost::intrusive_ptr<NodeIdList> node_ids,
+             std::function<bool(Node*)> predicate = nullptr,
+             size_t limit = 0);
+
+  NodeCursor(GraphDB* db, std::vector<NodeId>&& node_ids,
              std::function<bool(Node*)> predicate = nullptr,
              size_t limit = 0);
 
@@ -85,12 +104,23 @@ protected:
 
 class EdgeCursor : public Cursor<Edge, EdgeId> {
 public:
-  EdgeCursor(GraphDB* db, const std::vector<EdgeId>& edge_ids,
+  EdgeCursor(GraphDB* db, boost::intrusive_ptr<EdgeIdList> edge_ids,
              std::function<bool(Edge*)> predicate = nullptr,
              size_t limit = 0);
 
+  EdgeCursor(GraphDB* db, std::vector<EdgeId>&& edge_ids,
+             std::function<bool(Edge*)> predicate, size_t limit);
+
 protected:
   Edge* get_from_db(EdgeId id) override;
+};
+
+class AllNodesCursor : public NodeCursor {
+public:
+  AllNodesCursor(GraphDB* db, std::function<bool(Node*)> predicate = nullptr, size_t limit = 0)
+    : NodeCursor(db, boost::intrusive_ptr<NodeIdList>(nullptr), predicate, limit) {}
+
+  bool next(Node*& out);
 };
 
 class GraphStorage {
@@ -118,12 +148,7 @@ private:
 
 class GraphDB {
 public:
-  // GraphDB() = default;
-
-  GraphDB() {//            !!!!!!!!!!!!!!! for tests ONLY(because of broken reference from Stas in all_nodes, nodes_with_label, create_node, create_edge and so on)
-    nodes_.reserve(10);
-    edges_.reserve(10);
-  }
+  GraphDB() = default;
 
   NodeId create_node(const std::vector<std::string>& labels, const Properties& props);
 
@@ -148,6 +173,8 @@ public:
   Edge* get_edge(EdgeId id);
 
   friend class GraphStorage;
+
+  friend class AllNodesCursor;
 
   inline bool save_to_file(const std::string& path) const {
     return GraphStorage::save(*this, path);
@@ -195,24 +222,22 @@ public:
 
 private:
 
-  std::vector<Node> nodes_;
-  std::vector<Edge> edges_;
+  std::deque<Node> nodes_;
+  std::deque<Edge> edges_;
 
   std::vector<NodeId> free_node_ids;
   std::vector<EdgeId> free_edge_ids;
-  std::unordered_map<std::string,std::vector<NodeId>> label_index_;
+  std::unordered_map<std::string, boost::intrusive_ptr<NodeIdList>> label_index_;
 
-  std::unordered_map<std::string, std::unordered_map<Value, std::vector<NodeId>>> property_index_;
+  std::unordered_map<std::string, std::unordered_map<Value, boost::intrusive_ptr<NodeIdList>>> property_index_;
 
-  std::unordered_map<NodeId,std::vector<EdgeId>> outgoing_;
-  std::unordered_map<NodeId,std::vector<EdgeId>> incoming_;
-  std::unordered_map<std::string,std::vector<EdgeId>> edge_type_index_;
+  std::unordered_map<NodeId, boost::intrusive_ptr<EdgeIdList>> outgoing_;
+  std::unordered_map<NodeId, boost::intrusive_ptr<EdgeIdList>> incoming_;
+  std::unordered_map<std::string, boost::intrusive_ptr<EdgeIdList>> edge_type_index_;
 
-  std::unordered_map<std::string,
-    std::unordered_set<Value>> property_distinct_;
+  std::unordered_map<std::string, std::unordered_set<Value>> property_distinct_;
 
-  std::unordered_map<std::string,
-    std::unordered_map<std::string,
+  std::unordered_map<std::string,std::unordered_map<std::string,
       std::unordered_set<Value>>> label_property_distinct_;
 
 

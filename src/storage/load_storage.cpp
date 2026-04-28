@@ -58,7 +58,7 @@ namespace storage {
         label.resize(len);
 
         is.read(label.data(), len);
-        db.label_index_[label].push_back(node.id);
+        db.label_index_[label]->data.emplace_back(node.id);
         node.labels[j] = std::move(label);
       }
 
@@ -66,7 +66,7 @@ namespace storage {
       db.nodes_[i] = std::move(node);
 
       for (const auto& [key, val] : node.properties) {
-        db.property_index_[key][val].push_back(node.id);
+        db.property_index_[key][val]->data.emplace_back(node.id);
       }
     }
 
@@ -101,9 +101,9 @@ namespace storage {
       }
       edge.properties = deserialize_properties(is);
 
-      db.outgoing_[edge.src].push_back(edge.id);
-      db.incoming_[edge.dst].push_back(edge.id);
-      db.edge_type_index_[edge.type].push_back(edge.id);
+      db.outgoing_[edge.src]->data.emplace_back(edge.id);
+      db.incoming_[edge.dst]->data.emplace_back(edge.id);
+      db.edge_type_index_[edge.type]->data.emplace_back(edge.id);
 
       db.edges_[i] = std::move(edge);
     }
