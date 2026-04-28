@@ -8,6 +8,7 @@
 #include <variant>
 #include <unordered_map>
 #include <numeric>
+#include <format>
 #include <functional>
 #include "ast.hpp"
 #include "storage.hpp"
@@ -420,8 +421,7 @@ struct SlotMapping {
   SlotMapping() = default;
   SlotMapping(const SlotMapping&) = default;
 
-  SlotMapping(SlotMapping&& other) noexcept : alias_to_slot(std::move(other.alias_to_slot)) {
-  }
+  SlotMapping(SlotMapping&& other) noexcept : alias_to_slot(std::move(other.alias_to_slot)) {}
 
   SlotMapping& operator=(const SlotMapping&) = default;
 
@@ -1111,7 +1111,7 @@ private:
                                                      const storage::GraphDB* gb);
   [[nodiscard]] static std::pair<double, String> EstimateBiggestLabelSelectivity(
     const std::vector<String>& labels, const storage::GraphDB* gb);
-  [[no_discard]] static double EstimateEdgeTypeSelectivity(const std::optional<std::string>& label,
+  [[nodiscard]] static double EstimateEdgeTypeSelectivity(const std::optional<std::string>& label,
                                                     const storage::GraphDB* db);
 
   static constexpr double kRandomReadCost = 1.5;
@@ -1182,7 +1182,15 @@ private:
 
 namespace ast {
 struct EvalContext {
-  graph::exec::Row& row;
+  const graph::exec::RowSlot& GetAliasedObj(const std::string& alias) const {
+    return row_.slots[row_.slots_mapping.map_and_check(
+      alias,
+      std::format("EvalContext: Error, no {} alias in slots", alias)
+    )];
+  }
+  EvalContext(const graph::exec::Row& row): row_(row) {}
+private:
+  const graph::exec::Row& row_;
 };
 } // namespace ast
 

@@ -199,7 +199,7 @@ struct EvalContext {
 
     return prop_it->second;
   }
-}
+};
 
 // Debug string implementations for AST nodes.
 std::string Literal::DebugString() const {
