@@ -397,7 +397,6 @@ std::string CreateEdgePattern::DebugString() const {
 
   if (!properties.empty()) {
     if (!alias.empty() || !label.empty()) {
-    if (!alias.empty() || !label.empty()) {
       result += ' ';
     }
 
