@@ -10,12 +10,13 @@
 namespace ast {
 
 struct EvalContext;
-// Context for evaluating expressions.
-// struct EvalContext {
-//   std::unordered_map<std::string, std::unordered_map<std::string, Value>> data;
-//
-//   Value GetProperty(const std::string& alias, const std::string& property) const;
-// };
+
+// Expression that stores the aliases used in request.
+struct ExprAnalysis {
+  std::vector<std::string> aliases;
+
+  void CollectAliases(const Expr* expr);
+};
 
 // Abstract class for all expressions in AST.
 struct Expr {
