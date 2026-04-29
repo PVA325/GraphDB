@@ -1188,6 +1188,25 @@ struct EvalContext {
       std::format("EvalContext: Error, no {} alias in slots", alias)
     )];
   }
+  [[nodiscard]] Value GetProperty(const std::string& alias, const std::string& property) const {
+    const auto& slot = GetAliasedObj(alias);
+    if (std::holds_alternative<Value>(slot)) {
+      throw std::runtime_error(
+        std::format("EvalContext: Error, invalid expression {} has is not a node or an edge", alias)
+      );
+    }
+    const auto& props = (std::holds_alternative<storage::Edge*>(slot) ?
+          std::get<storage::Edge*>(slot)->properties
+        : std::get<storage::Node*>(slot)->properties
+    );
+    auto it = props.find(property);
+    if (it == props.end()) {
+      throw std::runtime_error(
+        std::format("EvalContext: Error, alias {} has no property {}", alias, property)
+      );
+    }
+    return it->second;
+  }
   EvalContext(const graph::exec::Row& row): row_(row) {}
 private:
   const graph::exec::Row& row_;
