@@ -332,9 +332,8 @@ std::string MatchEdgePattern::DebugString() const {
     } else {
       result += "-";
     }
-
-    return result;
   }
+  return result;
 }
 
 // Checks if the pattern element is a node.
@@ -411,8 +410,8 @@ std::string CreateEdgePattern::DebugString() const {
     }
 
     result += right_node.DebugString();
-    return result;
   }
+  return result;
 }
 
 // Debug string for MATCH clause.

@@ -294,6 +294,7 @@ namespace graph::exec {
       out = std::move(new_row);
       return true;
     }
+    return false;
   }
 
   void NestedLoopJoinCursor::close() {
