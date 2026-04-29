@@ -1182,14 +1182,14 @@ private:
 
 namespace ast {
 struct EvalContext {
-  const graph::exec::RowSlot& GetAliasedObj(const std::string& alias) const {
+  [[nodiscard]] graph::exec::RowSlot GetAliasedObj(const std::string& alias) const {
     return row_.slots[row_.slots_mapping.map_and_check(
       alias,
       std::format("EvalContext: Error, no {} alias in slots", alias)
     )];
   }
   [[nodiscard]] Value GetProperty(const std::string& alias, const std::string& property) const {
-    const auto& slot = GetAliasedObj(alias);
+    auto slot = GetAliasedObj(alias);
     if (std::holds_alternative<Value>(slot)) {
       throw std::runtime_error(
         std::format("EvalContext: Error, invalid expression {} has is not a node or an edge", alias)
