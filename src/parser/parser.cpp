@@ -182,25 +182,6 @@ bool ToBool(const Value& v) {
 
 } // namespace
 
-// Evaluation context implementation.
-struct EvalContext {
-  std::unordered_map<std::string, std::unordered_map<std::string, Value>> data;
-
-  Value GetProperty(const std::string& alias, const std::string& property) const {
-    auto alias_it = data.find(alias);
-    if (alias_it == data.end()) {
-      throw std::runtime_error("Unknown alias: '" + alias + "'");
-    }
-
-    auto prop_it = alias_it->second.find(property);
-    if (prop_it == alias_it->second.end()) {
-      throw std::runtime_error("Unknown property: '" + property + "' for alias '" + alias + "'");
-    }
-
-    return prop_it->second;
-  }
-};
-
 // Debug string implementations for AST nodes.
 std::string Literal::DebugString() const {
   return "Literal(" + ValueToString(value) + ")";
@@ -584,6 +565,27 @@ std::string QueryAST::DebugString() const {
   }
 
   return result;
+}
+
+// Сollects all aliases in a request into a vector
+void ExprAnalysis::CollectAliases(const Expr* expr) {
+  if (!expr) {
+    return;
+  }
+
+  if (auto prop = dynamic_cast<const PropertyExpr*>(expr)) {
+    if (std::find(aliases.begin(), aliases.end(), prop->alias) == aliases.end()) {
+      aliases.emplace_back(prop->alias);
+    }
+  } else if (auto cmp = dynamic_cast<const ComparisonExpr*>(expr)) {
+    CollectAliases(cmp->left.get());
+    CollectAliases(cmp->right.get());
+  } else if (auto log = dynamic_cast<const LogicalExpr*>(expr)) {
+    CollectAliases(log->left_expr.get());
+    CollectAliases(log->right_expr.get());
+  } else {
+    // unknown expr type, do nothing
+  }
 }
 
 } // namespace ast
