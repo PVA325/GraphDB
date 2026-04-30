@@ -176,4 +176,27 @@ namespace graph::planner {
     physical_plan_ = exec::PhysicalPlan(std::move(child_build.first));
     return child_build.second;
   }
+
+  void Planner::optimize_logical_plan_impl(logical::LogicalOp* op) {
+    if (op == nullptr) {
+      return;
+    }
+
+    ast::Expr* expr = nullptr;
+    if (op->Type() == logical::LogicalOpType::Filter) {
+      auto* filter_op = dynamic_cast<logical::LogicalFilter*>(op);
+      expr = (filter_op->predicate ? filter_op->predicate.get() : nullptr);
+    }
+    if (expr) {
+      auto expr_type = expr->Type();
+    }
+
+    for (auto cur : op->GetChildren()) {
+      optimize_logical_plan_impl(cur);
+    }
+  }
+
+  void Planner::optimize_logical_plan() {
+    optimize_logical_plan_impl(logical_plan_.root.get());
+  }
 }  // namespace graph::planner

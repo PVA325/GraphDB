@@ -18,11 +18,15 @@ struct EvalContext;
 // };
 
 // Abstract class for all expressions in AST.
+enum class ExprType {};
+
 struct Expr {
   virtual ~Expr() = default;
 
   // Evaluate expression.
   virtual Value operator()(const EvalContext& ctx) const = 0;
+
+  [[nodiscard]] ExprType Type() const;
 
   // Debug string representation.
   virtual std::string DebugString() const = 0;
