@@ -20,6 +20,9 @@ struct TestLeafOp final : graph::logical::LogicalOpZeroChild {
     return {nullptr, graph::planner::CostEstimate{}};
   }
 
+  [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const { return {}; };
+  [[nodiscard]] virtual graph::logical::LogicalOpType Type() const { return graph::logical::LogicalOpType::Create; }
+
   String debug_;
 };
 
@@ -37,6 +40,9 @@ struct TestUnaryOp final : graph::logical::LogicalOpUnaryChild {
       storage::GraphDB*) const override {
     return {nullptr, graph::planner::CostEstimate{}};
   }
+
+  [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const { return {}; };
+  [[nodiscard]] virtual graph::logical::LogicalOpType Type() const { return graph::logical::LogicalOpType::Create; }
 
   String debug_;
 };
@@ -58,6 +64,9 @@ struct TestBinaryOp final : graph::logical::LogicalOpBinaryChild {
       storage::GraphDB*) const override {
     return {nullptr, graph::planner::CostEstimate{}};
   }
+
+  [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const { return {}; };
+  [[nodiscard]] virtual graph::logical::LogicalOpType Type() const { return graph::logical::LogicalOpType::Create; }
 
   String debug_;
 };

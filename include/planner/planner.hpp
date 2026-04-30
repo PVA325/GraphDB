@@ -62,6 +62,11 @@ struct overloads : Types... {
   using Types::operator()...;
 };
 
+template<typename T>
+T* GetUniqPtrVal(const std::unique_ptr<T>& ptr) {
+  return (ptr ? ptr.get() : nullptr);
+}
+
 String ValueToString(const Value& val);
 String ConcatStrVector(const std::vector<String>& v);
 String ConcatProperties(const std::vector<std::pair<String, Value>>& v);
@@ -125,12 +130,32 @@ struct LogicalOp;
 using LogicalOpPtr = std::unique_ptr<LogicalOp>;
 using BuildPhysicalType = std::pair<exec::PhysicalOpPtr, planner::CostEstimate>;
 
+enum class LogicalOpType {
+  Scan,
+  Expand,
+  Filter,
+  Project,
+  Limit,
+  Sort,
+  Join,
+  Set,
+  Create,
+  Delete,
+  Plan
+};
+
 struct LogicalOp {
   [[nodiscard]] virtual String DebugString() const = 0;
   virtual BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, planner::CostModel* cost_model,
                                           storage::GraphDB* db) const = 0;
 
   [[nodiscard]] virtual String SubtreeDebugString() const = 0;
+  [[nodiscard]] virtual LogicalOpType Type() const = 0;
+
+  virtual std::vector<LogicalOp*> GetChildren() = 0;
+
+  [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const = 0;
+
   virtual ~LogicalOp() = default;
 };
 
@@ -138,6 +163,7 @@ struct LogicalOpUnaryChild : LogicalOp {
   LogicalOpPtr child;
 
   explicit LogicalOpUnaryChild(LogicalOpPtr child);
+  std::vector<LogicalOp*> GetChildren() override { return { PlannerUtils::GetUniqPtrVal(child) }; }
 
   [[nodiscard]] String SubtreeDebugString() const override;
   ~LogicalOpUnaryChild() override = default;
@@ -151,6 +177,8 @@ struct LogicalOpBinaryChild : LogicalOp {
 
   [[nodiscard]] String SubtreeDebugString() const override;
 
+  std::vector<LogicalOp*> GetChildren() override { return { PlannerUtils::GetUniqPtrVal(left), PlannerUtils::GetUniqPtrVal(right) }; }
+
   ~LogicalOpBinaryChild() override = default;
 };
 
@@ -158,6 +186,7 @@ struct LogicalOpZeroChild : LogicalOp {
   LogicalOpZeroChild() = default;
 
   [[nodiscard]] String SubtreeDebugString() const override { return DebugString(); }
+  std::vector<LogicalOp*> GetChildren() override { return {}; }
 
   ~LogicalOpZeroChild() override = default;
 };
@@ -165,8 +194,7 @@ struct LogicalOpZeroChild : LogicalOp {
 struct AliasedLogicalOp : public LogicalOpZeroChild {
   std::string dst_alias;
 
-  AliasedLogicalOp(std::string dst_alias) : dst_alias(std::move(dst_alias)) {
-  }
+  AliasedLogicalOp(std::string dst_alias) : dst_alias(std::move(dst_alias)) {}
 };
 
 struct LogicalScan : public AliasedLogicalOp {
@@ -182,6 +210,10 @@ struct LogicalScan : public AliasedLogicalOp {
   BuildPhysicalType
   BuildPhysical(exec::ExecContext& ctx, planner::CostModel* cost_model, storage::GraphDB* db) const override;
   [[nodiscard]] String DebugString() const override;
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return {dst_alias}; }
+
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Scan; }
 
   ~LogicalScan() override = default;
 };
@@ -210,6 +242,10 @@ struct LogicalExpand : public AliasedLogicalOp {
   [[nodiscard]] String DebugString() const override;
   [[nodiscard]] String SubtreeDebugString() const final;
 
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Expand; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return {dst_alias}; }
+
   ~LogicalExpand() override = default;
 };
 
@@ -220,9 +256,14 @@ struct LogicalFilter : public LogicalOpUnaryChild {
   LogicalFilter() = delete;
 
   explicit LogicalFilter(LogicalOpPtr child, std::unique_ptr<ast::Expr> predicate);
+  explicit LogicalFilter(LogicalOpPtr child, ast::Expr* predicate);
 
   [[nodiscard]] String DebugString() const override;
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, planner::CostModel* cost_model, storage::GraphDB* db) const override;
+
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Filter; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalFilter() override = default;
 };
@@ -238,6 +279,9 @@ struct LogicalProject : public LogicalOpUnaryChild {
   [[nodiscard]] String DebugString() const override;
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, planner::CostModel* cost_model, storage::GraphDB* db) const override;
 
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Project; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalProject() override = default;
 };
@@ -253,6 +297,9 @@ struct LogicalLimit : public LogicalOpUnaryChild {
   [[nodiscard]] String DebugString() const override;
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, planner::CostModel* cost_model, storage::GraphDB* db) const override;
 
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Limit; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalLimit() override = default;
 };
@@ -275,6 +322,9 @@ struct LogicalSort : LogicalOpUnaryChild {
   [[nodiscard]] String DebugString() const override;
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, planner::CostModel* cost_model, storage::GraphDB* db) const override;
 
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Sort; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalSort() override = default;
 };
@@ -293,6 +343,18 @@ struct LogicalJoin : LogicalOpBinaryChild {
 
 
   [[nodiscard]] String DebugString() const override;
+
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Join; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final {
+    std::vector<String> result;
+    auto l_ans = left->GetSubtreeAliases();
+    auto r_ans = right->GetSubtreeAliases();
+
+    result.insert(result.end(), std::make_move_iterator(l_ans.begin()), std::make_move_iterator(r_ans.end()));
+    result.insert(result.end(), std::make_move_iterator(r_ans.begin()), std::make_move_iterator(r_ans.end()));
+    return result;
+  }
 
   ~LogicalJoin() override = default;
 };
@@ -318,6 +380,10 @@ struct LogicalSet : LogicalOpUnaryChild {
 
   [[nodiscard]] String DebugString() const override;
 
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Set; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
+
   ~LogicalSet() override = default;
 };
 
@@ -336,6 +402,10 @@ struct LogicalDelete : LogicalOpUnaryChild {
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, planner::CostModel* cost_model, storage::GraphDB* db) const override;
 
   [[nodiscard]] String DebugString() const override;
+
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Delete; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalDelete() override = default;
 };
@@ -380,6 +450,10 @@ struct LogicalCreate : LogicalOpUnaryChild {
 
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, planner::CostModel* cost_model, storage::GraphDB* db) const override;
 
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Create; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
+
   [[nodiscard]] String DebugString() const override;
 };
 
@@ -404,6 +478,10 @@ struct LogicalPlan : LogicalOpZeroChild {
   [[nodiscard]] String DebugString() const override { return "LogicalPlan:"; }
   [[nodiscard]] String SubtreeDebugString() const override { return root ? root->SubtreeDebugString() : "<empty>"; }
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, planner::CostModel* cost_model, storage::GraphDB* db) const override { return root->BuildPhysical(ctx, cost_model, db); }
+
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Plan; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return root->GetSubtreeAliases(); }
 
   ~LogicalPlan() override = default;
 };
@@ -1141,7 +1219,7 @@ public:
   exec::PhysicalPlan& getPhysicalPlan() { return physical_plan_; }
 
   // Optimizations on logical plan (predicate pushdown, flattening)
-  [[nodiscard]] logical::LogicalPlan optimize_logical_plan(logical::LogicalPlan plan) const;
+  [[nodiscard]] void optimize_logical_plan();
 
   // For each logical scan enumerate alternatives (index vs scan)
   // returns vector of alternative LogicalScan nodes (candidates)
@@ -1167,6 +1245,8 @@ public:
   [[nodiscard]] String explain_physical_plan(const exec::PhysicalPlan& plan) const;
 
 private:
+  void optimize_logical_plan_impl(logical::LogicalOp* op);
+
   exec::ExecContext ctx_;
   ast::QueryAST ast_plan_;
   logical::LogicalPlan logical_plan_;

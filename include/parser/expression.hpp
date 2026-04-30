@@ -7,10 +7,11 @@
 
 #include "value.hpp"
 
+
 namespace ast {
 
+struct Expr;
 struct EvalContext;
-
 // Expression that stores the aliases used in request.
 struct ExprAnalysis {
   std::vector<std::string> aliases;
@@ -19,15 +20,24 @@ struct ExprAnalysis {
 };
 
 // Abstract class for all expressions in AST.
-enum class ExprType {};
+enum class ExprType {
+  Literal,
+  Property,
+  Comparison,
+  Logical
+};
 
 struct Expr {
   virtual ~Expr() = default;
 
+  Expr* copy() const { throw std::runtime_error("Not implemented"); }
+
   // Evaluate expression.
   virtual Value operator()(const EvalContext& ctx) const = 0;
 
-  [[nodiscard]] ExprType Type() const;
+  [[nodiscard]] virtual ExprType Type() const {throw std::runtime_error("Not implemented");}
+
+  [[nodiscard]] virtual std::vector<std::string> CollectAliases() const { throw std::runtime_error("Not implemented"); }
 
   // Debug string representation.
   virtual std::string DebugString() const = 0;
@@ -66,9 +76,9 @@ enum class CompareOp {
 
 // Comparison expression.
 struct ComparisonExpr : Expr {
-  ExprPtr left;
+  ExprPtr left_expr;
   CompareOp op;
-  ExprPtr right;
+  ExprPtr right_expr;
 
   Value operator()(const EvalContext& ctx) const override;
 
@@ -86,6 +96,9 @@ struct LogicalExpr : Expr {
   ExprPtr left_expr;
   LogicalOp op;
   ExprPtr right_expr;
+
+  LogicalExpr() = default;
+  LogicalExpr(Expr* l, LogicalOp op, Expr* r): left_expr(l), op(op), right_expr(r) {}
 
   Value operator()(const EvalContext& ctx) const override;
 

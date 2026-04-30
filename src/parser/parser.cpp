@@ -199,7 +199,8 @@ std::string LiteralExpr::DebugString() const {
 
 // Evaluation of property access expressions retrieves the property value from the context.
 Value PropertyExpr::operator()(const EvalContext& ctx) const {
-  return ctx.GetProperty(alias, property);
+  // return ctx.GetProperty(alias, property);
+  throw std::runtime_error("Not implemented");
 }
 
 // Debug string for property access expressions.
@@ -209,8 +210,8 @@ std::string PropertyExpr::DebugString() const {
 
 // Evaluation of comparison expressions.
 Value ComparisonExpr::operator()(const EvalContext& ctx) const {
-  Value l = (*left)(ctx);
-  Value r = (*right)(ctx);
+  Value l = (*left_expr)(ctx);
+  Value r = (*right_expr)(ctx);
 
   return CompareValues(l, r, op);
 }
@@ -218,11 +219,11 @@ Value ComparisonExpr::operator()(const EvalContext& ctx) const {
 // Debug string for comparison expressions.
 std::string ComparisonExpr::DebugString() const {
   return "Compare(" +
-      (left ? left->DebugString() : std::string{"<null>"}) +
+      (left_expr ? left_expr->DebugString() : std::string{"<null>"}) +
       " " +
       CompareOpToString(op) +
       " " +
-      (right ? right->DebugString() : std::string{"<null>"}) +
+      (right_expr ? right_expr->DebugString() : std::string{"<null>"}) +
       ")";
 }
 
@@ -574,12 +575,12 @@ void ExprAnalysis::CollectAliases(const Expr* expr) {
   }
 
   if (auto prop = dynamic_cast<const PropertyExpr*>(expr)) {
-    if (std::find(aliases.begin(), aliases.end(), prop->alias) == aliases.end()) {
+    // if (std::find(aliases.begin(), aliases.end(), prop->alias) == aliases.end()) {
       aliases.emplace_back(prop->alias);
-    }
+    // }
   } else if (auto cmp = dynamic_cast<const ComparisonExpr*>(expr)) {
-    CollectAliases(cmp->left.get());
-    CollectAliases(cmp->right.get());
+    CollectAliases(cmp->left_expr.get());
+    CollectAliases(cmp->right_expr.get());
   } else if (auto log = dynamic_cast<const LogicalExpr*>(expr)) {
     CollectAliases(log->left_expr.get());
     CollectAliases(log->right_expr.get());
@@ -1045,14 +1046,14 @@ ast::ExprPtr Parser::ParseComparison() {
     Token op = Previous();
     ast::ExprPtr right = ParsePrimary();
     auto node = std::make_unique<ast::ComparisonExpr>();
-    node->left = std::move(left);
+    node->left_expr = std::move(left);
     node->op = op.type == TokenType::EQUAL ? ast::CompareOp::Eq
                : op.type == TokenType::NOT_EQUAL ? ast::CompareOp::NotEqual
                : op.type == TokenType::GREATER ? ast::CompareOp::Gt
                : op.type == TokenType::GREATER_EQUAL ? ast::CompareOp::Ge
                : op.type == TokenType::LESS ? ast::CompareOp::Lt
                : ast::CompareOp::Le;
-    node->right = std::move(right);
+    node->right_expr = std::move(right);
     return node;
   }
 

@@ -97,9 +97,9 @@ static std::unique_ptr<ast::Expr> MakeAgeGreaterThanPopulationExpr() {
   right->property = "population";
 
   auto cmp = std::make_unique<ast::ComparisonExpr>();
-  cmp->left = std::move(left);
+  cmp->left_expr = std::move(left);
   cmp->op = ast::CompareOp::Gt;
-  cmp->right = std::move(right);
+  cmp->right_expr = std::move(right);
 
   return cmp;
 }
