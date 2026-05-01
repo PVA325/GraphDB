@@ -1,5 +1,5 @@
 #include <iostream>
-#include "planner.hpp"
+#include "planner/query_planner.hpp"
 
 int main() {
   std::cout << "Hello World\n";

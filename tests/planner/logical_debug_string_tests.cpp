@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "planner/planner.hpp"
+#include "planner/query_planner.hpp"
 
 namespace {
 using graph::String;
@@ -15,9 +15,9 @@ struct TestLeafOp final : graph::logical::LogicalOpZeroChild {
 
   graph::logical::BuildPhysicalType BuildPhysical(
       graph::exec::ExecContext&,
-      graph::planner::CostModel*,
+      graph::optimizer::CostModel*,
       storage::GraphDB*) const override {
-    return {nullptr, graph::planner::CostEstimate{}};
+    return {nullptr, graph::optimizer::CostEstimate{}};
   }
 
   [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const { return {}; };
@@ -36,9 +36,9 @@ struct TestUnaryOp final : graph::logical::LogicalOpUnaryChild {
 
   graph::logical::BuildPhysicalType BuildPhysical(
       graph::exec::ExecContext&,
-      graph::planner::CostModel*,
+      graph::optimizer::CostModel*,
       storage::GraphDB*) const override {
-    return {nullptr, graph::planner::CostEstimate{}};
+    return {nullptr, graph::optimizer::CostEstimate{}};
   }
 
   [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const { return {}; };
@@ -60,9 +60,9 @@ struct TestBinaryOp final : graph::logical::LogicalOpBinaryChild {
 
   graph::logical::BuildPhysicalType BuildPhysical(
       graph::exec::ExecContext&,
-      graph::planner::CostModel*,
+      graph::optimizer::CostModel*,
       storage::GraphDB*) const override {
-    return {nullptr, graph::planner::CostEstimate{}};
+    return {nullptr, graph::optimizer::CostEstimate{}};
   }
 
   [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const { return {}; };

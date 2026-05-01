@@ -84,4 +84,19 @@ enum class LogicalOpType {
 };
 }
 
+namespace graph::optimizer {
+struct CostModel;
+// Cost estimates structure
+
+struct CostEstimate {
+  double row_count{0.0}; // count of rows that operator gives us
+  double cpu_cost{0.0}; // nominal cost of cpu
+  double io_cost{0.0};
+  // nominal cost if read/write(or other heavy operations with ram, not cache) operations(for example for index scan)
+  double startup_cost{0.0}; // cost to give first row
+
+  [[nodiscard]] double total() const { return startup_cost + cpu_cost + 5.0 * io_cost; } // FOR TEST ONLY, REWRITE
+};
+} // namespace graph::optimizer
+
 #endif //GRAPHDB_COMMON_VALUE_HPP

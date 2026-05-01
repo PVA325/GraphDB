@@ -1,5 +1,5 @@
 #pragma once
-#include "planner/planner.hpp"
+#include "planner/query_planner.hpp"
 
 using graph::String;
 

@@ -1,9 +1,9 @@
 #include <cmath>
 #include <sys/stat.h>
 
-#include "planner/planner.hpp"
+#include "planner/query_planner.hpp"
 
-namespace graph::planner {
+namespace graph::optimizer {
 
 CostEstimate DefaultCostModel::EstimateAllNodeScan(
   const storage::GraphDB* db,

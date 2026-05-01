@@ -1,4 +1,4 @@
-#include "planner/planner.hpp"
+#include "planner/query_planner.hpp"
 
 namespace {
   using ast::Pattern;
@@ -171,7 +171,7 @@ namespace graph::planner {
     logical_plan_ = std::move(plan);
   }
 
-  CostEstimate Planner::build_physical_plan() {
+  optimizer::CostEstimate Planner::build_physical_plan() {
     auto child_build = logical_plan_.BuildPhysical(ctx_, cost_model_.get(), db_);
     physical_plan_ = exec::PhysicalPlan(std::move(child_build.first));
     return child_build.second;

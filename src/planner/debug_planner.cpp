@@ -1,5 +1,5 @@
 #include <format>
-#include "planner/planner.hpp"
+#include "planner/query_planner.hpp"
 
 namespace {
 using String = std::string;

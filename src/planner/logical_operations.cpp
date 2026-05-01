@@ -1,4 +1,4 @@
-#include "planner/planner.hpp"
+#include "planner/query_planner.hpp"
 
 namespace graph::logical {
 LogicalOpUnaryChild::LogicalOpUnaryChild(LogicalOpPtr child) :
@@ -23,12 +23,12 @@ LogicalScan::LogicalScan(std::vector<String> labels, String dst_alias,
 }
 
 BuildPhysicalType LogicalScan::BuildPhysical(
-  exec::ExecContext& ctx, planner::CostModel* cost_model, storage::GraphDB* db) const {
+  exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) const {
   exec::PhysicalOpPtr physical_root;
 
   auto node_scan_cost = cost_model->EstimateAllNodeScan(db, *this);
   auto [index_label_scan_cost, label_for_index] = cost_model->EstimateIndexSeekLabel(db, *this);
-  planner::CostEstimate child_cost;
+  optimizer::CostEstimate child_cost;
   if (node_scan_cost.total() > index_label_scan_cost.total()) {
     physical_root = std::make_unique<exec::LabelIndexSeekOp>(
       dst_alias,
@@ -70,7 +70,7 @@ LogicalExpand::LogicalExpand(LogicalOpPtr child, String src_alias, String edge_a
 
 
 BuildPhysicalType LogicalExpand::BuildPhysical(exec::ExecContext& ctx,
-                                               planner::CostModel* cost_model, storage::GraphDB* db) const {
+                                               optimizer::CostModel* cost_model, storage::GraphDB* db) const {
   exec::PhysicalOpPtr physical_root;
   auto child_answer = child->BuildPhysical(ctx, cost_model, db);
 
@@ -99,7 +99,7 @@ BuildPhysicalType LogicalExpand::BuildPhysical(exec::ExecContext& ctx,
       dst_vertex_properties
     );
   }
-  planner::CostEstimate cost = cost_model->EstimateExpand(db, *this, child_answer.second);
+  optimizer::CostEstimate cost = cost_model->EstimateExpand(db, *this, child_answer.second);
   return std::make_pair(std::move(physical_root), cost);
 }
 
@@ -114,7 +114,7 @@ LogicalFilter::LogicalFilter(LogicalOpPtr child, ast::Expr* predicate) :
 
 BuildPhysicalType LogicalFilter::BuildPhysical(
   exec::ExecContext& ctx,
-  planner::CostModel* cost_model,
+  optimizer::CostModel* cost_model,
   storage::GraphDB* db) const {
   auto child_build = child->BuildPhysical(ctx, cost_model, db);
   return std::make_pair(
@@ -133,7 +133,7 @@ LogicalProject::LogicalProject(LogicalOpPtr child, std::vector<ast::ReturnItem> 
 
 BuildPhysicalType LogicalProject::BuildPhysical(
   exec::ExecContext& ctx,
-  planner::CostModel* cost_model,
+  optimizer::CostModel* cost_model,
   storage::GraphDB* db) const {
   auto child_build = child->BuildPhysical(ctx, cost_model, db);
   return std::make_pair(
@@ -152,7 +152,7 @@ LogicalLimit::LogicalLimit(LogicalOpPtr child, size_t limit_size) :
 
 BuildPhysicalType LogicalLimit::BuildPhysical(
   exec::ExecContext& ctx,
-  planner::CostModel* cost_model,
+  optimizer::CostModel* cost_model,
   storage::GraphDB* db) const {
   auto child_build = child->BuildPhysical(ctx, cost_model, db);
   return std::make_pair(
@@ -171,7 +171,7 @@ LogicalSort::LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> items) 
 
 BuildPhysicalType LogicalSort::BuildPhysical(
   exec::ExecContext& ctx,
-  planner::CostModel* cost_model,
+  optimizer::CostModel* cost_model,
   storage::GraphDB* db) const {
   auto child_build = child->BuildPhysical(ctx, cost_model, db);
   return std::make_pair(
@@ -196,7 +196,7 @@ LogicalJoin::LogicalJoin(
 
 BuildPhysicalType LogicalJoin::BuildPhysical(
   exec::ExecContext& ctx,
-  planner::CostModel* cost_model,
+  optimizer::CostModel* cost_model,
   storage::GraphDB* db) const {
   // return std::make_unique<exec::KeyHashJoinOp>(
   //   std::move(left->BuildPhysical(ctx)),
@@ -224,7 +224,7 @@ LogicalSet::LogicalSet(LogicalOpPtr child, std::vector<Assignment> assignment) :
 
 BuildPhysicalType LogicalSet::BuildPhysical(
   exec::ExecContext& ctx,
-  planner::CostModel* cost_model,
+  optimizer::CostModel* cost_model,
   storage::GraphDB* db) const {
   auto child_build = child->BuildPhysical(ctx, cost_model, db);
 
@@ -243,7 +243,7 @@ LogicalDelete::LogicalDelete(LogicalOpPtr child, std::vector<String> target) :
 
 BuildPhysicalType LogicalDelete::BuildPhysical(
   exec::ExecContext& ctx,
-  planner::CostModel* cost_model,
+  optimizer::CostModel* cost_model,
   storage::GraphDB* db) const {
   auto child_build = child->BuildPhysical(ctx, cost_model, db);
 
@@ -300,14 +300,14 @@ LogicalCreate::LogicalCreate(LogicalOpPtr child, const std::vector<ast::CreateIt
 }
 
 BuildPhysicalType LogicalCreate::BuildPhysical(exec::ExecContext& ctx,
-  planner::CostModel* cost_model, storage::GraphDB* db) const {
+  optimizer::CostModel* cost_model, storage::GraphDB* db) const {
   if (!child) {
     return std::make_pair(
     std::make_unique<exec::PhysicalCreateOp>(
         items,
         nullptr
       ),
-      planner::CostEstimate{}
+      optimizer::CostEstimate{}
     );
   }
   auto child_build = child->BuildPhysical(ctx, cost_model, db);
