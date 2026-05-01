@@ -6,7 +6,7 @@
 #include <unordered_map>
 
 #include "value.hpp"
-
+#include "../eval_context/eval_context.hpp"
 
 namespace ast {
 

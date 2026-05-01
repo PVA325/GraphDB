@@ -13,14 +13,9 @@
 #include <memory>
 #include <optional>
 #include <unordered_set>
+#include <../common/common_value.hpp>
 
 namespace storage {
-
-using NodeId = size_t;
-using EdgeId = size_t;
-
-using Value = std::variant<int64_t, double, std::string, bool>;
-using Properties = std::unordered_map<std::string, Value>;
 
 template<typename T>
 struct RefCountedVector {
@@ -35,24 +30,6 @@ struct RefCountedVector {
 
 using NodeIdList = RefCountedVector<NodeId>;
 using EdgeIdList = RefCountedVector<EdgeId>;
-
-struct Node {
-  NodeId id;
-  bool alive;
-
-  std::vector<std::string> labels;
-  Properties properties;
-};
-
-struct Edge {
-  EdgeId id;
-  bool alive;
-
-  NodeId src;
-  NodeId dst;
-  std::string type;
-  Properties properties;
-};
 
 class GraphDB;
 

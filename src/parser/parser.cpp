@@ -199,8 +199,8 @@ std::string LiteralExpr::DebugString() const {
 
 // Evaluation of property access expressions retrieves the property value from the context.
 Value PropertyExpr::operator()(const EvalContext& ctx) const {
-  // return ctx.GetProperty(alias, property);
-  throw std::runtime_error("Not implemented");
+  return ctx.GetProperty(alias, property);
+  // throw std::runtime_error("Not implemented");
 }
 
 // Debug string for property access expressions.

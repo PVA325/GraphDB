@@ -13,25 +13,8 @@
 #include "ast.hpp"
 #include "storage.hpp"
 
-namespace graph {
-using Int = int64_t;
-using Double = double;
-using String = std::string;
-using Bool = bool;
-
-using Value = std::variant<Int, Double, String, Bool>;
-
-
-struct PlannerError : public std::runtime_error {
-  // todo at the end
-  explicit PlannerError(const std::string& msg);
-};
-
-struct ExecutionError : public std::runtime_error {
-  // todo at the end
-  explicit ExecutionError(const std::string& msg);
-};
-} // namespace graph
+#include "../common/common_value.hpp"
+#include "../eval_context/eval_context.hpp"
 
 namespace graph::planner {
 struct CostModel;
@@ -99,50 +82,9 @@ void transferProperties(
 bool ValueToBool(Value val);
 } // namespace graph::PlannerUtils
 
-namespace graph::exec {
-using storage::Node;
-using storage::Edge;
-struct PhysicalOp;
-struct RowCursor;
-struct Row;
-struct ExecContext;
-
-using RowSlot = std::variant<Node*, Edge*, Value>;
-using PhysicalOpPtr = std::unique_ptr<PhysicalOp>;
-using RowCursorPtr = std::unique_ptr<RowCursor>;
-
-struct LabelIndexSeekOp;
-struct NodeScanOp;
-template <bool edge_outgoing>
-struct ExpandOp;
-using ExpandOutgoingOp = ExpandOp<true>;
-using ExpandIngoingOp = ExpandOp<false>;
-
-struct NestedLoopJoinOp;
-struct KeyHashJoinOp;
-struct PhysicalSetOp;
-struct PhysicalCreateOp;
-struct PhysicalDeleteOp;
-} // namespace graph::exec
 
 namespace graph::logical {
-struct LogicalOp;
-using LogicalOpPtr = std::unique_ptr<LogicalOp>;
 using BuildPhysicalType = std::pair<exec::PhysicalOpPtr, planner::CostEstimate>;
-
-enum class LogicalOpType {
-  Scan,
-  Expand,
-  Filter,
-  Project,
-  Limit,
-  Sort,
-  Join,
-  Set,
-  Create,
-  Delete,
-  Plan
-};
 
 struct LogicalOp {
   [[nodiscard]] virtual String DebugString() const = 0;
@@ -495,39 +437,6 @@ struct ExecOptions {
   size_t memory_budget_bytes = 256ULL * 1024 * 1024;
 };
 
-struct SlotMapping {
-  SlotMapping() = default;
-  SlotMapping(const SlotMapping&) = default;
-
-  SlotMapping(SlotMapping&& other) noexcept : alias_to_slot(std::move(other.alias_to_slot)) {}
-
-  SlotMapping& operator=(const SlotMapping&) = default;
-
-  SlotMapping& operator=(SlotMapping&& other) noexcept {
-    if (this == &other) {
-      return *this;
-    }
-    alias_to_slot = std::move(other.alias_to_slot);
-    return *this;
-  }
-
-  ~SlotMapping() = default;
-
-  bool key_exists(const std::string& key) const;
-
-  size_t map(const std::string& key) const;
-  size_t map_and_check(const String& key, const String& err_msg = "") const;
-
-  void add_map(const String& key, size_t idx);
-
-  void clear() { alias_to_slot.clear(); }
-
-private:
-  std::unordered_map<std::string, size_t> alias_to_slot;
-
-  friend Row MergeRows(Row& first, Row& second);
-};
-
 struct ExecContext {
   /// Context of execution db
   storage::GraphDB* db;
@@ -537,53 +446,6 @@ struct ExecContext {
 
   ExecContext(storage::GraphDB* db) : db(db) {
   }
-};
-
-struct Row {
-  /// store current row values and names
-  std::vector<RowSlot> slots;
-  std::vector<String> slots_names;
-  SlotMapping slots_mapping;
-
-  void clear() {
-    slots.clear();
-    slots_names.clear();
-    slots_mapping.clear();
-  }
-
-  Row() = default;
-  Row(const Row& other) = default;
-
-  Row(Row&& other) noexcept :
-    slots(std::move(other.slots)),
-    slots_names(std::move(other.slots_names)),
-    slots_mapping(std::move(other.slots_mapping)) {
-  }
-
-  Row& operator=(const Row& other) = default;
-
-  Row& operator=(Row&& other) noexcept {
-    if (this == &other) {
-      return *this;
-    }
-    slots = std::move(other.slots);
-    slots_names = std::move(other.slots_names);
-    slots_mapping = std::move(other.slots_mapping);
-    return *this;
-  }
-
-  template <typename T>
-    requires std::is_constructible_v<RowSlot, T>
-  void AddValue(const T& val, const String& alias, const String& error_msg = "") {
-    if (slots_mapping.key_exists(alias)) {
-      throw std::runtime_error(error_msg);
-    }
-    slots.emplace_back(val);
-    slots_names.emplace_back(alias);
-    slots_mapping.add_map(alias, slots.size() - 1);
-  }
-
-  ~Row() = default;
 };
 
 struct RowCursor {
@@ -1219,7 +1081,7 @@ public:
   exec::PhysicalPlan& getPhysicalPlan() { return physical_plan_; }
 
   // Optimizations on logical plan (predicate pushdown, flattening)
-  [[nodiscard]] void optimize_logical_plan();
+  void optimize_logical_plan();
 
   // For each logical scan enumerate alternatives (index vs scan)
   // returns vector of alternative LogicalScan nodes (candidates)
@@ -1257,41 +1119,7 @@ private:
 
   // std::unique_ptr<JoinOrderStrategy> join_strategy_;
 };
-} // namespace graph::logical
-
-
-namespace ast {
-struct EvalContext {
-  [[nodiscard]] graph::exec::RowSlot GetAliasedObj(const std::string& alias) const {
-    return row_.slots[row_.slots_mapping.map_and_check(
-      alias,
-      std::format("EvalContext: Error, no {} alias in slots", alias)
-    )];
-  }
-  [[nodiscard]] Value GetProperty(const std::string& alias, const std::string& property) const {
-    auto slot = GetAliasedObj(alias);
-    if (std::holds_alternative<Value>(slot)) {
-      throw std::runtime_error(
-        std::format("EvalContext: Error, invalid expression {} has is not a node or an edge", alias)
-      );
-    }
-    const auto& props = (std::holds_alternative<storage::Edge*>(slot) ?
-          std::get<storage::Edge*>(slot)->properties
-        : std::get<storage::Node*>(slot)->properties
-    );
-    auto it = props.find(property);
-    if (it == props.end()) {
-      throw std::runtime_error(
-        std::format("EvalContext: Error, alias {} has no property {}", alias, property)
-      );
-    }
-    return it->second;
-  }
-  EvalContext(const graph::exec::Row& row): row_(row) {}
-private:
-  const graph::exec::Row& row_;
-};
-} // namespace ast
+} // namespace graph::planner
 
 
 #include "planner.tpp"
