@@ -336,52 +336,62 @@ struct ValueHash {
     return std::visit(visitor, k);
   }
 };
+struct VecValueHash { /// can do better hash
+  size_t operator()(const std::vector<Value>& vec) const {
+    static ValueHash v_hash;
+    size_t ans = 0;
+    for (const auto& cur : vec) {
+      ans ^= v_hash(cur);
+    }
+    return ans;
+  }
+};
 
 Value GetFeatureFromSlot(const RowSlot& slot, const String& feature_key);
 
-struct KeyHashJoinCursor : public RowCursor {
+struct HashJoinCursor : public RowCursor {
   /// add mark
-/// do join for 2 NestedLoopJoin Cursor expressions based on predicate
+  /// do join for 2 NestedLoopJoin Cursor expressions based on predicate
+  using CompositeKey = std::vector<Value>;
 
   RowCursorPtr left_cursor;
   RowCursorPtr right_cursor;
-  String left_alias;
-  String right_alias;
-  String left_feature_key;
-  String right_feature_key;
+  std::vector<ast::Expr*> left_keys;
+  std::vector<ast::Expr*> right_keys;
 
-  std::unordered_map<Value, std::vector<Row>, ValueHash> left_rows;
+  std::unordered_map<CompositeKey, std::vector<Row>, VecValueHash> left_rows;
   Row last_right_row;
 
-  std::unordered_map<Value, std::vector<Row>, ValueHash>::iterator it_left;
+  std::unordered_map<CompositeKey, std::vector<Row>, VecValueHash>::iterator it_left;
   size_t vec_left_idx{std::numeric_limits<size_t>::max()};
 
-  KeyHashJoinCursor(RowCursorPtr left_cursor, RowCursorPtr right_cursor,
-                    String left_alias, String right_alias,
-                    String left_feature_key, String right_feature_key);
+  HashJoinCursor(RowCursorPtr left_cursor_a, RowCursorPtr right_cursor_a,
+        const std::vector<ast::Expr*>& left_keys_a, const std::vector<ast::Expr*>& right_keys_a);
 
   bool next(Row& out) override;
 
   void close() override;
 
-  ~KeyHashJoinCursor() override = default;
+  ~HashJoinCursor() override = default;
+private:
+  CompositeKey GetCompositeKey(const Row& row);
 };
 
-struct KeyHashJoinOp : public PhysicalOpBinaryChild {
+struct HashJoinOp : public PhysicalOpBinaryChild {
   /// do hashJoin
-  String left_alias;
-  String right_alias;
-  String left_feature_key;
-  String right_feature_key;
+  std::vector<ast::ExprPtr> left_keys;
+  std::vector<ast::ExprPtr> right_keys;
 
-  KeyHashJoinOp(PhysicalOpPtr left, PhysicalOpPtr right,
-                String left_alias, String right_alias,
-                String left_feature_key, String right_feature_key);
+  HashJoinOp(PhysicalOpPtr left, PhysicalOpPtr right,
+                std::vector<ast::ExprPtr>&& left_keys,
+                std::vector<ast::ExprPtr>&& right_keys);
 
   RowCursorPtr open(ExecContext& ctx) override;
 
   [[nodiscard]] String DebugString() const override;
-  ~KeyHashJoinOp() override = default;
+  ~HashJoinOp() override = default;
+
+  static std::vector<ast::Expr*> ExprPtrVecToBasePtrVec(std::vector<ast::ExprPtr>& expr_vec);
 };
 
 struct SetCursor : RowCursor {

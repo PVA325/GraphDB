@@ -296,13 +296,18 @@ String NestedLoopJoinOp::DebugString() const {
   return "NestedLoopJoin(cross)";
 }
 
-String KeyHashJoinOp::DebugString() const {
+String HashJoinOp::DebugString() const {
   return std::format(
-    "HashJoin(on {}.{} = {}.{})",
-    left_alias, left_feature_key,
-    right_alias, right_feature_key
+    "HashJoin(on left_keys:=({}), right_keys:=({}))",
+    Join(left_keys, ", ", [](const ast::ExprPtr& left) {
+      return left->DebugString();
+    }),
+    Join(right_keys, ", ", [](const ast::ExprPtr& left) {
+      return left->DebugString();
+    })
   );
 }
+
 
 String PhysicalSetOp::DebugString() const {
   return std::format("LogicalSet({})", Join(assignments, "; ", [](const logical::LogicalSet::Assignment& cur) {

@@ -128,7 +128,8 @@ void optimize_logical_plan_impl(logical::LogicalOp* op) {
 }
 
 std::tuple<bool, ExprPtrVec, ExprPtrVec> CutExpressionForHashJoin(
-  const ast::Expr* expr, const std::vector<String>& left_join_aliases, const std::vector<String>& right_join_aliases) {
+  const ast::Expr* expr,
+  const std::vector<String>& left_join_aliases, const std::vector<String>& right_join_aliases) {
   if (expr == nullptr || expr->Type() == ast::ExprType::Literal || expr->Type() == ast::ExprType::Comparison) {
     /// if expression is literal then if the other side depends on only one Join child then we pushed it alread ->
     /// other side(of parent expression) depends from two sides of join -> we cant use HashJoin YET(can be fix if we transfer all right-depend features from the right, do it later)
@@ -176,7 +177,8 @@ std::tuple<bool, ExprPtrVec, ExprPtrVec> CutExpressionForHashJoin(
 
 std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec> EstimateHashJoin(
   const logical::LogicalJoin* join, exec::ExecContext& ctx,
-  CostModel* cost_model, storage::GraphDB* db
+  CostModel* cost_model, storage::GraphDB* db,
+  const CostEstimate& left_cost, const CostEstimate& right_cost
 ) {
   if (!join->predicate) {
     return {CostEstimate::GetMaxCostEstimate(), ExprPtrVec{}, ExprPtrVec{}};
@@ -188,7 +190,11 @@ std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec> EstimateHashJoin(
     return {CostEstimate::GetMaxCostEstimate(), ExprPtrVec{}, ExprPtrVec{}};
   }
 
-  throw std::runtime_error("Not implemented");
-  // return cost_model->EstimateHashJoin(db, )
+  // throw std::runtime_error("Not implemented");
+  CostEstimate cost = cost_model->EstimateHashJoin(db, left_cost, right_cost,
+    exec::HashJoinOp::ExprPtrVecToBasePtrVec(left_keys),
+    exec::HashJoinOp::ExprPtrVecToBasePtrVec(right_keys)
+  );
+  return {cost, std::move(left_keys), std::move(right_keys)};
 }
 } // namespace graph::optimizer

@@ -40,7 +40,8 @@ struct CostModel {
     const storage::GraphDB* db,
     const CostEstimate& left,
     const CostEstimate& right,
-    const ast::Expr* pred) const = 0;
+    const std::vector<ast::Expr*>& left_keys,
+    const std::vector<ast::Expr*>& right_keys) const = 0;
 
   virtual CostEstimate EstimateProject(const storage::GraphDB* db, const CostEstimate& child, const logical::LogicalProject& proj) const = 0;
 
@@ -85,7 +86,8 @@ struct DefaultCostModel : CostModel {
     const storage::GraphDB* db,
     const CostEstimate& left,
     const CostEstimate& right,
-    const ast::Expr* pred) const override;
+    const std::vector<ast::Expr*>& left_keys,
+    const std::vector<ast::Expr*>& right_keys) const override;
 
   CostEstimate EstimateProject(
     const storage::GraphDB* db,
@@ -123,7 +125,8 @@ private:
 
 std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec> EstimateHashJoin(
   const logical::LogicalJoin* join, exec::ExecContext& ctx,
-  CostModel* cost_model, storage::GraphDB* db
+  CostModel* cost_model, storage::GraphDB* db,
+  const CostEstimate& left_cost, const CostEstimate& right_cost
 );
 } // namespace graph::optimizer;
 #endif //GRAPHDB_OPTIMIZER_HPP

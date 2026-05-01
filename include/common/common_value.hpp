@@ -59,7 +59,7 @@ using ExpandOutgoingOp = ExpandOp<true>;
 using ExpandIngoingOp = ExpandOp<false>;
 
 struct NestedLoopJoinOp;
-struct KeyHashJoinOp;
+struct HashJoinOp;
 struct PhysicalSetOp;
 struct PhysicalCreateOp;
 struct PhysicalDeleteOp;

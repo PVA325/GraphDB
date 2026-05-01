@@ -137,7 +137,8 @@ CostEstimate DefaultCostModel::EstimateHashJoin(
   const storage::GraphDB* db,
   const CostEstimate& left,
   const CostEstimate& right,
-  const ast::Expr* pred) const {
+  const std::vector<ast::Expr*>& left_keys,
+  const std::vector<ast::Expr*>& right_keys) const {
 
   if (!db) {
     throw std::runtime_error("DefaultCostModel(estimate_hash_join): Error, db is null");
@@ -151,8 +152,7 @@ CostEstimate DefaultCostModel::EstimateHashJoin(
 
   join_cost.cpu_cost = left.cpu_cost
                      + right.cpu_cost
-                     + build * kCpuHashBuild
-                     + probe * kCpuHashProbe;
+                     + (build * kCpuHashBuild + probe * kCpuHashProbe) * left_keys.size();
 
   join_cost.io_cost = left.io_cost
                     + right.io_cost

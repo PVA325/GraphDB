@@ -204,20 +204,31 @@ BuildPhysicalType LogicalJoin::BuildPhysical(
   auto right_build = right->BuildPhysical(ctx, cost_model, db);
 
   auto [hash_join_cost, left_keys_expr, right_keys_expr] =
-    optimizer::EstimateHashJoin(this, ctx, cost_model, db);
+    optimizer::EstimateHashJoin(this, ctx, cost_model, db, left_build.second, right_build.second);
 
   optimizer::CostEstimate dummy_join_cost = cost_model->EstimateNestedJoin(
     db, left_build.second, right_build.second, predicate.get()
   );
-
-  return std::make_pair(
-    std::make_unique<exec::NestedLoopJoinOp>(
-      std::move(left_build.first),
-      std::move(right_build.first),
-      predicate.get()
-    ),
-    cost_model->EstimateNestedJoin(db, left_build.second, right_build.second, predicate.get())
-  );
+  if (hash_join_cost.total() < dummy_join_cost.total()) {
+    return std::make_pair(
+      std::make_unique<exec::NestedLoopJoinOp>(
+        std::move(left_build.first),
+        std::move(right_build.first),
+        predicate.get()
+      ),
+      dummy_join_cost
+    );
+  } else {
+    return std::make_pair(
+      std::make_unique<exec::HashJoinOp>(
+          std::move(left_build.first),
+          std::move(right_build.first),
+        std::move(left_keys_expr),
+        std::move(right_keys_expr)
+        ),
+        hash_join_cost
+      );
+  }
 }
 
 LogicalSet::LogicalSet(LogicalOpPtr child, std::vector<Assignment> assignment) :
