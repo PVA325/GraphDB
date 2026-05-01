@@ -2,7 +2,7 @@
 #define GRAPHDB_EVAL_CONTEXT_HPP
 #include <format>
 #include <variant>
-#include "../common/common_value.hpp"
+#include "common/common_value.hpp"
 
 namespace graph::exec {
 struct SlotMapping {
@@ -14,10 +14,9 @@ struct SlotMapping {
   SlotMapping& operator=(const SlotMapping&) = default;
 
   SlotMapping& operator=(SlotMapping&& other) noexcept {
-    if (this == &other) {
-      return *this;
+    if (this != &other) {
+      alias_to_slot = std::move(other.alias_to_slot);
     }
-    alias_to_slot = std::move(other.alias_to_slot);
     return *this;
   }
 

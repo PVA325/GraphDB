@@ -1,6 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include "storage.hpp"
+#include "storage/storage.hpp"
 
 namespace storage {
   bool GraphStorage::load(GraphDB& db, const std::string& path) {

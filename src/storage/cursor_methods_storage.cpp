@@ -1,4 +1,4 @@
-#include "storage.hpp"
+#include "storage/storage.hpp"
 
 namespace storage {
   std::unique_ptr<NodeCursor> GraphDB::all_nodes(

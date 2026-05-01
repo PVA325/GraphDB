@@ -13,7 +13,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_set>
-#include <../common/common_value.hpp>
+#include <common/common_value.hpp>
 
 namespace storage {
 

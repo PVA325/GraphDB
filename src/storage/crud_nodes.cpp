@@ -1,5 +1,5 @@
 #include <cassert>
-#include "storage.hpp"
+#include "storage/storage.hpp"
 
 namespace storage {
   NodeId GraphDB::create_node(const std::vector<std::string>& labels,

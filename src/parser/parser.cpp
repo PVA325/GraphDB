@@ -1,4 +1,4 @@
-#include "parser.hpp"
+#include "parser/parser.hpp"
 
 #include <cctype>
 #include <sstream>
@@ -8,8 +8,8 @@
 #include <unordered_set>
 #include <utility>
 
-#include "error.hpp"
-#include "lexer.hpp"
+#include "parser/error.hpp"
+#include "parser/lexer.hpp"
 
 namespace ast {
 namespace {

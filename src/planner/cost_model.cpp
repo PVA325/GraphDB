@@ -1,7 +1,7 @@
 #include <cmath>
 #include <sys/stat.h>
 
-#include "planner.hpp"
+#include "planner/planner.hpp"
 
 namespace graph::planner {
 

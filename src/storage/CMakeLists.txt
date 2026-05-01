@@ -7,4 +7,4 @@ add_library(storage SHARED
 	load_storage.cpp
 	save_storage.cpp
 )
-target_include_directories(storage PUBLIC "${STORAGE_INCLUDE_DIR}")
+target_include_directories(storage PUBLIC "${CMAKE_SOURCE_DIR}/include")

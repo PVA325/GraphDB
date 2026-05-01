@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "planner.hpp"
+#include "planner/planner.hpp"
 
 namespace {
 using graph::String;

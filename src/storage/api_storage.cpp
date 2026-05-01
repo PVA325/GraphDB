@@ -1,7 +1,7 @@
 #include <string>
 #include <optional>
 #include <unordered_set>
-#include "storage.hpp"
+#include "storage/storage.hpp"
 
 namespace storage {
   size_t GraphDB::node_count() const {

@@ -1,6 +1,6 @@
 #include <format>
 
-#include "planner.hpp"
+#include "planner/planner.hpp"
 
 namespace graph::exec {
   bool SlotMapping::key_exists(const String& key) const {

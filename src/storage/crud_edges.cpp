@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <cassert>
-#include "storage.hpp"
+#include "storage/storage.hpp"
 
 namespace storage {
 

@@ -10,11 +10,11 @@
 #include <numeric>
 #include <format>
 #include <functional>
-#include "ast.hpp"
-#include "storage.hpp"
+#include "parser/ast.hpp"
+#include "storage/storage.hpp"
 
-#include "../common/common_value.hpp"
-#include "../eval_context/eval_context.hpp"
+#include "common/common_value.hpp"
+#include "eval_context/eval_context.hpp"
 
 namespace graph::planner {
 struct CostModel;
