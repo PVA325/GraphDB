@@ -190,7 +190,6 @@ std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec> EstimateHashJoin(
     return {CostEstimate::GetMaxCostEstimate(), ExprPtrVec{}, ExprPtrVec{}};
   }
 
-  // throw std::runtime_error("Not implemented");
   CostEstimate cost = cost_model->EstimateHashJoin(db, left_cost, right_cost,
     exec::HashJoinOp::ExprPtrVecToBasePtrVec(left_keys),
     exec::HashJoinOp::ExprPtrVecToBasePtrVec(right_keys)

@@ -9,7 +9,9 @@ struct SlotMapping {
   SlotMapping() = default;
   SlotMapping(const SlotMapping&) = default;
 
-  SlotMapping(SlotMapping&& other) noexcept : alias_to_slot(std::move(other.alias_to_slot)) {}
+  SlotMapping(SlotMapping&& other) noexcept : alias_to_slot(std::move(other.alias_to_slot)) {
+    other.alias_to_slot.clear();
+  }
 
   SlotMapping& operator=(const SlotMapping&) = default;
 
@@ -56,6 +58,8 @@ struct Row {
     slots(std::move(other.slots)),
     slots_names(std::move(other.slots_names)),
     slots_mapping(std::move(other.slots_mapping)) {
+    other.slots.clear();
+    other.slots_names.clear();
   }
 
   Row& operator=(const Row& other) = default;

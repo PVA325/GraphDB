@@ -298,8 +298,9 @@ double DefaultCostModel::EstimateEdgeTypeSelectivity(const std::optional<std::st
     return 1.0;
   }
   auto node_count = static_cast<double>(db->node_count());
-  return 1.0;
-  // return static_cast<double>(db->edge_count_with_label(label.value())) / node_count;
+
+  return static_cast<double>(db->edge_count_with_type(label.value())) / node_count;
+  /// edge_count_with_type has strange realization; discuss
 }
 
 CostEstimate DefaultCostModel::EstimateProject(

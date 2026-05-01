@@ -363,7 +363,7 @@ HashJoinCursor::HashJoinCursor(RowCursorPtr left_cursor_a, RowCursorPtr right_cu
   right_keys(right_keys_a) {
   Row curr_row;
   while (left_cursor->next(curr_row)) {
-    left_rows[GetCompositeKey(curr_row)].emplace_back(curr_row); /// can move curr_row
+    left_rows[GetCompositeKey(curr_row)].emplace_back(std::move(curr_row));
     curr_row.clear();
   }
   it_left = left_rows.end();
@@ -481,18 +481,18 @@ bool SetCursor::next(Row& out) {
         db->set_node_property(node->id, key, val);
       }
 
-      // for (const auto& label : assignment.labels) {
-      //   db->add_node_label(node->id, label);
-      // }
+      for (const auto& label : assignment.labels) {
+        db->set_node_label(node->id, label);
+      }
     } else {
       auto* edge = std::get<Edge*>(row_slot);
       for (const auto& [key, val] : assignment.properties) {
         db->set_edge_property(edge->id, key, val);
       }
 
-      // for (const auto& label : assignment.labels) {
-      //   db->add_node_label(edge->id, label);
-      // }
+      for (const auto& label : assignment.labels) {
+        db->set_edge_type(edge->id, label);
+      }
     }
 
     auto& obj_properties = (row_slot.index() == 0
@@ -716,7 +716,7 @@ SortCursor::SortCursor(RowCursorPtr child, std::vector<ast::OrderItem> items) :
   items(std::move(items)) {
   Row cur;
   while (child->next(cur)) {
-    rows.push_back(std::move(cur)); // move ok?
+    rows.push_back(std::move(cur));
   }
   auto cmp = [items = std::move(this->items)](const Row& a, const Row& b) -> bool {
     for (const auto& item : items) {
