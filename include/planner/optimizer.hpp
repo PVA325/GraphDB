@@ -1,8 +1,15 @@
 #ifndef GRAPHDB_OPTIMIZER_HPP
 #define GRAPHDB_OPTIMIZER_HPP
+#include "utils.hpp"
 #include "common/common_value.hpp"
 
+namespace {
+  using ExprPtrVec = std::vector<std::unique_ptr<ast::Expr>>;
+}
+
 namespace graph::optimizer {
+void optimize_logical_plan_impl(logical::LogicalOp* op);
+
 // Cost model interface
 struct CostModel {
   virtual ~CostModel() = default;
@@ -114,5 +121,9 @@ private:
   static constexpr double kCpuHashProbe = 5.0;
 };
 
+std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec> EstimateHashJoin(
+  const logical::LogicalJoin* join, exec::ExecContext& ctx,
+  CostModel* cost_model, storage::GraphDB* db
+);
 } // namespace graph::optimizer;
 #endif //GRAPHDB_OPTIMIZER_HPP

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "storage.hpp"
+#include "storage/storage.hpp"
 
 using namespace storage;
 static Properties make_props(std::initializer_list<std::pair<std::string, Value>> pairs) {

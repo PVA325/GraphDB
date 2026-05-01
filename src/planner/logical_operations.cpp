@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "planner/query_planner.hpp"
 
 namespace graph::logical {
@@ -198,14 +200,15 @@ BuildPhysicalType LogicalJoin::BuildPhysical(
   exec::ExecContext& ctx,
   optimizer::CostModel* cost_model,
   storage::GraphDB* db) const {
-  // return std::make_unique<exec::KeyHashJoinOp>(
-  //   std::move(left->BuildPhysical(ctx)),
-  //   std::move(right->BuildPhysical(ctx)),
-  //   left_alias, right_alias,
-  //   left_feature_ket, right_feature_key
-  // );
   auto left_build = left->BuildPhysical(ctx, cost_model, db);
   auto right_build = right->BuildPhysical(ctx, cost_model, db);
+
+  auto [hash_join_cost, left_keys_expr, right_keys_expr] =
+    optimizer::EstimateHashJoin(this, ctx, cost_model, db);
+
+  optimizer::CostEstimate dummy_join_cost = cost_model->EstimateNestedJoin(
+    db, left_build.second, right_build.second, predicate.get()
+  );
 
   return std::make_pair(
     std::make_unique<exec::NestedLoopJoinOp>(

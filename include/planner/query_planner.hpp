@@ -10,10 +10,12 @@
 #include <numeric>
 #include <format>
 #include <functional>
+
+#include "common/common_value.hpp"
+
 #include "parser/ast.hpp"
 #include "storage/storage.hpp"
 
-#include "common/common_value.hpp"
 #include "eval_context/eval_context.hpp"
 #include "utils.hpp"
 #include "logical_planner.hpp"
@@ -71,7 +73,6 @@ public:
   [[nodiscard]] String explain_physical_plan(const exec::PhysicalPlan& plan) const;
 
 private:
-  void optimize_logical_plan_impl(logical::LogicalOp* op);
 
   exec::ExecContext ctx_;
   ast::QueryAST ast_plan_;

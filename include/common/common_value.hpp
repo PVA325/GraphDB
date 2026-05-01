@@ -96,6 +96,11 @@ struct CostEstimate {
   double startup_cost{0.0}; // cost to give first row
 
   [[nodiscard]] double total() const { return startup_cost + cpu_cost + 5.0 * io_cost; } // FOR TEST ONLY, REWRITE
+
+  static double kCostEstimateInf;
+  static CostEstimate GetMaxCostEstimate() {
+    return {kCostEstimateInf, kCostEstimateInf, kCostEstimateInf, kCostEstimateInf};
+  }
 };
 } // namespace graph::optimizer
 

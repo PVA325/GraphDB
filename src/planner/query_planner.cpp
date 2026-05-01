@@ -169,6 +169,7 @@ namespace graph::planner {
     ApplyLogicalLimitImpl(plan, std::move(ast_plan_.limit_clause));
 
     logical_plan_ = std::move(plan);
+    // optimize_logical_plan();
   }
 
   optimizer::CostEstimate Planner::build_physical_plan() {
@@ -178,127 +179,7 @@ namespace graph::planner {
   }
 
 
-  struct FilterPushdown {
-    ast::Expr* push_left_expr{nullptr};
-    ast::Expr* push_right_expr{nullptr};
-    ast::Expr* cross_expr{nullptr};
-
-
-    static FilterPushdown Merge(FilterPushdown& left, FilterPushdown& right) {
-      return FilterPushdown{
-        MergeExpr(left.push_left_expr, right.push_left_expr),
-        MergeExpr(left.push_right_expr, right.push_right_expr),
-        MergeExpr(left.cross_expr, right.cross_expr)
-      };
-    }
-  private:
-    static ast::Expr* MergeExpr(ast::Expr* left, ast::Expr* right) {
-      if (!left) {
-        return right;
-      }
-      if (!right) {
-        return left;
-      }
-
-      /// And ???
-      return new ast::LogicalExpr(left, ast::LogicalOp::And, right);
-    }
-  };
-
-  FilterPushdown ParseFilterExpr(const ast::Expr* expr,
-                                 const std::vector<String>& left_aliases,
-                                 const std::vector<String>& right_aliases) {
-    static auto aliases_crosses = [](const std::vector<String>& l, const std::vector<String>& r) -> bool {
-      return std::any_of(l.begin(), l.end(), [&r](const String& s) {
-        return std::find(r.begin(), r.end(), s) != r.end();
-      });
-    };
-    auto expr_labels = expr->CollectAliases();
-    if (expr_labels.empty()) {
-      return {};
-    }
-
-    if (!aliases_crosses(right_aliases, expr_labels)) {
-      return {expr->copy(), nullptr, nullptr};
-    }
-    if (!aliases_crosses(left_aliases, expr_labels)) {
-      return {nullptr, expr->copy(), nullptr};
-    }
-#ifdef DEBUG
-    assert(expr->Type() == ast::ExprType::Logical || expr->Type() == ast::ExprType::Comparison);
-#endif
-
-    ast::Expr* left_expr = (expr->Type() == ast::ExprType::Logical ?
-      dynamic_cast<const ast::LogicalExpr*>(expr)->left_expr.get() :
-      dynamic_cast<const ast::ComparisonExpr*>(expr)->left_expr.get()
-    );
-    ast::Expr* right_expr = (expr->Type() == ast::ExprType::Logical ?
-      dynamic_cast<const ast::LogicalExpr*>(expr)->right_expr.get() :
-      dynamic_cast<const ast::ComparisonExpr*>(expr)->right_expr.get()
-    );
-
-    FilterPushdown left_pushdown = ParseFilterExpr(left_expr, left_aliases, right_aliases);
-    FilterPushdown right_pushdown = ParseFilterExpr(right_expr, right_aliases, right_aliases);
-
-    return FilterPushdown::Merge(left_pushdown, right_pushdown);
-  }
-
-  void PushFilter(logical::LogicalOp* op) {
-    if (op->Type() != logical::LogicalOpType::Filter) {
-      return;
-    }
-    auto* filter_op = dynamic_cast<logical::LogicalFilter*>(op);
-    ast::Expr* expr = (filter_op->predicate ? filter_op->predicate.get() : nullptr);
-    if (!expr) {
-      return;
-    }
-#ifdef DEBUG
-    if (!filter_op->child) {
-      throw std::runtime_error("Error, optimize_logical_plan_impl: filter has no child");
-    }
-#endif
-
-    auto child_op = filter_op->child.get();
-#ifdef DEBUG
-    assert(child_op->Type() == logical::LogicalOpType::Scan || child_op->Type() == logical::LogicalOpType::Join);
-#endif
-    if (child_op->Type() == logical::LogicalOpType::Scan) {
-      return;
-    }
-    auto child_join = dynamic_cast<LogicalJoin*>(child_op);
-
-    auto left_alias_plan = child_join->left->GetSubtreeAliases();
-    auto right_alias_plan = child_join->right->GetSubtreeAliases();
-
-    FilterPushdown new_expressions = ParseFilterExpr(expr, left_alias_plan, right_alias_plan);
-    filter_op->predicate.reset(new_expressions.cross_expr);
-    if (new_expressions.push_left_expr) {
-      child_join->left = std::make_unique<logical::LogicalFilter>(
-        std::move(child_join->left),
-        new_expressions.push_left_expr
-      );
-    }
-    if (new_expressions.push_right_expr) {
-      child_join->right = std::make_unique<logical::LogicalFilter>(
-        std::move(child_join->right),
-        new_expressions.push_right_expr
-      );
-    }
-  }
-
-  void Planner::optimize_logical_plan_impl(logical::LogicalOp* op) {
-    if (op == nullptr) {
-      return;
-    }
-
-    PushFilter(op);
-
-    for (auto cur : op->GetChildren()) {
-      optimize_logical_plan_impl(cur);
-    }
-  }
-
   void Planner::optimize_logical_plan() {
-    optimize_logical_plan_impl(logical_plan_.root.get());
+    optimizer::optimize_logical_plan_impl(logical_plan_.root.get());
   }
 }  // namespace graph::planner

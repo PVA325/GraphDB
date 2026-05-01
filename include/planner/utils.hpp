@@ -43,6 +43,13 @@ void transferProperties(
 }
 
 bool ValueToBool(Value val);
+
+template<typename T>
+std::vector<T> MergeVectors(std::vector<T>&& l, std::vector<T>&& r) {
+  std::vector<T> res = std::move(l);
+  res.insert(res.end(), std::make_move_iterator(r.begin()), std::make_move_iterator(r.end()));
+  return res;
+}
 } // namespace graph::PlannerUtils
 
 #endif //GRAPHDB_UTILS_HPP
