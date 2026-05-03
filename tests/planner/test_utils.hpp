@@ -137,8 +137,192 @@ inline graph::planner::Planner MakePlanner(ast::QueryAST q, storage::GraphDB* db
   return graph::planner::Planner(ctx, db, std::move(q));
 }
 
-ast::ExprPtr MakeBoolLiteral(bool v) {
+inline ast::ExprPtr MakeBoolLiteral(bool v) {
   auto expr = std::make_unique<ast::LiteralExpr>();
   expr->literal = ast::Literal{v};
   return expr;
 }
+
+
+//// TODO TESTS FOR RESIDIAL HASH
+// TEST(HashJoinComplex, SelfJoinSameCityWithAgeOrderingUsesHashJoin) {
+//   storage::GraphDB db;
+//   graph::exec::ExecContext create_ctx(&db);
+//
+//   ast::QueryAST create_q;
+//   create_q.create_clause = std::make_unique<ast::CreateClause>();
+//
+//   // 12 people, 4 cities, in each city 3 ages:
+//   // city 0: 20, 24, 28
+//   // city 1: 21, 25, 29
+//   // city 2: 22, 26, 30
+//   // city 3: 23, 27, 31
+//   // For each city, ordered pairs with age(left) > age(right) are C(3,2)=3.
+//   // Total expected rows = 4 * 3 = 12.
+//   for (int i = 0; i < 12; ++i) {
+//     AddCreatedNode(
+//         *create_q.create_clause,
+//         "p" + std::to_string(i),
+//         "Person",
+//         {
+//             {"city_id", ast::Literal{i % 4}},
+//             {"age", ast::Literal{20 + i}}
+//         }
+//     );
+//   }
+//
+//   {
+//     graph::planner::Planner creator(create_ctx, &db, std::move(create_q));
+//     ExecuteAndConsume(creator, create_ctx);
+//   }
+//
+//   ASSERT_EQ(db.node_count_with_label("Person"), 12u);
+//
+//   auto left = MakeScan("a", {"Person"});
+//   auto right = MakeScan("b", {"Person"});
+//
+//   auto join_pred = MakeAnd(
+//     MakeGt(MakeProp("a", "age"), MakeProp("b", "age")),
+//     MakeEq(MakeProp("a", "city_id"), MakeProp("b", "city_id"))
+//   );
+//   auto join = std::make_unique<logical::LogicalJoin>(std::move(left), std::move(right), std::move(join_pred));
+//
+//   auto plan = logical::LogicalPlan(
+//       std::move(join)
+//   );
+//
+//   optimizer::optimize_logical_plan_impl(plan.root);
+//
+//   MockCostModel cm;
+//   exec::ExecContext ctx(&db);
+//   auto [root, cost] = plan.root->BuildPhysical(ctx, &cm, &db);
+//   ASSERT_NE(root, nullptr);
+//
+//   auto cursor = root->open(ctx);
+//   graph::exec::Row row;
+//   size_t count = 0;
+//
+//   while (cursor->next(row)) {
+//     ++count;
+//     ASSERT_EQ(row.slots.size(), 2u);
+//     ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0]));
+//     ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1]));
+//
+//     auto* a = std::get<storage::Node*>(row.slots[0]);
+//     auto* b = std::get<storage::Node*>(row.slots[1]);
+//     ASSERT_NE(a, nullptr);
+//     ASSERT_NE(b, nullptr);
+//
+//     EXPECT_EQ(std::get<int64_t>(a->properties.at("city_id")),
+//               std::get<int64_t>(b->properties.at("city_id")));
+//     EXPECT_GT(std::get<int64_t>(a->properties.at("age")),
+//               std::get<int64_t>(b->properties.at("age")));
+//
+//     row.clear();
+//   }
+//
+//   EXPECT_EQ(count, 12u);
+//
+//   auto* hash = dynamic_cast<exec::HashJoinOp*>(root.get());
+//   if (hash == nullptr) {
+//     auto* unary = dynamic_cast<exec::PhysicalOpUnaryChild*>(root.get());
+//     ASSERT_NE(unary, nullptr);
+//     hash = dynamic_cast<exec::HashJoinOp*>(unary->child.get());
+//   }
+//   ASSERT_NE(hash, nullptr);
+// }
+//
+// TEST(HashJoinComplex, FactToDimensionJoinWithRightSideFilterUsesHashJoin) {
+//   storage::GraphDB db;
+//   graph::exec::ExecContext create_ctx(&db);
+//
+//   ast::QueryAST create_q;
+//   create_q.create_clause = std::make_unique<ast::CreateClause>();
+//
+//   // Dimension table: 8 sessions, active for even sid.
+//   for (int i = 0; i < 8; ++i) {
+//     AddCreatedNode(
+//         *create_q.create_clause,
+//         "s" + std::to_string(i),
+//         "Session",
+//         {
+//             {"sid", ast::Literal{i}},
+//             {"active", ast::Literal{(i % 2) == 0}}
+//         }
+//     );
+//   }
+//
+//   // Fact table: 20 logs, session_id = i % 8
+//   // Even sessions are 0,2,4,6, so exactly 10 logs should survive the right-side active filter.
+//   for (int i = 0; i < 20; ++i) {
+//     AddCreatedNode(
+//         *create_q.create_clause,
+//         "l" + std::to_string(i),
+//         "Log",
+//         {
+//             {"session_id", ast::Literal{i % 8}},
+//             {"severity", ast::Literal{i % 3}},
+//             {"ts", ast::Literal{i}}
+//         }
+//     );
+//   }
+//
+//   {
+//     graph::planner::Planner creator(create_ctx, &db, std::move(create_q));
+//     ExecuteAndConsume(creator, create_ctx);
+//   }
+//
+//   ASSERT_EQ(db.node_count_with_label("Session"), 8u);
+//   ASSERT_EQ(db.node_count_with_label("Log"), 20u);
+//
+//   auto left = MakeScan("a", {"Log"});
+//   auto right = MakeScan("b", {"Session"});
+//
+//   auto join_pred = MakeEq(MakeProp("a", "session_id"), MakeProp("b", "sid"));
+//   auto join = std::make_unique<logical::LogicalJoin>(std::move(left), std::move(right), std::move(join_pred));
+//
+//   // Right-side filter that should be pushed down below join.
+//   auto active_only = MakeEq(MakeProp("b", "active"), MakeBoolLiteral(true));
+//   auto plan = logical::LogicalPlan(
+//       std::make_unique<logical::LogicalFilter>(std::move(join), std::move(active_only))
+//   );
+//
+//   optimizer::optimize_logical_plan_impl(plan.root);
+//
+//   MockCostModel cm;
+//   exec::ExecContext ctx(&db);
+//   auto [root, cost] = plan.root->BuildPhysical(ctx, &cm, &db);
+//   ASSERT_NE(root, nullptr);
+//
+//   auto cursor = root->open(ctx);
+//   graph::exec::Row row;
+//   size_t count = 0;
+//
+//   while (cursor->next(row)) {
+//     ++count;
+//     ASSERT_EQ(row.slots.size(), 2u);
+//     ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0]));
+//     ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1]));
+//
+//     auto* log = std::get<storage::Node*>(row.slots[0]);
+//     auto* session = std::get<storage::Node*>(row.slots[1]);
+//     ASSERT_NE(log, nullptr);
+//     ASSERT_NE(session, nullptr);
+//
+//     EXPECT_EQ(std::get<int64_t>(log->properties.at("session_id")),
+//               std::get<int64_t>(session->properties.at("sid")));
+//     EXPECT_TRUE(std::get<bool>(session->properties.at("active")));
+//
+//     row.clear();
+//   }
+//
+//   EXPECT_EQ(count, 10u);
+//
+//   auto* hash = dynamic_cast<exec::HashJoinOp*>(root.get());
+//   if (hash == nullptr) {
+//     auto* unary = dynamic_cast<exec::PhysicalOpUnaryChild*>(root.get());
+//     ASSERT_NE(unary, nullptr);
+//     hash = dynamic_cast<exec::HashJoinOp*>(unary->child.get());
+//   }
+//   ASSERT_NE(hash, nullptr);
+// }
