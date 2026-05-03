@@ -137,7 +137,7 @@ inline graph::planner::Planner MakePlanner(ast::QueryAST q, storage::GraphDB* db
   return graph::planner::Planner(ctx, db, std::move(q));
 }
 
-ast::ExprPtr MakeBoolLiteral(bool v) {
+inline ast::ExprPtr MakeBoolLiteral(bool v) {
   auto expr = std::make_unique<ast::LiteralExpr>();
   expr->literal = ast::Literal{v};
   return expr;
