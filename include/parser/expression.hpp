@@ -12,12 +12,6 @@ namespace ast {
 
 struct Expr;
 struct EvalContext;
-// Expression that stores the aliases used in request.
-struct ExprAnalysis {
-  std::vector<std::string> aliases;
-
-  void CollectAliases(const Expr* expr);
-};
 
 // Abstract class for all expressions in AST.
 enum class ExprType {
@@ -30,14 +24,17 @@ enum class ExprType {
 struct Expr {
   virtual ~Expr() = default;
 
-  Expr* copy() const { throw std::runtime_error("Not implemented"); }
+  // Creates a deep copy of the expression.
+  virtual std::unique_ptr<Expr> copy() const = 0;
 
   // Evaluate expression.
   virtual Value operator()(const EvalContext& ctx) const = 0;
 
-  [[nodiscard]] virtual ExprType Type() const {throw std::runtime_error("Not implemented");}
+  // Get the type of the expression.
+  virtual ExprType Type() const = 0;
 
-  [[nodiscard]] virtual std::vector<std::string> CollectAliases() const { throw std::runtime_error("Not implemented"); }
+  // Collects all aliases used in the expression into the provided vector.
+  virtual void CollectAliases(std::vector<std::string>& aliases) const = 0;
 
   // Debug string representation.
   virtual std::string DebugString() const = 0;

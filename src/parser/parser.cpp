@@ -568,25 +568,96 @@ std::string QueryAST::DebugString() const {
   return result;
 }
 
-// Сollects all aliases in a request into a vector
-void ExprAnalysis::CollectAliases(const Expr* expr) {
+// Type implementations for expressions.
+ExprType LiteralExpr::Type() const {
+  return ExprType::Literal;
+}
+
+ExprType PropertyExpr::Type() const {
+  return ExprType::Property;
+}
+
+ExprType ComparisonExpr::Type() const {
+  return ExprType::Comparison;
+}
+
+ExprType LogicalExpr::Type() const {
+  return ExprType::Logical;
+}
+
+// Collects all aliases used in an expression into a vector.
+/*std::vector<std::string> Expr::CollectAliases(const Expr* expr, std::vector<std::string>& aliases) {
   if (!expr) {
     return;
   }
 
   if (auto prop = dynamic_cast<const PropertyExpr*>(expr)) {
-    // if (std::find(aliases.begin(), aliases.end(), prop->alias) == aliases.end()) {
+    if (std::find(aliases.begin(), aliases.end(), prop->alias) == aliases.end()) {
       aliases.emplace_back(prop->alias);
-    // }
+    }
   } else if (auto cmp = dynamic_cast<const ComparisonExpr*>(expr)) {
-    CollectAliases(cmp->left_expr.get());
-    CollectAliases(cmp->right_expr.get());
+    CollectAliases(cmp->left_expr.get(), aliases);
+    CollectAliases(cmp->right_expr.get(), aliases);
   } else if (auto log = dynamic_cast<const LogicalExpr*>(expr)) {
-    CollectAliases(log->left_expr.get());
-    CollectAliases(log->right_expr.get());
+    CollectAliases(log->left_expr.get(), aliases);
+    CollectAliases(log->right_expr.get(), aliases);
   } else {
     // unknown expr type, do nothing
   }
+}*/
+
+// Implementations of CollectAliases for each expression type.
+void LiteralExpr::CollectAliases(std::vector<std::string>&) const override {
+  // ничего
+}
+
+void PropertyExpr::CollectAliases(std::vector<std::string>& aliases) const override {
+  aliases.push_back(alias);
+}
+
+void ComparisonExpr::CollectAliases(std::vector<std::string>& aliases) const override {
+  if (left_expr) {
+    left_expr->CollectAliases(aliases);
+  }
+
+  if (right_expr) {
+    right_expr->CollectAliases(aliases);
+  }
+}
+
+void LogicalExpr::CollectAliases(std::vector<std::string>& aliases) const override {
+  if (left_expr) {
+    left_expr->CollectAliases(aliases);
+  }
+
+  if (right_expr) {
+    right_expr->CollectAliases(aliases);
+  }
+}
+
+// Implementations of copy() for expressions to allow deep copying of expression trees.
+std::unique_ptr<Expr> LiteralExpr::copy() const override {
+  return std::make_unique<LiteralExpr>(*this);
+}
+
+std::unique_ptr<Expr> PropertyExpr::copy() const override {
+  return std::make_unique<PropertyExpr>(*this);
+}
+
+std::unique_ptr<Expr> ComparisonExpr::copy() const override {
+  auto res = std::make_unique<ComparisonExpr>();
+  res->left_expr = left_expr ? left_expr->copy() : nullptr;
+  res->op = op;
+  res->right_expr = right_expr ? right_expr->copy() : nullptr;
+  return res;
+}
+
+std::unique_ptr<Expr> LogicalExpr::copy() const override {
+  auto res = std::make_unique<LogicalExpr>();
+  res->left_expr = left_expr ? left_expr->copy() : nullptr;
+  res->op = op;
+  res->right_expr = right_expr ? right_expr->copy() : nullptr;
+  return res;
 }
 
 } // namespace ast
