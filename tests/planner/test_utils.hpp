@@ -26,7 +26,7 @@ struct FakeExpr final : ast::Expr {
   String s_;
 };
 
-ast::Pattern MakeSingleNodePattern(const String& alias, std::initializer_list<String> labels = {}) {
+inline ast::Pattern MakeSingleNodePattern(const String& alias, std::initializer_list<String> labels = {}) {
   ast::NodePattern node;
   node.alias = alias;
   node.labels = labels;
@@ -39,14 +39,14 @@ ast::Pattern MakeSingleNodePattern(const String& alias, std::initializer_list<St
   return pat;
 }
 
-ast::QueryAST MakeQueryWithMatch(const String& alias = "a") {
+inline ast::QueryAST MakeQueryWithMatch(const String& alias = "a") {
   ast::QueryAST q;
   q.match_clause = std::make_unique<ast::MatchClause>();
   q.match_clause->patterns.push_back(MakeSingleNodePattern(alias, {"Person"}));
   return q;
 }
 
-void ExpectInOrder(const String& s, std::initializer_list<String> needles) {
+inline void ExpectInOrder(const String& s, std::initializer_list<String> needles) {
   size_t pos = 0;
   for (const auto& needle : needles) {
     const size_t found = s.find(needle, pos);
@@ -55,7 +55,7 @@ void ExpectInOrder(const String& s, std::initializer_list<String> needles) {
   }
 }
 
-graph::planner::Planner MakePlanner(ast::QueryAST q) {
+inline graph::planner::Planner MakePlanner(ast::QueryAST q) {
   graph::exec::ExecContext ctx;
   ctx.db = nullptr;
   return graph::planner::Planner(ctx, nullptr, std::move(q));
@@ -63,7 +63,7 @@ graph::planner::Planner MakePlanner(ast::QueryAST q) {
 
 using graph::String;
 
-size_t CountSubstr(const String& s, const String& needle) {
+inline size_t CountSubstr(const String& s, const String& needle) {
   size_t count = 0;
   size_t pos = 0;
   while ((pos = s.find(needle, pos)) != String::npos) {
@@ -73,7 +73,7 @@ size_t CountSubstr(const String& s, const String& needle) {
   return count;
 }
 
-ast::Pattern MakeNodePattern(const String& alias, std::initializer_list<String> labels = {}) {
+inline ast::Pattern MakeNodePattern(const String& alias, std::initializer_list<String> labels = {}) {
   ast::NodePattern node;
   node.alias = alias;
   node.labels = labels;
@@ -86,7 +86,7 @@ ast::Pattern MakeNodePattern(const String& alias, std::initializer_list<String> 
   return pat;
 }
 
-ast::Pattern MakeEdgePattern(const String& left_alias,
+inline ast::Pattern MakeEdgePattern(const String& left_alias,
                              const String& edge_alias,
                              const String& right_alias,
                              const String& label,
@@ -119,7 +119,7 @@ ast::Pattern MakeEdgePattern(const String& left_alias,
   return pat;
 }
 
-ast::QueryAST MakeSelectQueryTwoPatterns() {
+inline ast::QueryAST MakeSelectQueryTwoPatterns() {
   ast::QueryAST q;
   q.match_clause = std::make_unique<ast::MatchClause>();
   q.match_clause->patterns.push_back(MakeNodePattern("a", {"Person"}));
@@ -131,8 +131,14 @@ ast::QueryAST MakeSelectQueryTwoPatterns() {
   return q;
 }
 
-graph::planner::Planner MakePlanner(ast::QueryAST q, storage::GraphDB* db = nullptr) {
+inline graph::planner::Planner MakePlanner(ast::QueryAST q, storage::GraphDB* db = nullptr) {
   graph::exec::ExecContext ctx;
   ctx.db = db;
   return graph::planner::Planner(ctx, db, std::move(q));
+}
+
+ast::ExprPtr MakeBoolLiteral(bool v) {
+  auto expr = std::make_unique<ast::LiteralExpr>();
+  expr->literal = ast::Literal{v};
+  return expr;
 }

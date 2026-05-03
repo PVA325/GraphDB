@@ -221,8 +221,10 @@ TEST(OptimizerHashJoin, KeepsNestedLoopForNonEquiJoin) {
   exec::ExecContext ctx(nullptr);
 
   auto [physical_root, cost] = plan.root->BuildPhysical(ctx, &cm, nullptr);
-  std::cout << physical_root->SubtreeDebugString() << std::endl;
+  // std::cout << physical_root->SubtreeDebugString() << std::endl;
   ASSERT_NE(physical_root, nullptr);
 
   EXPECT_NE(dynamic_cast<exec::NestedLoopJoinOp*>(physical_root.get()), nullptr);
 }
+
+

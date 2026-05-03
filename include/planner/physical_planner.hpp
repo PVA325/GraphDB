@@ -366,7 +366,7 @@ struct HashJoinCursor : public RowCursor {
   size_t vec_left_idx{std::numeric_limits<size_t>::max()};
 
   HashJoinCursor(RowCursorPtr left_cursor_a, RowCursorPtr right_cursor_a,
-        const std::vector<ast::Expr*>& left_keys_a, const std::vector<ast::Expr*>& right_keys_a);
+        const std::vector<ast::Expr*>& left_keys_a, const std::vector<ast::Expr*>& right_keys_b);
 
   bool next(Row& out) override;
 
@@ -374,7 +374,7 @@ struct HashJoinCursor : public RowCursor {
 
   ~HashJoinCursor() override = default;
 private:
-  CompositeKey GetCompositeKey(const Row& row);
+  static CompositeKey GetCompositeKey(const Row& row, const std::vector<ast::Expr*>& keys);
 };
 
 struct HashJoinOp : public PhysicalOpBinaryChild {

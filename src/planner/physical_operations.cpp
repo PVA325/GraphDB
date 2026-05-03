@@ -299,15 +299,15 @@ bool NestedLoopJoinCursor::next(Row& out) {
         return false;
       }
       right_cursor = std::move(right_operation->open(ctx));
-    } else {
-      break;
+    } else  {
+      Row new_row = MergeRows(left_row, right_row);
+      ast::EvalContext exec_ctx{new_row};
+      if (predicate == nullptr || PlannerUtils::ValueToBool((*predicate)(exec_ctx))) {
+        out = std::move(new_row);
+        return true;
+      }
+
     }
-  }
-  Row new_row = MergeRows(left_row, right_row);
-  ast::EvalContext exec_ctx{new_row};
-  if (predicate == nullptr || PlannerUtils::ValueToBool((*predicate)(exec_ctx))) {
-    out = std::move(new_row);
-    return true;
   }
   return false;
 }
@@ -346,9 +346,9 @@ RowCursorPtr NestedLoopJoinOp::open(ExecContext& ctx) {
   );
 }
 
-HashJoinCursor::CompositeKey HashJoinCursor::GetCompositeKey(const Row& row) {
+HashJoinCursor::CompositeKey HashJoinCursor::GetCompositeKey(const Row& row, const std::vector<ast::Expr*>& keys) {
   std::vector<Value> curr_key;
-  for (ast::Expr* expr : left_keys) {
+  for (ast::Expr* expr : keys) {
     curr_key.emplace_back(std::move((*expr)(ast::EvalContext(row))));
   }
   return curr_key;;
@@ -356,14 +356,14 @@ HashJoinCursor::CompositeKey HashJoinCursor::GetCompositeKey(const Row& row) {
 
 HashJoinCursor::HashJoinCursor(RowCursorPtr left_cursor_a, RowCursorPtr right_cursor_a,
                                const std::vector<ast::Expr*>& left_keys_a,
-                               const std::vector<ast::Expr*>& right_keys_a) :
+                               const std::vector<ast::Expr*>& right_keys_b) :
   left_cursor(std::move(left_cursor_a)),
   right_cursor(std::move(right_cursor_a)),
   left_keys(left_keys_a),
-  right_keys(right_keys_a) {
+  right_keys(right_keys_b) {
   Row curr_row;
   while (left_cursor->next(curr_row)) {
-    left_rows[GetCompositeKey(curr_row)].emplace_back(std::move(curr_row));
+    left_rows[GetCompositeKey(curr_row, left_keys)].emplace_back(std::move(curr_row));
     curr_row.clear();
   }
   it_left = left_rows.end();
@@ -375,7 +375,7 @@ bool HashJoinCursor::next(Row& out) {
     if (!right_cursor->next(last_right_row)) {
       return false;
     }
-    CompositeKey right_key = GetCompositeKey(last_right_row);
+    CompositeKey right_key = GetCompositeKey(last_right_row, right_keys);
     auto it = left_rows.find(right_key);
 
     if (it != left_rows.end() && !it->second.empty()) {

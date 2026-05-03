@@ -8,7 +8,7 @@ target_link_libraries(logical_planner_tests
 )
 target_include_directories(logical_planner_tests PRIVATE "${CMAKE_SOURCE_DIR}/include")
 
-add_executable(physical_planner_tests physical_planner_tests.cpp)
+add_executable(physical_planner_tests physical_planner_tests.cpp hash_join_tests.cpp)
 target_link_libraries(physical_planner_tests
         PUBLIC
         GTest::gtest
