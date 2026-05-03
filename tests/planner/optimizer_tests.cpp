@@ -147,9 +147,9 @@ TEST(OptimizerFilterPushdown, PushesSidePredicatesBelowJoin) {
       );
 
   auto plan = MakeFilterOverJoin(std::move(pred));
-  std::cout << plan.SubtreeDebugString() << std::endl << "\n\n";
+  // std::cout << plan.SubtreeDebugString() << std::endl << "\n\n";
   RunLogicalOptimizer(plan);
-  std::cout << plan.SubtreeDebugString() << std::endl;
+  // std::cout << plan.SubtreeDebugString() << std::endl;
 
   auto* join = dynamic_cast<logical::LogicalJoin*>(plan.root.get());
   ASSERT_NE(join, nullptr);
@@ -215,9 +215,7 @@ TEST(OptimizerHashJoin, KeepsNestedLoopForNonEquiJoin) {
   auto pred = MakeCmp(MakeProp("a", "id"), ast::CompareOp::Gt, MakeProp("b", "id"));
   auto plan = MakeJoin(std::move(pred));
 
-  std::cout << plan.SubtreeDebugString() << std::endl << "\n\n";
   RunLogicalOptimizer(plan);
-  std::cout << plan.SubtreeDebugString() << std::endl << "\n\n";
 
   MockCostModel cm;
   exec::ExecContext ctx(nullptr);
