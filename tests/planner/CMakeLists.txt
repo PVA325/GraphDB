@@ -6,13 +6,7 @@ target_link_libraries(logical_planner_tests
         GTest::gtest_main
         planner
 )
-
-target_include_directories(logical_planner_tests
-    PUBLIC
-    "${PLANNER_INCLUDE_DIR}"
-    "${STORAGE_INCLUDE_DIR}"
-    "${PARSER_INCLUDE_DIR}"
-)
+target_include_directories(logical_planner_tests PRIVATE "${CMAKE_SOURCE_DIR}/include")
 
 add_executable(physical_planner_tests physical_planner_tests.cpp)
 target_link_libraries(physical_planner_tests
@@ -22,10 +16,14 @@ target_link_libraries(physical_planner_tests
         GTest::gtest_main
         planner
 )
+target_include_directories(physical_planner_tests PRIVATE "${CMAKE_SOURCE_DIR}/include")
 
-target_include_directories(physical_planner_tests
+add_executable(optimizer_planner_tests optimizer_tests.cpp)
+target_link_libraries(optimizer_planner_tests
         PUBLIC
-        "${PLANNER_INCLUDE_DIR}"
-        "${STORAGE_INCLUDE_DIR}"
-        "${PARSER_INCLUDE_DIR}"
+        GTest::gtest
+        GTest::gmock
+        GTest::gtest_main
+        planner
 )
+target_include_directories(optimizer_planner_tests PRIVATE "${CMAKE_SOURCE_DIR}/include")

@@ -1,6 +1,8 @@
 #ifndef GRAPHDB_UTILS_HPP
 #define GRAPHDB_UTILS_HPP
 #include "common/common_value.hpp"
+#include "parser/ast.hpp"
+#include "storage/storage.hpp"
 
 namespace graph::PlannerUtils {
 template <typename... Types>

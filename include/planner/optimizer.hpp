@@ -1,6 +1,7 @@
 #ifndef GRAPHDB_OPTIMIZER_HPP
 #define GRAPHDB_OPTIMIZER_HPP
-#include "utils.hpp"
+#include "planner/utils.hpp"
+#include "planner/logical_planner.hpp"
 #include "common/common_value.hpp"
 
 namespace {
@@ -8,7 +9,7 @@ namespace {
 }
 
 namespace graph::optimizer {
-void optimize_logical_plan_impl(logical::LogicalOp* op);
+void optimize_logical_plan_impl(std::unique_ptr<logical::LogicalOp>& op);
 
 // Cost model interface
 struct CostModel {

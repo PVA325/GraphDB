@@ -209,7 +209,7 @@ BuildPhysicalType LogicalJoin::BuildPhysical(
   optimizer::CostEstimate dummy_join_cost = cost_model->EstimateNestedJoin(
     db, left_build.second, right_build.second, predicate.get()
   );
-  if (hash_join_cost.total() < dummy_join_cost.total()) {
+  if (hash_join_cost.total() > dummy_join_cost.total()) {
     return std::make_pair(
       std::make_unique<exec::NestedLoopJoinOp>(
         std::move(left_build.first),

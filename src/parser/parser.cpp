@@ -7,6 +7,7 @@
 #include <string_view>
 #include <unordered_set>
 #include <utility>
+#include <algorithm>
 
 #include "parser/error.hpp"
 #include "parser/lexer.hpp"
@@ -607,15 +608,17 @@ ExprType LogicalExpr::Type() const {
 }*/
 
 // Implementations of CollectAliases for each expression type.
-void LiteralExpr::CollectAliases(std::vector<std::string>&) const override {
+void LiteralExpr::CollectAliases(std::vector<std::string>&) const {
   // ничего
 }
 
-void PropertyExpr::CollectAliases(std::vector<std::string>& aliases) const override {
-  aliases.push_back(alias);
+void PropertyExpr::CollectAliases(std::vector<std::string>& aliases) const {
+  if (std::find(aliases.begin(), aliases.end(), alias) == aliases.end()) {
+    aliases.push_back(alias);
+  }
 }
 
-void ComparisonExpr::CollectAliases(std::vector<std::string>& aliases) const override {
+void ComparisonExpr::CollectAliases(std::vector<std::string>& aliases) const {
   if (left_expr) {
     left_expr->CollectAliases(aliases);
   }
@@ -625,7 +628,7 @@ void ComparisonExpr::CollectAliases(std::vector<std::string>& aliases) const ove
   }
 }
 
-void LogicalExpr::CollectAliases(std::vector<std::string>& aliases) const override {
+void LogicalExpr::CollectAliases(std::vector<std::string>& aliases) const {
   if (left_expr) {
     left_expr->CollectAliases(aliases);
   }
@@ -636,15 +639,15 @@ void LogicalExpr::CollectAliases(std::vector<std::string>& aliases) const overri
 }
 
 // Implementations of copy() for expressions to allow deep copying of expression trees.
-std::unique_ptr<Expr> LiteralExpr::copy() const override {
+std::unique_ptr<Expr> LiteralExpr::copy() const {
   return std::make_unique<LiteralExpr>(*this);
 }
 
-std::unique_ptr<Expr> PropertyExpr::copy() const override {
+std::unique_ptr<Expr> PropertyExpr::copy() const {
   return std::make_unique<PropertyExpr>(*this);
 }
 
-std::unique_ptr<Expr> ComparisonExpr::copy() const override {
+std::unique_ptr<Expr> ComparisonExpr::copy() const {
   auto res = std::make_unique<ComparisonExpr>();
   res->left_expr = left_expr ? left_expr->copy() : nullptr;
   res->op = op;
@@ -652,7 +655,7 @@ std::unique_ptr<Expr> ComparisonExpr::copy() const override {
   return res;
 }
 
-std::unique_ptr<Expr> LogicalExpr::copy() const override {
+std::unique_ptr<Expr> LogicalExpr::copy() const {
   auto res = std::make_unique<LogicalExpr>();
   res->left_expr = left_expr ? left_expr->copy() : nullptr;
   res->op = op;

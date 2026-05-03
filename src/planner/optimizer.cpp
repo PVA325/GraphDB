@@ -1,24 +1,26 @@
+#include <netinet/in.h>
+
 #include "planner/query_planner.hpp"
 
 namespace graph::optimizer {
 double CostEstimate::kCostEstimateInf{1e15};
 
 struct FilterPushdown {
-  ast::Expr* push_left_expr{nullptr};
-  ast::Expr* push_right_expr{nullptr};
-  ast::Expr* cross_expr{nullptr};
+  std::unique_ptr<ast::Expr> push_left_expr{nullptr};
+  std::unique_ptr<ast::Expr> push_right_expr{nullptr};
+  std::unique_ptr<ast::Expr> cross_expr{nullptr};
 
 
   static FilterPushdown Merge(FilterPushdown& left, FilterPushdown& right) {
     return FilterPushdown{
-      MergeExpr(left.push_left_expr, right.push_left_expr),
-      MergeExpr(left.push_right_expr, right.push_right_expr),
-      MergeExpr(left.cross_expr, right.cross_expr)
+      MergeExpr(std::move(left.push_left_expr), std::move(right.push_left_expr)),
+      MergeExpr(std::move(left.push_right_expr), std::move(right.push_right_expr)),
+      MergeExpr(std::move(left.cross_expr), std::move(right.cross_expr))
     };
   }
 
 private:
-  static ast::Expr* MergeExpr(ast::Expr* left, ast::Expr* right) {
+  static std::unique_ptr<ast::Expr> MergeExpr(std::unique_ptr<ast::Expr> left, std::unique_ptr<ast::Expr> right) {
     if (!left) {
       return right;
     }
@@ -27,7 +29,7 @@ private:
     }
 
     /// And ???
-    return new ast::LogicalExpr(left, ast::LogicalOp::And, right);
+    return std::make_unique<ast::LogicalExpr>(std::move(left), ast::LogicalOp::And, std::move(right));
   }
 };
 
@@ -39,21 +41,25 @@ FilterPushdown ParseFilterExpr(const ast::Expr* expr,
       return std::find(r.begin(), r.end(), s) != r.end();
     });
   };
-  auto expr_labels = expr->CollectAliases();
-  if (expr_labels.empty()) {
+  // auto expr_aliases = expr->CollectAliases();
+  std::vector<String> expr_aliases;
+  expr->CollectAliases(expr_aliases);
+  if (expr_aliases.empty()) {
     return {};
   }
 
-  if (!aliases_crosses(right_aliases, expr_labels)) {
+  if (!aliases_crosses(right_aliases, expr_aliases)) {
     return {expr->copy(), nullptr, nullptr};
   }
-  if (!aliases_crosses(left_aliases, expr_labels)) {
+  if (!aliases_crosses(left_aliases, expr_aliases)) {
     return {nullptr, expr->copy(), nullptr};
   }
 #ifdef DEBUG
   assert(expr->Type() == ast::ExprType::Logical || expr->Type() == ast::ExprType::Comparison);
 #endif
-
+  if (expr->Type() == ast::ExprType::Comparison) {
+    return {nullptr, nullptr, expr->copy()};
+  }
   ast::Expr* left_expr = (expr->Type() == ast::ExprType::Logical
                             ? dynamic_cast<const ast::LogicalExpr*>(expr)->left_expr.get()
                             : dynamic_cast<const ast::ComparisonExpr*>(expr)->left_expr.get()
@@ -64,12 +70,12 @@ FilterPushdown ParseFilterExpr(const ast::Expr* expr,
   );
 
   FilterPushdown left_pushdown = ParseFilterExpr(left_expr, left_aliases, right_aliases);
-  FilterPushdown right_pushdown = ParseFilterExpr(right_expr, right_aliases, right_aliases);
+  FilterPushdown right_pushdown = ParseFilterExpr(right_expr, left_aliases, right_aliases);
 
   return FilterPushdown::Merge(left_pushdown, right_pushdown);
 }
 
-void PushFilter(logical::LogicalOp* op) {
+void PushFilterDown(logical::LogicalOp* op) {
   if (op->Type() != logical::LogicalOpType::Filter) {
     return;
   }
@@ -84,7 +90,7 @@ void PushFilter(logical::LogicalOp* op) {
 
 
   auto child_op = filter_op->child.get();
-#ifdef DEBUG
+#ifndef NDEBUG
   assert(child_op->Type() == logical::LogicalOpType::Scan || child_op->Type() == logical::LogicalOpType::Join);
 #endif
   if (child_op->Type() == logical::LogicalOpType::Scan) {
@@ -96,41 +102,83 @@ void PushFilter(logical::LogicalOp* op) {
   auto right_alias_plan = child_join->right->GetSubtreeAliases();
 
   FilterPushdown new_expressions = ParseFilterExpr(expr, left_alias_plan, right_alias_plan);
-  filter_op->predicate.reset(new_expressions.cross_expr);
+  filter_op->predicate = std::move(new_expressions.cross_expr);
+
   if (new_expressions.push_left_expr) {
     child_join->left = std::make_unique<logical::LogicalFilter>(
       std::move(child_join->left),
-      new_expressions.push_left_expr
+      std::move(new_expressions.push_left_expr)
     );
   }
   if (new_expressions.push_right_expr) {
     child_join->right = std::make_unique<logical::LogicalFilter>(
       std::move(child_join->right),
-      new_expressions.push_right_expr
+      std::move(new_expressions.push_right_expr)
     );
   }
 }
 
-void OptimizePushFilter(logical::LogicalOp* op) {
+void OptimizePushFilter(logical::LogicalOp* op, logical::LogicalOp* par = nullptr) {
   if (op == nullptr) {
     return;
   }
 
-  PushFilter(op);
+  PushFilterDown(op);
 
   for (auto cur : op->GetChildren()) {
-    optimize_logical_plan_impl(cur);
+    OptimizePushFilter(cur);
   }
 }
 
-void optimize_logical_plan_impl(logical::LogicalOp* op) {
-  OptimizePushFilter(op);
+void PushFilterToJoin_impl(logical::LogicalOp* op, logical::LogicalOp* par) {
+  if (op->Type() != logical::LogicalOpType::Filter) {
+    return;
+  }
+  auto* filter_op = dynamic_cast<logical::LogicalFilter*>(op);
+
+  auto child_op = filter_op->child.get();
+  if (child_op->Type() == logical::LogicalOpType::Scan) {
+    return;
+  }
+  auto join_op = dynamic_cast<logical::LogicalJoin*>(child_op);
+  assert(join_op->predicate == nullptr);
+  join_op->predicate = std::move(filter_op->predicate);
+  dynamic_cast<logical::LogicalOpUnaryChild*>(par)->child = std::move(filter_op->child);
+
+  //delete filter_op?
+}
+
+std::unique_ptr<logical::LogicalOp> FilterToJoin(std::unique_ptr<logical::LogicalOp> op) {
+  if (!op) {
+    return op;
+  }
+
+  if (auto* op_unary = dynamic_cast<logical::LogicalOpUnaryChild*>(op.get())) {
+    op_unary->child = std::move(FilterToJoin(std::move(op_unary->child)));
+  }
+  if (auto* op_binary = dynamic_cast<logical::LogicalOpBinaryChild*>(op.get())) {
+    op_binary->left = std::move(FilterToJoin(std::move(op_binary->left)));
+    op_binary->right = std::move(FilterToJoin(std::move(op_binary->right)));
+  }
+
+  if (auto op_filter = dynamic_cast<logical::LogicalFilter*>(op.get())) {
+    if (auto child_join = dynamic_cast<logical::LogicalJoin*>(op_filter->child.get())) {
+      child_join->predicate = std::move(op_filter->predicate);
+      return std::move(op_filter->child);
+    }
+  }
+  return op;
+}
+
+void optimize_logical_plan_impl(std::unique_ptr<logical::LogicalOp>& op) {
+  OptimizePushFilter(op.get());
+  op = std::move(FilterToJoin(std::move(op)));
 }
 
 std::tuple<bool, ExprPtrVec, ExprPtrVec> CutExpressionForHashJoin(
   const ast::Expr* expr,
   const std::vector<String>& left_join_aliases, const std::vector<String>& right_join_aliases) {
-  if (expr == nullptr || expr->Type() == ast::ExprType::Literal || expr->Type() == ast::ExprType::Comparison) {
+  if (expr == nullptr || expr->Type() == ast::ExprType::Literal) {
     /// if expression is literal then if the other side depends on only one Join child then we pushed it alread ->
     /// other side(of parent expression) depends from two sides of join -> we cant use HashJoin YET(can be fix if we transfer all right-depend features from the right, do it later)
     return {false, ExprPtrVec{}, ExprPtrVec{}};
@@ -141,7 +189,7 @@ std::tuple<bool, ExprPtrVec, ExprPtrVec> CutExpressionForHashJoin(
     if (logical_expr->op != ast::LogicalOp::And) { /// need only and for join
       return {false, ExprPtrVec{}, ExprPtrVec{}};
     }
-#ifdef DEBUG
+#ifndef NDEBUG
     assert(logical_expr->left_expr && logical_expr->right_expr);
 #endif
     auto left_cut = CutExpressionForHashJoin(logical_expr->left_expr.get(), left_join_aliases, right_join_aliases);
@@ -171,6 +219,26 @@ std::tuple<bool, ExprPtrVec, ExprPtrVec> CutExpressionForHashJoin(
     ExprPtrVec right_expr;
     right_expr.emplace_back(property_expr->copy());
     return {true, ExprPtrVec{}, std::move(right_expr)};
+  }
+
+  if (expr->Type() == ast::ExprType::Comparison) {
+    auto* comp_expr = dynamic_cast<const ast::ComparisonExpr*>(expr);
+    if (comp_expr->op != ast::CompareOp::Eq) {
+      return {false, ExprPtrVec{}, ExprPtrVec{}};
+    }
+    auto left_cut = CutExpressionForHashJoin(comp_expr->left_expr.get(), left_join_aliases, right_join_aliases);
+    auto right_cut = CutExpressionForHashJoin(comp_expr->right_expr.get(), left_join_aliases, right_join_aliases);
+    if ((std::get<1>(left_cut).size() != 0 && std::get<1>(right_cut).size() != 0) ||
+        (std::get<2>(left_cut).size() != 0 && std::get<2>(right_cut).size() != 0) ||
+        std::get<0>(left_cut) == false || std::get<0>(right_cut) == false) {
+      return {false, ExprPtrVec{}, ExprPtrVec{}};
+    }
+
+    return {
+      true,
+      std::move(!std::get<1>(left_cut).empty() ? std::get<1>(left_cut) : std::get<1>(right_cut)),
+      std::move(!std::get<2>(left_cut).empty() ? std::get<2>(left_cut) : std::get<2>(right_cut))
+    };
   }
   throw std::runtime_error("CutExpressionForHashJoin: Error, Invalid Expression type");
 }

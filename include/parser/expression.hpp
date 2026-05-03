@@ -48,6 +48,10 @@ struct LiteralExpr : Expr {
 
   Value operator()(const EvalContext& ctx) const override;
 
+  ExprType Type() const override;
+  void CollectAliases(std::vector<std::string>& aliases) const override;
+  std::unique_ptr<Expr> copy() const override;
+
   std::string DebugString() const override;
 };
 
@@ -57,6 +61,10 @@ struct PropertyExpr : Expr {
   std::string property;
 
   Value operator()(const EvalContext& ctx) const override;
+
+  ExprType Type() const override;
+  void CollectAliases(std::vector<std::string>& aliases) const override;
+  std::unique_ptr<Expr> copy() const override;
 
   std::string DebugString() const override;
 };
@@ -77,7 +85,14 @@ struct ComparisonExpr : Expr {
   CompareOp op;
   ExprPtr right_expr;
 
+  ComparisonExpr() = default;
+  ComparisonExpr(ExprPtr l, CompareOp op, ExprPtr r): left_expr(std::move(l)), op(op), right_expr(std::move(r)) {}
+
   Value operator()(const EvalContext& ctx) const override;
+
+  ExprType Type() const override;
+  void CollectAliases(std::vector<std::string>& aliases) const override;
+  std::unique_ptr<Expr> copy() const override;
 
   std::string DebugString() const override;
 };
@@ -97,7 +112,13 @@ struct LogicalExpr : Expr {
   LogicalExpr() = default;
   LogicalExpr(Expr* l, LogicalOp op, Expr* r): left_expr(l), op(op), right_expr(r) {}
 
+  LogicalExpr(ExprPtr l, LogicalOp op, ExprPtr r): left_expr(std::move(l)), op(op), right_expr(std::move(r)) {}
+
   Value operator()(const EvalContext& ctx) const override;
+
+  ExprType Type() const override;
+  void CollectAliases(std::vector<std::string>& aliases) const override;
+  std::unique_ptr<Expr> copy() const override;
 
   std::string DebugString() const override;
 };

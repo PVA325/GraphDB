@@ -169,7 +169,7 @@ namespace graph::planner {
     ApplyLogicalLimitImpl(plan, std::move(ast_plan_.limit_clause));
 
     logical_plan_ = std::move(plan);
-    // optimize_logical_plan();
+    optimize_logical_plan();
   }
 
   optimizer::CostEstimate Planner::build_physical_plan() {
@@ -180,6 +180,6 @@ namespace graph::planner {
 
 
   void Planner::optimize_logical_plan() {
-    optimizer::optimize_logical_plan_impl(logical_plan_.root.get());
+    optimizer::optimize_logical_plan_impl(logical_plan_.root);
   }
 }  // namespace graph::planner

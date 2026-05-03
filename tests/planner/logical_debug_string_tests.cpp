@@ -78,9 +78,18 @@ struct FakeExpr final : ast::Expr {
     return false;
   }
 
+  virtual std::unique_ptr<Expr> copy() const override { return std::make_unique<FakeExpr>(*this) ;}
+
+  // Get the type of the expression.
+  virtual ast::ExprType Type() const override { return ast::ExprType::Literal; }
+
+  // Collects all aliases used in the expression into the provided vector.
+  virtual void CollectAliases(std::vector<std::string>& aliases) const override {}
+
   std::string DebugString() const override {
     return s_;
   }
+
 
   String s_;
 };
