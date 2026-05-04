@@ -10,7 +10,9 @@ struct LogicalOpBinaryChild : LogicalOp {
   LogicalOpPtr left;
   LogicalOpPtr right;
 
-  LogicalOpBinaryChild(LogicalOpPtr left, LogicalOpPtr right);
+  LogicalOpBinaryChild(LogicalOpPtr left, LogicalOpPtr right):
+    left(std::move(left)),
+    right(std::move(right)) {}
 
   [[nodiscard]] String SubtreeDebugString() const override;
 

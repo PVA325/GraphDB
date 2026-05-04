@@ -17,7 +17,7 @@ struct PhysicalPlan {
     return *this;
   }
 
-  explicit PhysicalPlan(PhysicalOpPtr root);
+  explicit PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}
 
   [[nodiscard]] std::string DebugString() const;
 };

@@ -365,4 +365,9 @@ String PhysicalSortOp::DebugString() const {
     })
   );
 }
+
+std::string PhysicalPlan::DebugString() const {
+  return root->SubtreeDebugString();
+}
+
 } // namespace graph::exec
