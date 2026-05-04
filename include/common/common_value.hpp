@@ -3,6 +3,7 @@
 #include <variant>
 #include <memory>
 #include <vector>
+#include "unordered_map"
 
 namespace ast {
 // Edge direction.
@@ -11,6 +12,11 @@ enum class EdgeDirection {
   Right,
   Undirected
 };
+
+struct Expr;
+struct ReturnItem;
+struct OrderItem;
+using ExprPtr = std::unique_ptr<Expr>;
 }
 
 namespace graph {

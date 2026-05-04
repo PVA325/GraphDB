@@ -3,7 +3,6 @@
 #include "common/common_value.hpp"
 
 namespace graph::logical {
-
 struct LogicalOp {
   [[nodiscard]] virtual String DebugString() const = 0;
   virtual BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
@@ -18,7 +17,6 @@ struct LogicalOp {
 
   virtual ~LogicalOp() = default;
 };
-
 }
 
 #endif //GRAPHDB_LOGICAL_OP_HPP

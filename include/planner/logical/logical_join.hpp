@@ -4,7 +4,6 @@
 #include "logical_op_binary_child.hpp"
 
 namespace graph::logical {
-
 struct LogicalJoin : LogicalOpBinaryChild {
   /// Logical Joint for 2 results with predicate(optional)
 
@@ -15,7 +14,8 @@ struct LogicalJoin : LogicalOpBinaryChild {
   LogicalJoin(LogicalOpPtr left, LogicalOpPtr right);
 
   LogicalJoin(LogicalOpPtr left, LogicalOpPtr right, std::unique_ptr<ast::Expr> predicate);
-  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) const override;
+  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
+                                  storage::GraphDB* db) const override;
 
 
   [[nodiscard]] String DebugString() const override;
@@ -34,7 +34,6 @@ struct LogicalJoin : LogicalOpBinaryChild {
 
   ~LogicalJoin() override = default;
 };
-
 }
 
 #endif //GRAPHDB_LOGICAL_JOIN_HPP

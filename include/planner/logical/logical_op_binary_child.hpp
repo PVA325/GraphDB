@@ -6,7 +6,6 @@
 #include "planner/utils.hpp"
 
 namespace graph::logical {
-
 struct LogicalOpBinaryChild : LogicalOp {
   LogicalOpPtr left;
   LogicalOpPtr right;
@@ -15,11 +14,12 @@ struct LogicalOpBinaryChild : LogicalOp {
 
   [[nodiscard]] String SubtreeDebugString() const override;
 
-  std::vector<LogicalOp*> GetChildren() override { return { PlannerUtils::GetUniqPtrVal(left), PlannerUtils::GetUniqPtrVal(right) }; }
+  std::vector<LogicalOp*> GetChildren() override {
+    return {PlannerUtils::GetUniqPtrVal(left), PlannerUtils::GetUniqPtrVal(right)};
+  }
 
   ~LogicalOpBinaryChild() override = default;
 };
-
 }
 
 #endif //GRAPHDB_LOGICAL_OP_BINARY_CHILD_HPP

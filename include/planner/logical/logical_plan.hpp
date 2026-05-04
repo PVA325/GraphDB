@@ -24,7 +24,11 @@ struct LogicalPlan : LogicalOpZeroChild {
 
   [[nodiscard]] String DebugString() const override { return "LogicalPlan:"; }
   [[nodiscard]] String SubtreeDebugString() const override { return root ? root->SubtreeDebugString() : "<empty>"; }
-  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) const override { return root->BuildPhysical(ctx, cost_model, db); }
+
+  BuildPhysicalType
+  BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) const override {
+    return root->BuildPhysical(ctx, cost_model, db);
+  }
 
   [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Plan; }
 

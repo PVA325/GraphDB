@@ -9,6 +9,7 @@ namespace {
 }
 
 namespace graph::optimizer {
+using ::graph::optimizer::CostEstimate;
 void optimize_logical_plan_impl(std::unique_ptr<logical::LogicalOp>& op);
 
 // Cost model interface
@@ -125,7 +126,7 @@ private:
 };
 
 std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec> EstimateHashJoin(
-  const logical::LogicalJoin* join, exec::ExecContext& ctx,
+  const logical::LogicalJoin* join, ::graph::exec::ExecContext& ctx,
   CostModel* cost_model, storage::GraphDB* db,
   const CostEstimate& left_cost, const CostEstimate& right_cost
 );

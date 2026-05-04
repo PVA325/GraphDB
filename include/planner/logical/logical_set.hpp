@@ -21,7 +21,8 @@ struct LogicalSet : LogicalOpUnaryChild {
   }
 
   LogicalSet(LogicalOpPtr child, std::vector<Assignment> assignment);
-  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) const override;
+  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
+                                  storage::GraphDB* db) const override;
 
   [[nodiscard]] String DebugString() const override;
 
@@ -31,7 +32,6 @@ struct LogicalSet : LogicalOpUnaryChild {
 
   ~LogicalSet() override = default;
 };
-
 }
 
 #endif //GRAPHDB_LOGICAL_SET_HPP

@@ -13,7 +13,8 @@ struct LogicalLimit : public LogicalOpUnaryChild {
   explicit LogicalLimit(LogicalOpPtr child, size_t limit_size);
 
   [[nodiscard]] String DebugString() const override;
-  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) const override;
+  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
+                                  storage::GraphDB* db) const override;
 
   [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Limit; }
 

@@ -42,7 +42,8 @@ struct LogicalCreate : LogicalOpUnaryChild {
 
   LogicalCreate(LogicalOpPtr child, const std::vector<ast::CreateItem>& items);
 
-  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) const override;
+  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
+                                  storage::GraphDB* db) const override;
 
   [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Create; }
 

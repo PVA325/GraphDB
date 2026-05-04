@@ -5,7 +5,6 @@
 #include <optional>
 
 namespace graph::logical {
-
 struct LogicalExpand : public AliasedLogicalOp {
   /// Expand Nodes that are located in row by $src_alias slot name and move to $dst_alias
   LogicalOpPtr child;
@@ -25,7 +24,8 @@ struct LogicalExpand : public AliasedLogicalOp {
                 std::vector<std::pair<String, Value>> dst_vertex_properties,
                 ast::EdgeDirection direction);
 
-  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) const override;
+  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
+                                  storage::GraphDB* db) const override;
 
   [[nodiscard]] String DebugString() const override;
   [[nodiscard]] String SubtreeDebugString() const final;
@@ -36,7 +36,6 @@ struct LogicalExpand : public AliasedLogicalOp {
 
   ~LogicalExpand() override = default;
 };
-
 }
 
 #endif //GRAPHDB_LOGICAL_EXPAND_HPP
