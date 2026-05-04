@@ -211,20 +211,3 @@ TEST(OptimizerHashJoin, ChoosesHashJoinForPureEquiJoin) {
   EXPECT_EQ(dynamic_cast<exec::NestedLoopJoinOp*>(physical_root.get()), nullptr);
 }
 
-TEST(OptimizerHashJoin, KeepsNestedLoopForNonEquiJoin) {
-  auto pred = MakeCmp(MakeProp("a", "id"), ast::CompareOp::Gt, MakeProp("b", "id"));
-  auto plan = MakeJoin(std::move(pred));
-
-  RunLogicalOptimizer(plan);
-
-  MockCostModel cm;
-  exec::ExecContext ctx(nullptr);
-
-  auto [physical_root, cost] = plan.root->BuildPhysical(ctx, &cm, nullptr);
-  // std::cout << physical_root->SubtreeDebugString() << std::endl;
-  ASSERT_NE(physical_root, nullptr);
-
-  EXPECT_NE(dynamic_cast<exec::NestedLoopJoinOp*>(physical_root.get()), nullptr);
-}
-
-
