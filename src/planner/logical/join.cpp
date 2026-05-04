@@ -20,7 +20,7 @@ BuildPhysicalType LogicalJoin::BuildPhysical(
   auto left_build = left->BuildPhysical(ctx, cost_model, db);
   auto right_build = right->BuildPhysical(ctx, cost_model, db);
 
-  auto [hash_join_cost, left_keys_expr, right_keys_expr] =
+  auto [hash_join_cost, left_keys_expr, right_keys_expr, parent_filter_expr] =
     optimizer::EstimateHashJoin(this, ctx, cost_model, db, left_build.second, right_build.second);
 
   optimizer::CostEstimate dummy_join_cost = cost_model->EstimateNestedJoin(
@@ -35,17 +35,26 @@ BuildPhysicalType LogicalJoin::BuildPhysical(
       ),
       dummy_join_cost
     );
-  } else {
-    return std::make_pair(
-      std::make_unique<exec::HashJoinOp>(
-          std::move(left_build.first),
-          std::move(right_build.first),
-        std::move(left_keys_expr),
-        std::move(right_keys_expr)
-        ),
-        hash_join_cost
-      );
   }
+  auto hash_join = std::make_unique<exec::HashJoinOp>(
+    std::move(left_build.first),
+    std::move(right_build.first),
+  std::move(left_keys_expr),
+  std::move(right_keys_expr)
+  );
+  if (parent_filter_expr == nullptr) {
+    return std::make_pair(
+      std::move(hash_join),
+      hash_join_cost
+    );
+  }
+  return std::make_pair(
+  std::make_unique<exec::FilterOp>(
+      std::move(parent_filter_expr),
+      std::move(hash_join)
+    ),
+    hash_join_cost
+  );
 }
 
 }

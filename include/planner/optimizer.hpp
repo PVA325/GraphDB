@@ -125,7 +125,7 @@ private:
   static constexpr double kCpuHashProbe = 5.0;
 };
 
-std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec> EstimateHashJoin(
+std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec, std::unique_ptr<ast::Expr>> EstimateHashJoin(
   const logical::LogicalJoin* join, ::graph::exec::ExecContext& ctx,
   CostModel* cost_model, storage::GraphDB* db,
   const CostEstimate& left_cost, const CostEstimate& right_cost

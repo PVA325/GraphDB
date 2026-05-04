@@ -16,4 +16,8 @@ FilterOp::FilterOp(
   predicate(predicate) {
 }
 
+FilterOp::FilterOp(std::unique_ptr<ast::Expr> predicate, PhysicalOpPtr child):
+  PhysicalOpUnaryChild(std::move(child)),
+  predicate_storage(std::move(predicate)),
+  predicate(predicate_storage.get()) {}
 }

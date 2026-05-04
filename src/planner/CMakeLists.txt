@@ -41,7 +41,6 @@ add_library(planner SHARED
         physical/operations/delete.cpp
         physical/operations/sort.cpp
 
-        physical_operations.cpp
         debug_planner.cpp
         cost_model.cpp
         optimizer.cpp
