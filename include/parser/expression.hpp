@@ -25,7 +25,7 @@ struct Expr {
   virtual ~Expr() = default;
 
   // Creates a deep copy of the expression.
-  virtual std::unique_ptr<Expr> copy() const = 0;
+  virtual Expr* copy() const = 0;
 
   // Evaluate expression.
   virtual Value operator()(const EvalContext& ctx) const = 0;
@@ -34,7 +34,7 @@ struct Expr {
   virtual ExprType Type() const = 0;
 
   // Collects all aliases used in the expression into the provided vector.
-  virtual void CollectAliases(std::vector<std::string>& aliases) const = 0;
+  virtual std::string CollectAliases() const = 0;
 
   // Debug string representation.
   virtual std::string DebugString() const = 0;
@@ -46,6 +46,8 @@ using ExprPtr = std::unique_ptr<Expr>;
 struct LiteralExpr : Expr {
   Literal literal;
 
+  virtual LiteralExpr* copy() const;
+
   Value operator()(const EvalContext& ctx) const override;
 
   std::string DebugString() const override;
@@ -55,6 +57,10 @@ struct LiteralExpr : Expr {
 struct PropertyExpr : Expr {
   std::string alias;
   std::string property;
+
+  PropertyExpr() = default;
+
+  virtual PropertyExpr* copy() const;
 
   Value operator()(const EvalContext& ctx) const override;
 
@@ -77,6 +83,11 @@ struct ComparisonExpr : Expr {
   CompareOp op;
   ExprPtr right_expr;
 
+  ComparisonExpr() = default;
+  ComparisonExpr(Expr* l, CompareOp op, Expr* r): left_expr(l), op(op), right_expr(r) {}
+
+  virtual ComparisonExpr* copy() const;
+
   Value operator()(const EvalContext& ctx) const override;
 
   std::string DebugString() const override;
@@ -96,6 +107,8 @@ struct LogicalExpr : Expr {
 
   LogicalExpr() = default;
   LogicalExpr(Expr* l, LogicalOp op, Expr* r): left_expr(l), op(op), right_expr(r) {}
+
+  virtual LogicalExpr* copy() const;
 
   Value operator()(const EvalContext& ctx) const override;
 
