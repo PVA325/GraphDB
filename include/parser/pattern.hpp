@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "value.hpp"
+#include "common/common_value.hpp"
 
 namespace ast {
 
@@ -20,13 +21,6 @@ struct NodePattern {
   size_t col = 0;
 
   std::string DebugString() const;
-};
-
-// Edge direction.
-enum class EdgeDirection {
-  Left,
-  Right,
-  Undirected
 };
 
 // Edge pattern between nodes.
