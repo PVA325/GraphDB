@@ -2,6 +2,16 @@
 #define GRAPHDB_COMMON_VALUE_HPP
 #include <variant>
 #include <memory>
+#include <vector>
+
+namespace ast {
+// Edge direction.
+enum class EdgeDirection {
+  Left,
+  Right,
+  Undirected
+};
+}
 
 namespace graph {
 using Int = int64_t;
@@ -36,7 +46,7 @@ struct Node {
   std::vector<std::string> labels;
   Properties properties;
 };
-
+struct GraphDB;
 }  // namespace storage
 
 namespace graph::exec {
@@ -103,5 +113,9 @@ struct CostEstimate {
   }
 };
 } // namespace graph::optimizer
+
+namespace graph::logical {
+using BuildPhysicalType = std::pair<exec::PhysicalOpPtr, optimizer::CostEstimate>;
+}  // namespace graph::logical
 
 #endif //GRAPHDB_COMMON_VALUE_HPP
