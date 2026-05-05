@@ -3,7 +3,7 @@
 
 #include "common/common_value.hpp"
 #include "logical/logical_op.hpp"
-#include "logical/logical_op_binary_child.hpp"
+#include "logical/logical_op_many_children.hpp"
 #include "logical/logical_op_aliased.hpp"
 #include "logical/logical_scan.hpp"
 #include "logical/logical_expand.hpp"

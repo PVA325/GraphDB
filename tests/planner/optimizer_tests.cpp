@@ -154,8 +154,8 @@ TEST(OptimizerFilterPushdown, PushesSidePredicatesBelowJoin) {
   auto* join = dynamic_cast<logical::LogicalJoin*>(plan.root.get());
   ASSERT_NE(join, nullptr);
 
-  auto* left_filter = dynamic_cast<logical::LogicalFilter*>(join->left.get());
-  auto* right_filter = dynamic_cast<logical::LogicalFilter*>(join->right.get());
+  auto* left_filter = dynamic_cast<logical::LogicalFilter*>(join->children[0].get());
+  auto* right_filter = dynamic_cast<logical::LogicalFilter*>(join->children[1].get());
 
   ASSERT_NE(left_filter, nullptr) << "Predicate for a.* should be pushed to the left side";
   ASSERT_NE(right_filter, nullptr) << "Predicate for b.* should be pushed to the right side";
@@ -163,6 +163,7 @@ TEST(OptimizerFilterPushdown, PushesSidePredicatesBelowJoin) {
   EXPECT_NE(dynamic_cast<logical::LogicalScan*>(left_filter->child.get()), nullptr);
   EXPECT_NE(dynamic_cast<logical::LogicalScan*>(right_filter->child.get()), nullptr);
 }
+
 
 TEST(OptimizerFilterPushdown, PushesSingleSidePredicateOnlyToThatSide) {
   auto pred = MakeCmp(MakeProp("a", "x"), ast::CompareOp::Eq, MakeLiteral(1));
@@ -173,11 +174,11 @@ TEST(OptimizerFilterPushdown, PushesSingleSidePredicateOnlyToThatSide) {
   auto* join = dynamic_cast<logical::LogicalJoin*>(plan.root.get());
   ASSERT_NE(join, nullptr);
 
-  auto* left_filter = dynamic_cast<logical::LogicalFilter*>(join->left.get());
+  auto* left_filter = dynamic_cast<logical::LogicalFilter*>(join->children[0].get());
   ASSERT_NE(left_filter, nullptr);
   EXPECT_NE(dynamic_cast<logical::LogicalScan*>(left_filter->child.get()), nullptr);
 
-  EXPECT_NE(dynamic_cast<logical::LogicalScan*>(join->right.get()), nullptr);
+  EXPECT_NE(dynamic_cast<logical::LogicalScan*>(join->children[1].get()), nullptr);
 }
 
 TEST(OptimizerFilterPushdown, KeepsCrossPredicateAtJoinLevel) {
@@ -191,8 +192,8 @@ TEST(OptimizerFilterPushdown, KeepsCrossPredicateAtJoinLevel) {
   ASSERT_NE(join, nullptr);
 
   EXPECT_NE(join->predicate, nullptr);
-  EXPECT_EQ(dynamic_cast<logical::LogicalFilter*>(join->left.get()), nullptr);
-  EXPECT_EQ(dynamic_cast<logical::LogicalFilter*>(join->right.get()), nullptr);
+  EXPECT_EQ(dynamic_cast<logical::LogicalFilter*>(join->children[0].get()), nullptr);
+  EXPECT_EQ(dynamic_cast<logical::LogicalFilter*>(join->children[1].get()), nullptr);
 }
 
 TEST(OptimizerHashJoin, ChoosesHashJoinForPureEquiJoin) {

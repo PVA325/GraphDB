@@ -22,6 +22,7 @@ namespace {
       return;
     }
 
+    std::vector<std::unique_ptr<graph::logical::LogicalOp>> scans;
     for (const Pattern &pattern_vec: ast_match->patterns) {
       std::unique_ptr<AliasedLogicalOp> cur_root = nullptr;
       for (size_t idx = 0; idx < pattern_vec.elements.size(); ++idx) {
@@ -58,13 +59,17 @@ namespace {
           edge_pattern.direction
         ));
       }
-      if (!plan.root) {
-        plan.root = std::move(cur_root);
-        continue;
-      }
+      scans.emplace_back(std::move(cur_root));
+    }
+#ifndef NDEBUG
+    assert(!scans.empty());
+#endif
+
+    if (scans.size() == 1) {
+      plan.root = std::move(scans[0]);
+    } else {
       plan.root = std::make_unique<LogicalJoin>(
-        std::move(plan.root),
-        std::move(cur_root)
+        std::move(scans)
       );
     }
   }

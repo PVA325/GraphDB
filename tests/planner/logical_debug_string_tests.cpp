@@ -47,11 +47,10 @@ struct TestUnaryOp final : graph::logical::LogicalOpUnaryChild {
   String debug_;
 };
 
-struct TestBinaryOp final : graph::logical::LogicalOpBinaryChild {
-  TestBinaryOp(graph::logical::LogicalOpPtr left,
-               graph::logical::LogicalOpPtr right,
+struct TestBinaryOp final : graph::logical::LogicalOpManyChildren {
+  TestBinaryOp(std::vector<graph::logical::LogicalOpPtr> children,
                String debug)
-      : LogicalOpBinaryChild(std::move(left), std::move(right)),
+      : LogicalOpManyChildren(std::move(children)),
         debug_(std::move(debug)) {}
 
   String DebugString() const override {
@@ -112,7 +111,9 @@ TEST(LogicalDebugString, UnarySubtreeIsIndented) {
 TEST(LogicalDebugString, BinarySubtreeHasLeftAndRightMarkers) {
   auto left = std::make_unique<TestLeafOp>("Left");
   auto right = std::make_unique<TestLeafOp>("Right");
-  TestBinaryOp op(std::move(left), std::move(right), "Binary");
+  std::vector<graph::logical::LogicalOpPtr> ch;
+  ch.emplace_back(std::move(left)); ch.emplace_back(std::move(right));
+  TestBinaryOp op(std::move(ch), "Binary");
 
   EXPECT_EQ(op.DebugString(), "Binary");
   EXPECT_EQ(op.SubtreeDebugString(), "Binary\n1)\n  Left\n2)\n  Right");
@@ -192,7 +193,9 @@ TEST(LogicalDebugString, LogicalProjectWithAliases) {
 TEST(LogicalDebugString, LogicalJoinCrossDebugString) {
   auto left = std::make_unique<TestLeafOp>("Left");
   auto right = std::make_unique<TestLeafOp>("Right");
-  graph::logical::LogicalJoin op(std::move(left), std::move(right));
+  std::vector<graph::logical::LogicalOpPtr> ch;
+  ch.emplace_back(std::move(left)); ch.emplace_back(std::move(right));
+  graph::logical::LogicalJoin op(std::move(ch));
 
   EXPECT_EQ(op.DebugString(), "Join(cross)");
   EXPECT_EQ(op.SubtreeDebugString(), "Join(cross)\n1)\n  Left\n2)\n  Right");
@@ -202,8 +205,9 @@ TEST(LogicalDebugString, LogicalJoinWithPredicate) {
   auto left = std::make_unique<TestLeafOp>("Left");
   auto right = std::make_unique<TestLeafOp>("Right");
   auto pred = std::make_unique<FakeExpr>("a.id = b.id");
-
-  graph::logical::LogicalJoin op(std::move(left), std::move(right), std::move(pred));
+  std::vector<graph::logical::LogicalOpPtr> ch;
+  ch.emplace_back(std::move(left)); ch.emplace_back(std::move(right));
+  graph::logical::LogicalJoin op(std::move(ch), std::move(pred));
 
   EXPECT_EQ(op.DebugString(), "Join(on=a.id = b.id)");
 }

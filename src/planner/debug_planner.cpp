@@ -140,10 +140,12 @@ String LogicalExpand::SubtreeDebugString() const {
   return DebugString() + "\n" + (child ? IndentBlock(child->SubtreeDebugString()) : "");
 }
 
-String LogicalOpBinaryChild::SubtreeDebugString() const {
-  return DebugString() + "\n"
-    + "1)\n" + (left ? IndentBlock(left->SubtreeDebugString()) : "") + "\n"
-    + "2)\n" + (right ? IndentBlock(right->SubtreeDebugString()) : "");
+String LogicalOpManyChildren::SubtreeDebugString() const {
+  int x = 1;
+  return DebugString() + "\n" +
+    Join(children, "\n", [&x](const LogicalOpPtr& cur) {
+      return std::format("{})\n{}", x++, IndentBlock(cur->DebugString()));
+    });
 }
 
 String LogicalScan::DebugString() const {

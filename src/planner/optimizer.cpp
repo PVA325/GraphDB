@@ -19,17 +19,32 @@ namespace graph::optimizer {
 double CostEstimate::kCostEstimateInf{1e15};
 
 struct FilterPushdown {
-  std::unique_ptr<ast::Expr> push_left_expr{nullptr};
-  std::unique_ptr<ast::Expr> push_right_expr{nullptr};
+  size_t child_cnt;
+  std::vector<std::unique_ptr<ast::Expr>> push_child_expr;
   std::unique_ptr<ast::Expr> cross_expr{nullptr};
 
+  FilterPushdown(size_t n) {
+    child_cnt = n;
+    push_child_expr.reserve(n);
+    for (size_t i = 0; i < n; ++i) { push_child_expr.emplace_back(nullptr); }
+  }
+  FilterPushdown(size_t n, size_t idx, std::unique_ptr<ast::Expr> expr): FilterPushdown(n) {
+    push_child_expr[idx] = std::move(expr);
+  }
 
+  FilterPushdown(size_t n, std::unique_ptr<ast::Expr> cross_expr_): FilterPushdown(n) {
+    cross_expr = std::move(cross_expr_);
+  }
   static FilterPushdown Merge(FilterPushdown& left, FilterPushdown& right) {
-    return FilterPushdown{
-      MergeExpr(std::move(left.push_left_expr), std::move(right.push_left_expr)),
-      MergeExpr(std::move(left.push_right_expr), std::move(right.push_right_expr)),
-      MergeExpr(std::move(left.cross_expr), std::move(right.cross_expr))
-    };
+    assert(left.child_cnt == right.child_cnt);
+
+    FilterPushdown ans(left.child_cnt);
+    ans.child_cnt = left.child_cnt;
+    ans.cross_expr = MergeExpr(std::move(left.cross_expr), std::move(right.cross_expr));
+    for (size_t i = 0; i < ans.child_cnt; ++i) {
+      ans.push_child_expr[i] = MergeExpr(std::move(left.push_child_expr[i]), std::move(right.push_child_expr[i]));
+    }
+    return ans;
   }
 
 private:
@@ -47,31 +62,43 @@ private:
 };
 
 FilterPushdown ParseFilterExpr(const ast::Expr* expr,
-                               const std::vector<String>& left_aliases,
-                               const std::vector<String>& right_aliases) {
-  static auto aliases_crosses = [](const std::vector<String>& l, const std::vector<String>& r) -> bool {
+                               const std::vector<std::vector<String> >& ljoin_aliases) {
+  size_t child_cnt = ljoin_aliases.size();
+  auto aliases_intersects = [](const std::vector<String>& l, const std::vector<String>& r) -> bool {
     return std::any_of(l.begin(), l.end(), [&r](const String& s) {
       return std::find(r.begin(), r.end(), s) != r.end();
     });
   };
+  auto aliases_intersects_with_one = [&ljoin_aliases, &aliases_intersects](
+    const std::vector<String>& aliases) {
+    return std::count_if(ljoin_aliases.begin(), ljoin_aliases.end(), [&aliases, &aliases_intersects](const auto& cur_ljoin_a) {
+      return aliases_intersects(aliases, cur_ljoin_a);
+    }) == 1;
+  };
+  auto aliases_find_intersection_with_one = [&ljoin_aliases, &aliases_intersects](
+    const std::vector<String>& aliases) {
+    return std::find_if(ljoin_aliases.begin(), ljoin_aliases.end(), [&aliases, &aliases_intersects](const auto& cur_ljoin_a) {
+      return aliases_intersects(aliases, cur_ljoin_a);
+    }) - ljoin_aliases.begin();
+  };
+
+
   // auto expr_aliases = expr->CollectAliases();
   std::vector<String> expr_aliases;
   expr->CollectAliases(expr_aliases);
   if (expr_aliases.empty()) {
-    return {};
+    return {child_cnt};
+  }
+  if (aliases_intersects_with_one(expr_aliases)) {
+    size_t join_idx = aliases_find_intersection_with_one(expr_aliases);
+    return FilterPushdown(child_cnt, join_idx, expr->copy());
   }
 
-  if (!aliases_crosses(right_aliases, expr_aliases)) {
-    return {expr->copy(), nullptr, nullptr};
-  }
-  if (!aliases_crosses(left_aliases, expr_aliases)) {
-    return {nullptr, expr->copy(), nullptr};
-  }
 #ifdef DEBUG
   assert(expr->Type() == ast::ExprType::Logical || expr->Type() == ast::ExprType::Comparison);
 #endif
   if (expr->Type() == ast::ExprType::Comparison) {
-    return {nullptr, nullptr, expr->copy()};
+    return {child_cnt, expr->copy()};
   }
   ast::Expr* left_expr = (expr->Type() == ast::ExprType::Logical
                             ? dynamic_cast<const ast::LogicalExpr*>(expr)->left_expr.get()
@@ -82,8 +109,8 @@ FilterPushdown ParseFilterExpr(const ast::Expr* expr,
                              : dynamic_cast<const ast::ComparisonExpr*>(expr)->right_expr.get()
   );
 
-  FilterPushdown left_pushdown = ParseFilterExpr(left_expr, left_aliases, right_aliases);
-  FilterPushdown right_pushdown = ParseFilterExpr(right_expr, left_aliases, right_aliases);
+  FilterPushdown left_pushdown = ParseFilterExpr(left_expr, ljoin_aliases);
+  FilterPushdown right_pushdown = ParseFilterExpr(right_expr, ljoin_aliases);
 
   return FilterPushdown::Merge(left_pushdown, right_pushdown);
 }
@@ -101,7 +128,6 @@ void PushFilterDown(logical::LogicalOp* op) {
     throw std::runtime_error("Error, optimize_logical_plan_impl: filter has no child");
   }
 
-
   auto child_op = filter_op->child.get();
 #ifndef NDEBUG
   assert(child_op->Type() == logical::LogicalOpType::Scan || child_op->Type() == logical::LogicalOpType::Join);
@@ -111,24 +137,25 @@ void PushFilterDown(logical::LogicalOp* op) {
   }
   auto child_join = dynamic_cast<logical::LogicalJoin*>(child_op);
 
-  auto left_alias_plan = child_join->left->GetSubtreeAliases();
-  auto right_alias_plan = child_join->right->GetSubtreeAliases();
+  std::vector<std::vector<String>> ljoin_child_aliases(child_join->children.size());
+  for (size_t i = 0; i < child_join->children.size(); ++i) {
+    const auto& curr_join = child_join->children[i];
+    ljoin_child_aliases[i] = curr_join->GetSubtreeAliases();
+  }
 
-  FilterPushdown new_expressions = ParseFilterExpr(expr, left_alias_plan, right_alias_plan);
+  FilterPushdown new_expressions = ParseFilterExpr(expr, ljoin_child_aliases);
   filter_op->predicate = std::move(new_expressions.cross_expr);
 
-  if (new_expressions.push_left_expr) {
-    child_join->left = std::make_unique<logical::LogicalFilter>(
-      std::move(child_join->left),
-      std::move(new_expressions.push_left_expr)
-    );
+  for (size_t i = 0; i < new_expressions.child_cnt; ++i) {
+    auto& cur_push_expr = new_expressions.push_child_expr[i];
+    if (cur_push_expr) {
+      child_join->children[i] = std::make_unique<logical::LogicalFilter>(
+        std::move(child_join->children[i]),
+        std::move(new_expressions.push_child_expr[i])
+      );
+    }
   }
-  if (new_expressions.push_right_expr) {
-    child_join->right = std::make_unique<logical::LogicalFilter>(
-      std::move(child_join->right),
-      std::move(new_expressions.push_right_expr)
-    );
-  }
+
 }
 
 void OptimizePushFilter(logical::LogicalOp* op, logical::LogicalOp* par = nullptr) {
@@ -169,9 +196,10 @@ std::unique_ptr<logical::LogicalOp> FilterToJoin(std::unique_ptr<logical::Logica
   if (auto* op_unary = dynamic_cast<logical::LogicalOpUnaryChild*>(op.get())) {
     op_unary->child = std::move(FilterToJoin(std::move(op_unary->child)));
   }
-  if (auto* op_binary = dynamic_cast<logical::LogicalOpBinaryChild*>(op.get())) {
-    op_binary->left = std::move(FilterToJoin(std::move(op_binary->left)));
-    op_binary->right = std::move(FilterToJoin(std::move(op_binary->right)));
+  if (auto* op_binary = dynamic_cast<logical::LogicalOpManyChildren*>(op.get())) {
+    for (auto& child_op : op_binary->children) {
+      child_op = std::move(FilterToJoin(std::move(child_op)));
+    }
   }
 
   if (auto op_filter = dynamic_cast<logical::LogicalFilter*>(op.get())) {
@@ -275,15 +303,20 @@ std::tuple<bool, ExprPtrVec, ExprPtrVec, std::unique_ptr<ast::Expr>> CutExpressi
 }
 
 std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec, std::unique_ptr<ast::Expr>> EstimateHashJoin(
-  const logical::LogicalJoin* join, exec::ExecContext& ctx,
-  CostModel* cost_model, storage::GraphDB* db,
-  const CostEstimate& left_cost, const CostEstimate& right_cost
+  const std::vector<String>& left_aliases,
+  const std::vector<String>& right_aliases,
+  const std::unique_ptr<ast::Expr>& predicate,
+  exec::ExecContext& ctx,
+  CostModel* cost_model,
+  storage::GraphDB* db,
+  const CostEstimate& left_cost,
+  const CostEstimate& right_cost
 ) {
-  if (!join->predicate) {
+  if (!predicate) {
     return {CostEstimate::GetMaxCostEstimate(), ExprPtrVec{}, ExprPtrVec{}, nullptr};
   }
   auto [is_hashjoin_possible, left_keys, right_keys, parent_filter_expr] =
-    CutExpressionForHashJoin(join->predicate.get(), join->left->GetSubtreeAliases(), join->right->GetSubtreeAliases());
+    CutExpressionForHashJoin(predicate.get(), left_aliases, right_aliases);
 
   if (!is_hashjoin_possible) {
     return {CostEstimate::GetMaxCostEstimate(), ExprPtrVec{}, ExprPtrVec{}, nullptr};

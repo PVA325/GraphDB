@@ -126,9 +126,14 @@ private:
 };
 
 std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec, std::unique_ptr<ast::Expr>> EstimateHashJoin(
-  const logical::LogicalJoin* join, ::graph::exec::ExecContext& ctx,
-  CostModel* cost_model, storage::GraphDB* db,
-  const CostEstimate& left_cost, const CostEstimate& right_cost
+  const std::vector<String>& left_aliases,
+  const std::vector<String>& right_aliases,
+  const std::unique_ptr<ast::Expr>& predicate,
+  exec::ExecContext& ctx,
+  CostModel* cost_model,
+  storage::GraphDB* db,
+  const CostEstimate& left_cost,
+  const CostEstimate& right_cost
 );
 } // namespace graph::optimizer;
 #endif //GRAPHDB_OPTIMIZER_HPP
