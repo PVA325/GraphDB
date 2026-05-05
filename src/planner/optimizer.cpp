@@ -62,16 +62,16 @@ FilterPushdown ParseFilterExpr(const ast::Expr* expr,
   }
 
   if (!aliases_crosses(right_aliases, expr_aliases)) {
-    return {expr->copy(), nullptr, nullptr};
+    return {std::unique_ptr<ast::Expr>(expr->copy()), nullptr, nullptr};
   }
   if (!aliases_crosses(left_aliases, expr_aliases)) {
-    return {nullptr, expr->copy(), nullptr};
+    return {nullptr, std::unique_ptr<ast::Expr>(expr->copy()), nullptr};
   }
 #ifdef DEBUG
   assert(expr->Type() == ast::ExprType::Logical || expr->Type() == ast::ExprType::Comparison);
 #endif
   if (expr->Type() == ast::ExprType::Comparison) {
-    return {nullptr, nullptr, expr->copy()};
+    return {nullptr, nullptr, std::unique_ptr<ast::Expr>(expr->copy())};
   }
   ast::Expr* left_expr = (expr->Type() == ast::ExprType::Logical
                             ? dynamic_cast<const ast::LogicalExpr*>(expr)->left_expr.get()
@@ -256,7 +256,7 @@ std::tuple<bool, ExprPtrVec, ExprPtrVec, std::unique_ptr<ast::Expr>> CutExpressi
     ExprPtrVec right_keys = std::move(!std::get<2>(left_cut).empty() ? std::get<2>(left_cut) : std::get<2>(right_cut));
     std::unique_ptr<ast::Expr> parent_filter_expr = MergeExprAnd(std::move(std::get<3>(left_cut)), std::move(std::get<3>(right_cut)));
     if (comp_expr->op != ast::CompareOp::Eq) {
-      parent_filter_expr = MergeExprAnd(std::move(parent_filter_expr), comp_expr->copy());
+      parent_filter_expr = MergeExprAnd(std::move(parent_filter_expr), std::unique_ptr<ast::Expr>(comp_expr->copy()));
       return {
         true,
         ExprPtrVec{},

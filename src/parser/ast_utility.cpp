@@ -1,4 +1,4 @@
-#include "parser/parser.hpp"
+#include "parser/ast_utility.hpp"
 
 #include <cctype>
 #include <sstream>
@@ -12,7 +12,6 @@
 #include "parser/lexer.hpp"
 
 namespace ast {
-namespace {
 
 // Escapes special characters in a string for debug output.
 std::string EscapeString(std::string_view text) {
@@ -179,7 +178,5 @@ bool ToBool(const Value& v) {
     return false;
   }, v);
 }
-
-}  // namespace
 
 }  // namespace ast

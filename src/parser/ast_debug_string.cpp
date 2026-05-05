@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "parser/ast_utility.hpp"
 #include "parser/error.hpp"
 #include "parser/lexer.hpp"
 
