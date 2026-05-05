@@ -25,7 +25,7 @@ struct Expr {
   virtual ~Expr() = default;
 
   // Creates a deep copy of the expression.
-  virtual std::unique_ptr<Expr> copy() const = 0;
+  virtual Expr* copy() const = 0;
 
   // Evaluate expression.
   virtual Value operator()(const EvalContext& ctx) const = 0;
@@ -46,11 +46,12 @@ using ExprPtr = std::unique_ptr<Expr>;
 struct LiteralExpr : Expr {
   Literal literal;
 
+  virtual LiteralExpr* copy() const override;
+
   Value operator()(const EvalContext& ctx) const override;
 
   ExprType Type() const override;
   void CollectAliases(std::vector<std::string>& aliases) const override;
-  std::unique_ptr<Expr> copy() const override;
 
   std::string DebugString() const override;
 };
@@ -60,11 +61,14 @@ struct PropertyExpr : Expr {
   std::string alias;
   std::string property;
 
+  PropertyExpr() = default;
+
+  virtual PropertyExpr* copy() const override;
+
   Value operator()(const EvalContext& ctx) const override;
 
   ExprType Type() const override;
   void CollectAliases(std::vector<std::string>& aliases) const override;
-  std::unique_ptr<Expr> copy() const override;
 
   std::string DebugString() const override;
 };
@@ -86,13 +90,15 @@ struct ComparisonExpr : Expr {
   ExprPtr right_expr;
 
   ComparisonExpr() = default;
+  ComparisonExpr(Expr* l, CompareOp op, Expr* r): left_expr(l), op(op), right_expr(r) {}
   ComparisonExpr(ExprPtr l, CompareOp op, ExprPtr r): left_expr(std::move(l)), op(op), right_expr(std::move(r)) {}
+
+  virtual ComparisonExpr* copy() const override;
 
   Value operator()(const EvalContext& ctx) const override;
 
   ExprType Type() const override;
   void CollectAliases(std::vector<std::string>& aliases) const override;
-  std::unique_ptr<Expr> copy() const override;
 
   std::string DebugString() const override;
 };
@@ -111,14 +117,14 @@ struct LogicalExpr : Expr {
 
   LogicalExpr() = default;
   LogicalExpr(Expr* l, LogicalOp op, Expr* r): left_expr(l), op(op), right_expr(r) {}
-
   LogicalExpr(ExprPtr l, LogicalOp op, ExprPtr r): left_expr(std::move(l)), op(op), right_expr(std::move(r)) {}
+
+  virtual LogicalExpr* copy() const override;
 
   Value operator()(const EvalContext& ctx) const override;
 
   ExprType Type() const override;
   void CollectAliases(std::vector<std::string>& aliases) const override;
-  std::unique_ptr<Expr> copy() const override;
 
   std::string DebugString() const override;
 };

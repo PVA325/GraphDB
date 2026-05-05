@@ -77,7 +77,7 @@ struct FakeExpr final : ast::Expr {
     return false;
   }
 
-  virtual std::unique_ptr<Expr> copy() const override { return std::make_unique<FakeExpr>(*this) ;}
+  virtual Expr* copy() const override { return new FakeExpr(*this); }
 
   // Get the type of the expression.
   virtual ast::ExprType Type() const override { return ast::ExprType::Literal; }
