@@ -23,13 +23,6 @@
 #include "optimizer.hpp"
 
 namespace graph::planner {
-// struct PlannerConfig {
-//   // Planner configuration options
-//   bool enable_hash_join = true;
-//   bool enable_index_seek = true;
-//   bool push_down_filters = true;
-// };
-
 
 class Planner {
 public:
@@ -50,7 +43,7 @@ public:
   void optimize_logical_plan();
 
   // For each logical scan enumerate alternatives (index vs scan)
-  // returns vector of alternative LogicalScan nodes (candidates)
+  // returns vector of alternagitive LogicalScan nodes (candidates)
   [[nodiscard]] std::vector<logical::LogicalScan> enumerate_scan_alternatives(const logical::LogicalScan& scan) const;
 
   // chooses join order (returns permutation indices)
