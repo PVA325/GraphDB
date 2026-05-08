@@ -77,6 +77,7 @@ struct Row {
   template <typename T>
     requires std::is_constructible_v<RowSlot, T>
   void AddValue(const T& val, const String& alias, const String& error_msg = "") {
+    if (alias == "") return;
     if (slots_mapping.key_exists(alias)) {
       throw std::runtime_error(error_msg);
     }

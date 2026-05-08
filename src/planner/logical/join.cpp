@@ -55,7 +55,7 @@ void FindFirstPairToJoin(
   optimizer::CostEstimate first_pair_cost = optimizer::CostEstimate::GetMaxCostEstimate();
   std::pair<size_t, size_t> first_pair_idx = {0, 1};
   for (size_t i = 0; i < builds.size(); ++i) {
-    for (size_t j = 0; j < builds.size(); ++j) {
+    for (size_t j = i + 1; j < builds.size(); ++j) {
       auto [hash_join_cost, _0, _1, _2] =
         optimizer::EstimateHashJoin(aliases[i], aliases[j], predicate, ctx, cost_model, db, builds[i].second,
                                     builds[j].second);
@@ -143,7 +143,7 @@ BuildPhysicalType LogicalJoin::BuildPhysical(
     aliases.emplace_back(std::move(child->GetSubtreeAliases()));
   }
 
-  // FindFirstPairToJoin(predicate, builds, aliases, ctx, cost_model, db);
+  FindFirstPairToJoin(predicate, builds, aliases, ctx, cost_model, db);
 
   auto cur_build_plan = std::move(builds[0]);
   std::vector<String> collected_aliases = aliases[0];
@@ -159,6 +159,7 @@ BuildPhysicalType LogicalJoin::BuildPhysical(
     collected_aliases.insert(collected_aliases.end(), std::make_move_iterator(right_aliases.begin()),
                              std::make_move_iterator(right_aliases.end()));
 
+    FindNewToJoin(i + 1, cur_build_plan, collected_aliases, predicate, builds, aliases, ctx, cost_model, db);
   }
   return cur_build_plan;
 }

@@ -14,7 +14,7 @@ using lexer::TokenType;
 
 class Parser {
  public:
-  explicit Parser(const std::vector<Token>& tokens);
+  explicit Parser(std::vector<Token> tokens);
 
   ast::QueryAST ParseSingle();
   std::vector<ast::QueryAST> Parse();
@@ -65,7 +65,7 @@ class Parser {
   ast::ExprPtr ParsePrimary();
   ast::PropertyExpr ParsePropertyExpr();
 
-  const std::vector<Token>& tokens_;
+  std::vector<Token> tokens_;
   size_t current_ = 0;
 };
 

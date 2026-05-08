@@ -11,5 +11,3 @@ add_subdirectory(src)
 
 add_subdirectory(tests)
 
-add_executable(tmp src/tmp_main.cpp)
-target_link_libraries(tmp PRIVATE planner)

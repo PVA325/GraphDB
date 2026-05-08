@@ -81,7 +81,7 @@ std::string StripQuotes(const std::string& text) {
 
 }  // namespace
 
-Parser::Parser(const std::vector<Token>& tokens)
+Parser::Parser(std::vector<Token> tokens)
       : tokens_(std::move(tokens)) {}
 
 // Parses a single query.

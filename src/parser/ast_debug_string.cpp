@@ -335,6 +335,10 @@ std::string QueryAST::DebugString() const {
     result += limit_clause->DebugString() + "\n";
   }
 
+  if (create_clause) {
+    result += create_clause->DebugString() + "\n";
+  }
+
   return result;
 }
 
