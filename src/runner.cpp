@@ -147,7 +147,7 @@ int main() {
 
     parser::Parser parser(lexer::Lex(input));
     ast::QueryAST ast = parser.ParseSingle();
-    std::cout << ast.DebugString() << std::endl;
+
     graph::exec::ExecContext ctx(&db);
     graph::planner::Planner planner(ctx, &db, std::move(ast));
 

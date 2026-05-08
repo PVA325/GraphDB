@@ -130,12 +130,14 @@ void PushFilterDown(logical::LogicalOp* op) {
 
   auto child_op = filter_op->child.get();
 #ifndef NDEBUG
-  assert(child_op->Type() == logical::LogicalOpType::Scan || child_op->Type() == logical::LogicalOpType::Join);
+  if (child_op->Type() != logical::LogicalOpType::Scan && child_op->Type() != logical::LogicalOpType::Join && child_op->Type() != logical::LogicalOpType::Expand) {
+    throw std::logic_error(std::format("PushFilterDown: Error Filter hash type of son: {}", static_cast<int>(child_op->Type())));
+  }
 #endif
-  if (child_op->Type() == logical::LogicalOpType::Scan) {
+  auto child_join = dynamic_cast<logical::LogicalJoin*>(child_op);
+  if (!child_join) {
     return;
   }
-  auto child_join = dynamic_cast<logical::LogicalJoin*>(child_op);
 
   std::vector<std::vector<String>> ljoin_child_aliases(child_join->children.size());
   for (size_t i = 0; i < child_join->children.size(); ++i) {
