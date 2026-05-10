@@ -37,7 +37,7 @@ struct SlotMapping {
 private:
   std::unordered_map<std::string, size_t> alias_to_slot;
 
-  friend Row MergeRows(Row& first, Row& second);
+  friend std::tuple<Row, bool> MergeRows(Row& first, Row& second);
 };
 
 struct Row {

@@ -26,24 +26,29 @@ HashJoinCursor::HashJoinCursor(RowCursorPtr left_cursor_a, RowCursorPtr right_cu
 }
 
 bool HashJoinCursor::next(Row& out) {
-  while (it_left == left_rows.end() || it_left->second.size() <= vec_left_idx) {
-    last_right_row.clear();
-    if (!right_cursor->next(last_right_row)) {
-      return false;
-    }
-    CompositeKey right_key = GetCompositeKey(last_right_row, right_keys);
-    auto it = left_rows.find(right_key);
+  while (true) {
+    while (it_left == left_rows.end() || it_left->second.size() <= vec_left_idx) {
+      last_right_row.clear();
+      if (!right_cursor->next(last_right_row)) {
+        return false;
+      }
+      CompositeKey right_key = GetCompositeKey(last_right_row, right_keys);
+      auto it = left_rows.find(right_key);
 
-    if (it != left_rows.end() && !it->second.empty()) {
-      it_left = it;
-      vec_left_idx = 0;
-      break;
+      if (it != left_rows.end() && !it->second.empty()) {
+        it_left = it;
+        vec_left_idx = 0;
+        break;
+      }
+    }
+
+    Row left_row = it_left->second[vec_left_idx++];
+    auto [out_row, is_mergeable] = MergeRows(left_row, last_right_row);
+    if (is_mergeable) {
+      out = std::move(out_row);
+      return true;
     }
   }
-
-  Row left_row = it_left->second[vec_left_idx++];
-  out = MergeRows(left_row, last_right_row);
-  return true;
 }
 
 void HashJoinCursor::close() {

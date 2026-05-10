@@ -2,6 +2,7 @@
 #define GRAPHDB_PHYSICAL_PLAN_HPP
 
 #include "common/common_value.hpp"
+#include "physical/physical_utils.hpp"
 #include "physical/operations/exec_context.hpp"
 #include "physical/cursors/row_cursor.hpp"
 #include "physical/operations/physical_op.hpp"
@@ -36,11 +37,5 @@
 #include "physical/operations/sort.hpp"
 #include "physical/operations/physical_plan.hpp"
 
-namespace graph::exec {
-
-Row MergeRows(Row& first, Row& second);
-Value GetFeatureFromSlot(const RowSlot& slot, const String& feature_key);
-
-}
 
 #endif //GRAPHDB_PHYSICAL_PLAN_HPP

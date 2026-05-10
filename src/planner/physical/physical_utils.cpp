@@ -15,27 +15,25 @@ Value GetFeatureFromSlot(const RowSlot& slot, const String& feature_key) {
   return std::get<Node*>(slot.value)->properties[feature_key];
 }
 
-Row MergeRows(Row& first, Row& second) {
-  static auto check_vectors_intersects = [](const std::vector<String>& f, const std::vector<String>& s) {
-    return std::any_of(f.begin(), f.end(), [&s](const String& str) {
-      return std::find(s.begin(), s.end(), str) != s.end();
-    });
-  };
-#ifndef NDEBUG
-  assert(!check_vectors_intersects(first.slots_names, second.slots_names));
-#endif
-  Row ans;
-  ans.slots.insert(ans.slots.end(), first.slots.begin(), first.slots.end());
-  ans.slots.insert(ans.slots.end(), second.slots.begin(), second.slots.end());
+std::tuple<Row, bool> MergeRows(const Row& first, const Row& second) {
+  Row ans = first;
 
-  ans.slots_names.insert(ans.slots_names.end(), first.slots_names.begin(), first.slots_names.end());
-  ans.slots_names.insert(ans.slots_names.end(), second.slots_names.begin(), second.slots_names.end());
+  for (size_t i = 0; i < second.slots_names.size(); ++i) {
+    const auto& name = second.slots_names[i];
 
-  for (size_t i = 0; i < ans.slots_names.size(); ++i) {
-    ans.slots_mapping.add_map(ans.slots_names[i], i);
+    if (ans.slots_mapping.key_exists(name)) {
+      size_t pos = ans.slots_mapping.map(name);
+      if (ans.slots[pos] != second.slots[i]) {
+        return {Row{}, false};
+      }
+    } else {
+      ans.slots.emplace_back(second.slots[i]);
+      ans.slots_names.emplace_back(name);
+      ans.slots_mapping.add_map(ans.slots_names.back(), ans.slots.size() - 1);
+    }
   }
 
-  return ans;
+  return {std::move(ans), true};
 }
 
 }

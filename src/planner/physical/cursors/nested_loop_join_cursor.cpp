@@ -26,13 +26,16 @@ bool NestedLoopJoinCursor::next(Row& out) {
       }
       right_cursor = std::move(right_operation->open(ctx));
     } else  {
-      Row new_row = MergeRows(left_row, right_row);
+      auto [new_row, is_mergeable] = MergeRows(left_row, right_row);
+      if (!is_mergeable) {
+        continue;
+      }
+
       ast::EvalContext exec_ctx{new_row};
       if (predicate == nullptr || PlannerUtils::ValueToBool((*predicate)(exec_ctx))) {
         out = std::move(new_row);
         return true;
       }
-
     }
   }
   return false;
