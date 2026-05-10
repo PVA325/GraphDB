@@ -40,7 +40,7 @@ std::pair<CostEstimate, String> DefaultCostModel::EstimateIndexSeekLabel(
 
   auto total_nodes = static_cast<double>(db->node_count());
   const double labels_sel = EstimateNodeLabelsSelectivity(scan.labels, db);
-  const auto [best_label_sel, best_label] = EstimateBiggestLabelSelectivity(scan.labels, db);
+  const auto [best_label_sel, best_label] = EstimateLowestLabelSelectivity(scan.labels, db);
   const double prop_sel = EstimateNodePropertySelectivity(scan.property_filters, db);
   const double index_rows = best_label_sel * total_nodes;
 
@@ -97,10 +97,10 @@ CostEstimate DefaultCostModel::EstimateFilter(
   }
 
   CostEstimate filter_cost;
-  filter_cost.row_count = input.row_count;
+  filter_cost.row_count = input.row_count * EstimateExprSelectivity(pred, db);
 
   filter_cost.cpu_cost = input.cpu_cost
-                       + input.row_count * kFilterCpu;
+                         + input.row_count * kFilterCpu * EstimateExprCpuCost(pred, db);
 
   filter_cost.io_cost = input.io_cost;
   filter_cost.startup_cost = input.startup_cost;
@@ -121,11 +121,11 @@ CostEstimate DefaultCostModel::EstimateNestedJoin(
   double pair_count = left.row_count * right.row_count;
 
   CostEstimate join_cost;
-  join_cost.row_count = pair_count;
+  join_cost.row_count = pair_count * EstimateExprSelectivity(pred, db);
 
   join_cost.cpu_cost = left.cpu_cost
                      + right.cpu_cost
-                     + pair_count * (kFilterCpu + kCpuPerRow);
+                     + pair_count * (kFilterCpu + kCpuPerRow) * EstimateExprCpuCost(pred, db);
 
   join_cost.io_cost = left.io_cost + right.io_cost;
   join_cost.startup_cost = left.startup_cost + right.startup_cost + 1.0;
@@ -147,12 +147,16 @@ CostEstimate DefaultCostModel::EstimateHashJoin(
   double build = left.row_count;
   double probe = right.row_count;
 
+  auto predicate = CreateExprByHashJoinKeys(left_keys, right_keys);
+  double sel = EstimateExprSelectivity((predicate ? predicate.get() : nullptr), db);
+  double predicate_evaluation_cost = EstimateExprCpuCost((predicate ? predicate.get() : nullptr), db);
+
   CostEstimate join_cost;
-  join_cost.row_count = left.row_count * right.row_count;
+  join_cost.row_count = left.row_count * right.row_count * sel;
 
   join_cost.cpu_cost = left.cpu_cost
                      + right.cpu_cost
-                     + (build * kCpuHashBuild + probe * kCpuHashProbe) * left_keys.size();
+                     + (build * kCpuHashBuild + probe * kCpuHashProbe) * predicate_evaluation_cost;
 
   join_cost.io_cost = left.io_cost
                     + right.io_cost
@@ -174,8 +178,12 @@ CostEstimate DefaultCostModel::EstimateSort(
   CostEstimate sort_cost;
   sort_cost.row_count = input.row_count;
 
-  sort_cost.cpu_cost = input.cpu_cost
-                     + (input.row_count * std::log2(input.row_count)) * kCpuPerRow;
+  if (input.row_count >= 3) {
+    sort_cost.cpu_cost = input.cpu_cost
+                       + (input.row_count * std::log2(input.row_count)) * kCpuPerRow;
+  } else {
+    sort_cost.cpu_cost = input.cpu_cost;
+  }
 
   sort_cost.io_cost = input.io_cost
                     + input.row_count * kIoPerRow;
@@ -273,7 +281,7 @@ double DefaultCostModel::EstimateNodeLabelsSelectivity(const std::vector<String>
   return selectivity;
 }
 
-std::pair<double, String> DefaultCostModel::EstimateBiggestLabelSelectivity(const std::vector<String>& labels,
+std::pair<double, String> DefaultCostModel::EstimateLowestLabelSelectivity(const std::vector<String>& labels,
   const storage::GraphDB* db) {
   if (labels.empty()) {
     return {1.0, ""};
@@ -303,6 +311,136 @@ double DefaultCostModel::EstimateEdgeTypeSelectivity(const std::optional<std::st
   /// TODO: edge_count_with_type has strange realization; discuss
 }
 
+double DefaultCostModel::EstimateExprSelectivity(const ast::Expr* expr, const storage::GraphDB* db) {
+  if (!expr) {
+    return 1.0;
+  }
+  if (expr->Type() == ast::ExprType::Logical) {
+    auto expr_logical = dynamic_cast<const ast::LogicalExpr*>(expr);
+    double left_sel = EstimateExprSelectivity(expr_logical->left_expr.get(), db);
+    double right_sel = EstimateExprSelectivity(expr_logical->right_expr.get(), db);
+    if (expr_logical->op == ast::LogicalOp::And) {
+      return left_sel * right_sel;
+    }
+    return left_sel + right_sel - left_sel * right_sel;
+  }
+
+  if (expr->Type() == ast::ExprType::Comparison) {
+    auto expr_comparison = dynamic_cast<const ast::ComparisonExpr*>(expr);
+    ast::CompareOp op = expr_comparison->op;
+
+    ast::Expr* left = expr_comparison->left_expr.get();
+    ast::Expr* right = expr_comparison->right_expr.get();
+    if ((left->Type() != ast::ExprType::Literal && left->Type() != ast::ExprType::Property) ||
+        (right->Type() != ast::ExprType::Literal && right->Type() != ast::ExprType::Property)) {
+      return 1.0;
+    }
+    if (left->Type() == ast::ExprType::Literal && right->Type() == ast::ExprType::Literal) {
+      return PlannerUtils::ValueToBool((*expr)(ast::EvalContext{exec::Row{}}));
+    }
+    if (left->Type() == ast::ExprType::Property && right->Type() == ast::ExprType::Property) {
+      auto left_property_expr = dynamic_cast<const ast::PropertyExpr*>(left);
+      auto right_property_expr = dynamic_cast<const ast::PropertyExpr*>(right);
+      double left_selectivity = GetSelectivityByNodeCount(
+        db->property_distinct_count(left_property_expr->property, "").value(), db
+      );
+      double right_selectivity = GetSelectivityByNodeCount(
+        db->property_distinct_count(right_property_expr->property, "").value(), db
+      );
+
+      if (op == ast::CompareOp::Eq) {
+        return left_selectivity * right_selectivity;
+      }
+      if (op == ast::CompareOp::NotEqual) {
+        return 1.0 - left_selectivity * right_selectivity;
+      }
+      if (op == ast::CompareOp::Gt || op == ast::CompareOp::Ge) {
+        return 0.5 * left_selectivity;
+      }
+      if (op == ast::CompareOp::Lt || op == ast::CompareOp::Le) {
+        return 0.5 * right_selectivity;
+      }
+    }
+    if (left->Type() == ast::ExprType::Property && right->Type() == ast::ExprType::Literal) {
+      std::swap(left, right);
+    }
+#ifndef NDEBUG
+    assert(left->Type() == ast::ExprType::Literal && right->Type() == ast::ExprType::Property);
+#endif
+
+    auto right_property_expr = dynamic_cast<const ast::PropertyExpr*>(right);
+    double selectivity = GetSelectivityByNodeCount(
+      db->property_distinct_count(right_property_expr->property, "").value(), db
+    );
+    return selectivity;
+  }
+
+#ifndef NDEBUG
+    assert(expr->Type() == ast::ExprType::Literal || expr->Type() == ast::ExprType::Property);
+#endif
+
+  return 1.0;
+}
+
+double DefaultCostModel::EstimateExprCpuCost_impl(const ast::Expr* expr, const storage::GraphDB* db) {
+  if (!expr) {
+    return 0.0;
+  }
+  if (expr->Type() == ast::ExprType::Logical) {
+    auto expr_logical = dynamic_cast<const ast::LogicalExpr*>(expr);
+    double left_cost = EstimateExprCpuCost(expr_logical->left_expr.get(), db);
+    double right_cost = EstimateExprCpuCost(expr_logical->right_expr.get(), db);
+    return left_cost + right_cost + kExprLogical;
+  }
+
+  if (expr->Type() == ast::ExprType::Comparison) {
+    auto expr_comparison = dynamic_cast<const ast::ComparisonExpr*>(expr);
+    double left_cost = EstimateExprCpuCost(expr_comparison->left_expr.get(), db);
+    double right_cost = EstimateExprCpuCost(expr_comparison->right_expr.get(), db);
+    return left_cost + right_cost + kExprCompare;
+  }
+
+  if (expr->Type() == ast::ExprType::Property) {
+    return kExprProperty;
+  }
+#ifndef NDEBUG
+  assert(expr->Type() == ast::ExprType::Literal);
+#endif
+
+  return kExprLiteral;
+}
+
+double DefaultCostModel::EstimateExprCpuCost(const ast::Expr* expr, const storage::GraphDB* db) {
+  return 1.0 + EstimateExprCpuCost_impl(expr, db);
+}
+
+double DefaultCostModel::GetSelectivityByNodeCount(const size_t& node_count, const storage::GraphDB* db) {
+  return static_cast<double>(node_count) / db->node_count();
+}
+
+std::unique_ptr<ast::Expr> DefaultCostModel::CreateExprByHashJoinKeys(const std::vector<ast::Expr*>& left_keys,
+  const std::vector<ast::Expr*>& right_keys) {
+#ifndef NDEBUG
+  assert(left_keys.size() == right_keys.size());
+#endif
+  if (left_keys.empty()) {
+    return nullptr;
+  }
+  std::unique_ptr<ast::Expr> ans = nullptr;
+  for (int i = 0; i < left_keys.size(); ++i) {
+    auto l_key = left_keys[i];
+    auto r_key = right_keys[i];
+
+    auto cur_compare = std::make_unique<ast::ComparisonExpr>(l_key->copy(), ast::CompareOp::Eq, r_key->copy());
+    if (!ans) {
+      ans = std::move(cur_compare);
+    } else {
+      ans = std::make_unique<ast::LogicalExpr>(std::move(ans), ast::LogicalOp::And, std::move(cur_compare));
+    }
+  }
+  return ans;
+}
+
 CostEstimate DefaultCostModel::EstimateProject(
   const storage::GraphDB* db, const CostEstimate& child,
   const logical::LogicalProject& proj) const {
@@ -312,4 +450,4 @@ CostEstimate DefaultCostModel::EstimateProject(
 
   return cost;
 }
-} // namespace graph::planner
+} // namespace graph::optimizer

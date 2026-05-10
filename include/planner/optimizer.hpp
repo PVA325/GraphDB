@@ -105,14 +105,21 @@ struct DefaultCostModel : CostModel {
   CostEstimate EstimateDelete(const storage::GraphDB* db, const CostEstimate& input, const logical::LogicalDelete& del) const override;
 
 private:
-  [[nodiscard]] static double EstimateNodePropertySelectivity(const std::vector<std::pair<String, Value>>& props,
+  static double EstimateNodePropertySelectivity(const std::vector<std::pair<String, Value>>& props,
                                                               const storage::GraphDB* gb);
-  [[nodiscard]] static double EstimateNodeLabelsSelectivity(const std::vector<String>& labels,
+  static double EstimateNodeLabelsSelectivity(const std::vector<String>& labels,
                                                      const storage::GraphDB* gb);
-  [[nodiscard]] static std::pair<double, String> EstimateBiggestLabelSelectivity(
+  static std::pair<double, String> EstimateLowestLabelSelectivity(
     const std::vector<String>& labels, const storage::GraphDB* gb);
-  [[nodiscard]] static double EstimateEdgeTypeSelectivity(const std::optional<std::string>& label,
+  static double EstimateEdgeTypeSelectivity(const std::optional<std::string>& label,
                                                     const storage::GraphDB* db);
+
+  static double EstimateExprSelectivity(const ast::Expr* expr, const storage::GraphDB* db);
+  static double EstimateExprCpuCost_impl(const ast::Expr* expr, const storage::GraphDB* db);
+  static double EstimateExprCpuCost(const ast::Expr* expr, const storage::GraphDB* db);
+  static double GetSelectivityByNodeCount(const size_t& node_count, const storage::GraphDB* db);
+  static std::unique_ptr<ast::Expr> CreateExprByHashJoinKeys(const std::vector<ast::Expr*>& left_keys, const std::vector<ast::Expr*>& right_keys);
+
 
   static constexpr double kRandomReadCost = 1.5;
   static constexpr double kSeqReadCost = 0.3;
@@ -123,6 +130,11 @@ private:
   static constexpr double kIoPerEdge = 1.0;
   static constexpr double kCpuHashBuild = 5.0;
   static constexpr double kCpuHashProbe = 5.0;
+
+  static constexpr double kExprLiteral = 0.0;
+  static constexpr double kExprProperty = 1.0;
+  static constexpr double kExprCompare = 1.5;
+  static constexpr double kExprLogical = 0.5;
 };
 
 std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec, std::unique_ptr<ast::Expr>> EstimateHashJoin(
