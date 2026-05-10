@@ -33,6 +33,7 @@ struct SlotMapping {
 
   void clear() { alias_to_slot.clear(); }
 
+
 private:
   std::unordered_map<std::string, size_t> alias_to_slot;
 
@@ -76,46 +77,35 @@ struct Row {
 
   template <typename T>
     requires std::is_constructible_v<RowSlot, T>
-  void AddValue(const T& val, const String& alias, const String& error_msg = "") {
+  void AddSlot(T&& val, const String& alias, const String& error_msg = "") {
     if (alias == "") return;
     if (slots_mapping.key_exists(alias)) {
       throw std::runtime_error(error_msg);
     }
-    slots.emplace_back(val);
+    slots.emplace_back(std::forward<T>(val));
     slots_names.emplace_back(alias);
     slots_mapping.add_map(alias, slots.size() - 1);
   }
 
+  [[nodiscard]] graph::exec::RowSlot GetAliasedObj(const std::string& alias) const {
+    return slots[slots_mapping.map_and_check(
+      alias,
+      std::format("EvalContext: Error, no {} alias in slots", alias)
+    )];
+  }
+
+  Value GetProperty(const std::string& alias, const std::string& property, const std::string& parent_op = "") const;
   ~Row() = default;
 };
 }
 
 namespace ast {
 struct EvalContext {
-  [[nodiscard]] graph::exec::RowSlot GetAliasedObj(const std::string& alias) const {
-    return row_.slots[row_.slots_mapping.map_and_check(
-      alias,
-      std::format("EvalContext: Error, no {} alias in slots", alias)
-    )];
+  graph::exec::RowSlot GetAliasedObj(const std::string& alias) const {
+    return row_.GetAliasedObj(alias);
   }
-  [[nodiscard]] Value GetProperty(const std::string& alias, const std::string& property) const {
-    auto slot = GetAliasedObj(alias);
-    if (std::holds_alternative<Value>(slot)) {
-      throw std::runtime_error(
-        std::format("EvalContext: Error, invalid expression {} has is not a node or an edge", alias)
-      );
-    }
-    const auto& props = (std::holds_alternative<graph::exec::Edge*>(slot) ?
-          std::get<graph::exec::Edge*>(slot)->properties
-        : std::get<graph::exec::Node*>(slot)->properties
-    );
-    auto it = props.find(property);
-    if (it == props.end()) {
-      throw std::runtime_error(
-        std::format("EvalContext: Error, alias {} has no property {}", alias, property)
-      );
-    }
-    return it->second;
+  Value GetProperty(const std::string& alias, const std::string& property) const {
+    return row_.GetProperty(alias, property);
   }
   EvalContext(const graph::exec::Row& row): row_(row) {}
 private:

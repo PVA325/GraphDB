@@ -17,13 +17,13 @@ bool DeleteCursor::next(Row& out) {
       std::format("DeleteCursor: Error, invalid source alias {}", alias)
     );
     const RowSlot& row_slot = out.slots[alias_idx];
-    if (row_slot.index() == 2) {
+    if (row_slot.value.index() == 2) {
       continue;
     }
-    if (row_slot.index() == 0) {
-      db->delete_node(std::get<Node*>(row_slot)->id);
+    if (row_slot.value.index() == 0) {
+      db->delete_node(std::get<Node*>(row_slot.value)->id);
     } else {
-      db->delete_edge(std::get<Edge*>(row_slot)->id);
+      db->delete_edge(std::get<Edge*>(row_slot.value)->id);
     }
   }
   return true;

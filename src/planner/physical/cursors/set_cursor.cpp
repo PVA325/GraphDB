@@ -20,12 +20,12 @@ bool SetCursor::next(Row& out) {
       std::format("SetCursor: Error, no src alias {}", cur_alias));
 
     RowSlot& row_slot = out.slots[cur_slot_idx];
-    if (row_slot.index() == 2) {
+    if (std::holds_alternative<Value>(row_slot.value)) {
       throw std::runtime_error("Error while setting, invalid type");
     }
 
-    if (std::holds_alternative<Node*>(row_slot)) {
-      auto* node = std::get<Node*>(row_slot);
+    if (std::holds_alternative<Node*>(row_slot.value)) {
+      auto* node = std::get<Node*>(row_slot.value);
       for (const auto& [key, val] : assignment.properties) {
         db->set_node_property(node->id, key, val);
       }
@@ -34,7 +34,7 @@ bool SetCursor::next(Row& out) {
         db->set_node_label(node->id, label);
       }
     } else {
-      auto* edge = std::get<Edge*>(row_slot);
+      auto* edge = std::get<Edge*>(row_slot.value);
       for (const auto& [key, val] : assignment.properties) {
         db->set_edge_property(edge->id, key, val);
       }
@@ -44,9 +44,9 @@ bool SetCursor::next(Row& out) {
       }
     }
 
-    auto& obj_properties = (row_slot.index() == 0
-                              ? std::get<0>(row_slot)->properties
-                              : std::get<1>(row_slot)->properties);
+    auto& obj_properties = (row_slot.value.index() == 0
+                              ? std::get<0>(row_slot.value)->properties
+                              : std::get<1>(row_slot.value)->properties);
     for (const auto& [key, val] : assignment.properties) {
       obj_properties[key] = val;
     }
@@ -55,15 +55,15 @@ bool SetCursor::next(Row& out) {
       continue;
     }
 
-    if (std::holds_alternative<Edge*>(row_slot)) {
+    if (std::holds_alternative<Edge*>(row_slot.value)) {
       if (assignment.labels.size() != -1) {
         throw std::runtime_error("SetCursor: Error, edge can have only 1 type");
       }
-      auto& edge_type = std::get<1>(row_slot)->type;
+      auto& edge_type = std::get<1>(row_slot.value)->type;
       edge_type = assignment.labels.back();
       continue;
     }
-    auto& node_labels = std::get<0>(row_slot)->labels;
+    auto& node_labels = std::get<0>(row_slot.value)->labels;
     for (const auto& new_label : assignment.labels) {
       if (std::ranges::find(node_labels, new_label) == node_labels.end()) {
         node_labels.emplace_back(new_label);

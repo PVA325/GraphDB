@@ -3,19 +3,27 @@
 namespace graph::exec {
 
 Value GetFeatureFromSlot(const RowSlot& slot, const String& feature_key) {
-  if (slot.index() == 2) {
+  if (std::holds_alternative<Value>(slot.value)) {
     if (!feature_key.empty()) {
       throw std::runtime_error("Error during KeyHashJoin: invalid alias or property");
     }
-    return std::get<2>(slot);
+    return std::get<2>(slot.value);
   }
-  if (slot.index() == 1) {
-    return std::get<1>(slot)->properties[feature_key];
+  if (std::holds_alternative<Edge*>(slot.value)) {
+    return std::get<Edge*>(slot.value)->properties[feature_key];
   }
-  return std::get<0>(slot)->properties[feature_key];
+  return std::get<Node*>(slot.value)->properties[feature_key];
 }
 
 Row MergeRows(Row& first, Row& second) {
+  static auto check_vectors_intersects = [](const std::vector<String>& f, const std::vector<String>& s) {
+    return std::any_of(f.begin(), f.end(), [&s](const String& str) {
+      return std::find(s.begin(), s.end(), str) != s.end();
+    });
+  };
+#ifndef NDEBUG
+  assert(!check_vectors_intersects(first.slots_names, second.slots_names));
+#endif
   Row ans;
   ans.slots.insert(ans.slots.end(), first.slots.begin(), first.slots.end());
   ans.slots.insert(ans.slots.end(), second.slots.begin(), second.slots.end());

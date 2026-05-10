@@ -22,7 +22,7 @@ bool ProjectCursor::next(Row& out) {
         std::format("PhysicalProject: Error, no alias \"{}\"", alias)
       );
 
-      new_row.AddValue(
+      new_row.AddSlot(
         out.slots[old_row_idx],
         alias,
         std::format("PhysicalProject: Error, alias {} is already in use", alias)
@@ -36,24 +36,36 @@ bool ProjectCursor::next(Row& out) {
     );
     const auto& cur_prop_src = out.slots[old_row_idx];
     String new_alias = prop.alias + "." + prop.property;
-    if (cur_prop_src.index() == 2) {
+    if (cur_prop_src.value.index() == 2) {
       throw std::runtime_error(std::format("PhysicalProject: Error, trying to project {}.{}, but {} is Value",
                                            prop.alias, prop.property, prop.alias));
     }
 
     String error_msg = std::format("PhysicalProject: {} is already in use", new_alias);
-    if (cur_prop_src.index() == 0) {
-      auto node = std::get<Node*>(cur_prop_src);
-      new_row.AddValue(
+    if (cur_prop_src.value.index() == 0) {
+      auto node = std::get<Node*>(cur_prop_src.value);
+      RowSlot new_slot(
         node->properties.at(prop.property),
+        new_alias,
+        prop.alias,
+        prop.property
+      );
+      new_row.AddSlot(
+        std::move(new_slot),
         new_alias,
         error_msg
       );
       continue;
     }
-    auto edge = std::get<Edge*>(cur_prop_src);
-    new_row.AddValue(
+    auto edge = std::get<Edge*>(cur_prop_src.value);
+    RowSlot new_slot(
       edge->properties.at(prop.property),
+      new_alias,
+      prop.alias,
+      prop.property
+    );
+    new_row.AddSlot(
+      new_slot,
       new_alias,
       error_msg
     );

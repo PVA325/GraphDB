@@ -107,7 +107,7 @@ std::string SlotToString(const graph::exec::RowSlot& slot) {
     [](storage::Node* node) { return NodeToString(node); },
     [](storage::Edge* edge) { return EdgeToString(edge); }
   };
-  return std::visit(visitor, slot);
+  return std::visit(visitor, slot.value);
 }
 
 void PrintRow(const graph::exec::Row& row) {
@@ -144,6 +144,7 @@ int main() {
     if (Trim(input) == "exit;") {
       break;
     }
+    // std::cout << Trim(input) << std::endl;
 
     parser::Parser parser(lexer::Lex(input));
     ast::QueryAST ast = parser.ParseSingle();

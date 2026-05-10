@@ -63,7 +63,18 @@ struct RowCursor;
 struct Row;
 struct ExecContext;
 
-using RowSlot = std::variant<Node*, Edge*, Value>;
+struct RowSlot {
+  RowSlot(const std::variant<Node*, Edge*, Value>& val): value(val) {}
+  RowSlot(const std::variant<Node*, Edge*, Value>& val,
+    String out_name, String source_alias_name, String property_name):
+    value(val), out_name(std::move(out_name)), source_alias_name(std::move(source_alias_name)),
+    property_name(std::move(property_name)) {}
+
+  std::variant<Node*, Edge*, Value> value;
+  String out_name;
+  String source_alias_name;
+  String property_name;
+};
 using PhysicalOpPtr = std::unique_ptr<PhysicalOp>;
 using RowCursorPtr = std::unique_ptr<RowCursor>;
 

@@ -30,10 +30,10 @@ bool NodePropertyFilterCursor::next(Row& out) {
       std::format("NodePropertyFilterCursor: Error, no src alias", alias)
     );
     const auto& row_slot = out.slots[slot_idx];
-    if (!std::holds_alternative<Node*>(row_slot)) {
+    if (!std::holds_alternative<Node*>(row_slot.value)) {
       throw std::runtime_error("NodePropertyFilterCursor: Error not a node");
     }
-    auto* node = std::get<Node*>(row_slot);
+    auto* node = std::get<Node*>(row_slot.value);
     std::vector<std::pair<String, Value>> p(node->properties.begin(), node->properties.end());
     if (isSubset(node->labels, labels) &&
       isSubset(p, properties)) {

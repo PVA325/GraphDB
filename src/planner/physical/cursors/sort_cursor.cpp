@@ -1,21 +1,18 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-SortCursor::SortCursor(RowCursorPtr child, std::vector<ast::OrderItem> items) :
-  child(std::move(child)),
-  items(std::move(items)) {
+SortCursor::SortCursor(RowCursorPtr child_tmp, std::vector<ast::OrderItem> items_tmp) :
+  child(std::move(child_tmp)),
+  items(std::move(items_tmp)) {
   Row cur;
   while (child->next(cur)) {
     rows.push_back(std::move(cur));
+    cur.clear();
   }
   auto cmp = [items = std::move(this->items)](const Row& a, const Row& b) -> bool {
     for (const auto& item : items) {
-      String err = std::format("SortCursor: Error, no such alias {}", item.property.alias);
-      size_t a_idx = a.slots_mapping.map_and_check(item.property.alias, err);
-      size_t b_idx = b.slots_mapping.map_and_check(item.property.alias, err);
-
-      Value a_feature = GetFeatureFromSlot(a.slots[a_idx], item.property.property);
-      Value b_feature = GetFeatureFromSlot(a.slots[a_idx], item.property.property);
+      Value a_feature = a.GetProperty(item.property.alias, item.property.property, "SortCursor");
+      Value b_feature = b.GetProperty(item.property.alias, item.property.property, "SortCursor");
 
       if (a_feature.index() != b_feature.index()) {
         throw std::runtime_error("SortCursor: Error type mistmatch");
