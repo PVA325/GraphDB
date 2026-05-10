@@ -13,3 +13,8 @@ target_include_directories(physical_storage_tests
         "${STORAGE_INCLUDE_DIR}"
         "${PARSER_INCLUDE_DIR}"
 )
+
+
+include(GoogleTest)
+
+add_test(NAME physical_storage_tests COMMAND $<TARGET_FILE:physical_storage_tests>)

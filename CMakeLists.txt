@@ -3,9 +3,8 @@ project(GraphDB)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(PARSER_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/parser")
-#set(PLANNER_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/planner")
-#set(STORAGE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/storage")
+
+enable_testing()
 
 add_subdirectory(src)
 

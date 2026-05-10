@@ -27,3 +27,10 @@ target_link_libraries(optimizer_planner_tests
         planner
 )
 target_include_directories(optimizer_planner_tests PRIVATE "${CMAKE_SOURCE_DIR}/include")
+
+
+include(GoogleTest)
+
+add_test(NAME logical_planner_tests COMMAND $<TARGET_FILE:logical_planner_tests>)
+add_test(NAME physical_planner_tests COMMAND $<TARGET_FILE:physical_planner_tests>)
+add_test(NAME optimizer_planner_tests COMMAND $<TARGET_FILE:optimizer_planner_tests>)
