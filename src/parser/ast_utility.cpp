@@ -1,6 +1,5 @@
 #include "parser/ast_utility.hpp"
 
-#include <cctype>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -8,7 +7,6 @@
 #include <unordered_set>
 #include <utility>
 
-#include "parser/error.hpp"
 #include "parser/lexer.hpp"
 
 namespace ast {
