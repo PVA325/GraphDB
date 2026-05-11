@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -123,6 +124,7 @@ void PrintRow(const graph::exec::Row& row) {
 }  // namespace
 
 int main() {
+  auto current_db_path = std::filesystem::current_path() / "graphdb";
   storage::GraphDB db;
 
   while (true) {
@@ -141,10 +143,54 @@ int main() {
       }
     }
 
-    if (Trim(input) == "exit;") {
+    std::string trimmed_input = Trim(input);
+    if (trimmed_input == "exit;") {
       break;
     }
-    // std::cout << Trim(input) << std::endl;
+
+    if (trimmed_input == "flush;") {
+      db.flush();
+      continue;
+    }
+
+    if (trimmed_input == "save;") {
+      if (!db.save_to_file(current_db_path.string())) {
+        std::cerr << "Failed to save database to: " << current_db_path << "\n";
+      }
+      continue;
+    }
+
+    if (trimmed_input.rfind("save ", 0) == 0) {
+      std::string path = Trim(trimmed_input.substr(5));
+      path.pop_back();
+      if (path.empty()) {
+        std::cerr << "Usage: save <path>;\n";
+        continue;
+      }
+
+      current_db_path = std::filesystem::path(path);
+      if (!db.save_to_file(current_db_path.string())) {
+        std::cerr << "Failed to save database to: " << current_db_path << '\n';
+      }
+      continue;
+    }
+
+    if (trimmed_input.rfind("load ", 0) == 0) {
+      std::string path = Trim(trimmed_input.substr(5));
+      path.pop_back();
+
+      if (path.empty()) {
+        std::cerr << "Usage: load <path>;\n";
+        continue;
+      }
+
+      current_db_path = std::filesystem::path(path);
+      if (!db.load_from_file(current_db_path.string())) {
+        std::cerr << "Failed to load database from: " << current_db_path << '\n';
+      }
+      continue;
+    }
+
 
     parser::Parser parser(lexer::Lex(input));
     ast::QueryAST ast = parser.ParseSingle();
