@@ -1,10 +1,16 @@
 add_library(storage SHARED
-        api_storage.cpp
-        classes_cursor_storage.cpp
-        crud_edges.cpp
-        crud_nodes.cpp
-        cursor_methods_storage.cpp
-	load_storage.cpp
-	save_storage.cpp
+        cursor.cpp
+        edge_index.cpp
+        edge_manager.cpp
+        edge_store.cpp
+        graph_storage.cpp
+        GraphDb.cpp
+        free_list.cpp
+        metrics_store.cpp
+        node_index.cpp
+        node_manager.cpp
+        node_store.cpp
+        page_cache.cpp
+        string_interner.cpp
 )
 target_include_directories(storage PUBLIC "${CMAKE_SOURCE_DIR}/include")
