@@ -20,18 +20,18 @@ class Parser {
   std::vector<ast::QueryAST> Parse();
 
  private:
-  const Token& Peek() const;
-  const Token& Previous() const;
-  bool IsAtEnd() const;
-  bool Check(TokenType type) const;
+  [[nodiscard]] const Token& Peek() const;
+  [[nodiscard]] const Token& Previous() const;
+  [[nodiscard]] bool IsAtEnd() const;
+  [[nodiscard]] bool Check(TokenType type) const;
   const Token& Advance();
   bool Match(TokenType type);
   bool MatchAny(std::initializer_list<TokenType> types);
   const Token& Consume(TokenType type, const char* expected);
   const Token& ConsumeIdentifier(const char* expected = "identifier");
-  void ExpectEnd();
+  void ExpectEnd() const;
   void ConsumeSemicolons();
-  const Token& Anchor() const;
+  [[nodiscard]] const Token& Anchor() const;
 
   ast::QueryAST ParseQuery();
 
@@ -55,7 +55,7 @@ class Parser {
   ast::NodePattern ParseNodePattern();
   ast::MatchEdgePattern ParseMatchEdgePattern();
   ast::CreateNodeRef ParseCreateNodeRef();
-  ast::CreateEdgePattern ParseCreateEdgePattern(const ast::CreateNodeRef left_node_ref);
+  ast::CreateEdgePattern ParseCreateEdgePattern(const ast::CreateNodeRef& left_node_ref);
 
   ast::Literal ParseLiteral();
   ast::ExprPtr ParseExpression();

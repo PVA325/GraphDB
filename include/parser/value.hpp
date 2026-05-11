@@ -11,7 +11,7 @@ using Value = std::variant<int64_t, double, std::string, bool>;
 struct Literal {
   Value value;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 } // namespace ast

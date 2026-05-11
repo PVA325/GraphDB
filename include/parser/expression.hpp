@@ -3,10 +3,8 @@
 #include <memory>
 #include <string>
 #include <variant>
-#include <unordered_map>
-
 #include "value.hpp"
-#include "../eval_context/eval_context.hpp"
+#include "eval_context/eval_context.hpp"
 
 namespace ast {
 
@@ -25,19 +23,19 @@ struct Expr {
   virtual ~Expr() = default;
 
   // Creates a deep copy of the expression.
-  virtual Expr* copy() const = 0;
+  [[nodiscard]] virtual Expr* copy() const = 0;
 
   // Evaluate expression.
   virtual Value operator()(const EvalContext& ctx) const = 0;
 
   // Get the type of the expression.
-  virtual ExprType Type() const = 0;
+  [[nodiscard]] virtual ExprType Type() const = 0;
 
   // Collects all aliases used in the expression into the provided vector.
   virtual void CollectAliases(std::vector<std::string>& aliases) const = 0;
 
   // Debug string representation.
-  virtual std::string DebugString() const = 0;
+  [[nodiscard]] virtual std::string DebugString() const = 0;
 };
 
 using ExprPtr = std::unique_ptr<Expr>;
@@ -46,14 +44,14 @@ using ExprPtr = std::unique_ptr<Expr>;
 struct LiteralExpr : Expr {
   Literal literal;
 
-  virtual LiteralExpr* copy() const override;
+  [[nodiscard]] LiteralExpr* copy() const override;
 
   Value operator()(const EvalContext& ctx) const override;
 
-  ExprType Type() const override;
+  [[nodiscard]] ExprType Type() const override;
   void CollectAliases(std::vector<std::string>& aliases) const override;
 
-  std::string DebugString() const override;
+  [[nodiscard]] std::string DebugString() const override;
 };
 
 // Access to a property: alias.property.
@@ -63,14 +61,14 @@ struct PropertyExpr : Expr {
 
   PropertyExpr() = default;
 
-  virtual PropertyExpr* copy() const override;
+  [[nodiscard]] PropertyExpr* copy() const override;
 
   Value operator()(const EvalContext& ctx) const override;
 
-  ExprType Type() const override;
+  [[nodiscard]] ExprType Type() const override;
   void CollectAliases(std::vector<std::string>& aliases) const override;
 
-  std::string DebugString() const override;
+  [[nodiscard]] std::string DebugString() const override;
 };
 
 // Comparison operations.
@@ -93,14 +91,14 @@ struct ComparisonExpr : Expr {
   ComparisonExpr(Expr* l, CompareOp op, Expr* r): left_expr(l), op(op), right_expr(r) {}
   ComparisonExpr(ExprPtr l, CompareOp op, ExprPtr r): left_expr(std::move(l)), op(op), right_expr(std::move(r)) {}
 
-  virtual ComparisonExpr* copy() const override;
+  [[nodiscard]] ComparisonExpr* copy() const override;
 
   Value operator()(const EvalContext& ctx) const override;
 
-  ExprType Type() const override;
+  [[nodiscard]] ExprType Type() const override;
   void CollectAliases(std::vector<std::string>& aliases) const override;
 
-  std::string DebugString() const override;
+  [[nodiscard]] std::string DebugString() const override;
 };
 
 // Logical operations.
@@ -119,14 +117,14 @@ struct LogicalExpr : Expr {
   LogicalExpr(Expr* l, LogicalOp op, Expr* r): left_expr(l), op(op), right_expr(r) {}
   LogicalExpr(ExprPtr l, LogicalOp op, ExprPtr r): left_expr(std::move(l)), op(op), right_expr(std::move(r)) {}
 
-  virtual LogicalExpr* copy() const override;
+  [[nodiscard]] LogicalExpr* copy() const override;
 
   Value operator()(const EvalContext& ctx) const override;
 
-  ExprType Type() const override;
+  [[nodiscard]] ExprType Type() const override;
   void CollectAliases(std::vector<std::string>& aliases) const override;
 
-  std::string DebugString() const override;
+  [[nodiscard]] std::string DebugString() const override;
 };
 
 } // namespace ast

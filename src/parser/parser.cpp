@@ -1,10 +1,7 @@
 #include "parser/parser.hpp"
 
-#include <cctype>
 #include <sstream>
-#include <stdexcept>
 #include <string>
-#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <algorithm>
@@ -172,7 +169,7 @@ const Token& Parser::ConsumeIdentifier(const char* expected) {
 }
 
 // Expects the end of the token stream, otherwise throws an error.
-void Parser::ExpectEnd() {
+void Parser::ExpectEnd() const {
   if (!Check(TokenType::END)) {
     const Token& got = Peek();
     throw ParseError(got.line, got.col, "unexpected token " + TokenName(got.type));
@@ -524,7 +521,7 @@ std::unique_ptr<ast::WhereClause> Parser::ParseWhere() {
   return clause;
 }
 
-// Parsess Return Clause.
+// Parses Return Clause.
 std::unique_ptr<ast::ReturnClause> Parser::ParseReturn() {
   auto clause = std::make_unique<ast::ReturnClause>();
   clause->items.push_back(ParseReturnItem());
@@ -683,7 +680,7 @@ ast::CreateNodeRef Parser::ParseCreateNodeRef() {
 }
 
 // Parses Create Edge Pattern.
-ast::CreateEdgePattern Parser::ParseCreateEdgePattern(const ast::CreateNodeRef left_node_ref) {
+ast::CreateEdgePattern Parser::ParseCreateEdgePattern(const ast::CreateNodeRef& left_node_ref) {
   ast::CreateEdgePattern edge;
   edge.left_node = left_node_ref;
   edge.line = Peek().line;

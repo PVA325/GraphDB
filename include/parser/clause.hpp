@@ -15,35 +15,35 @@ namespace ast {
 struct MatchClause {
   std::vector<Pattern> patterns;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // WHERE clause.
 struct WhereClause {
   ExprPtr expression;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // RETURN item: either alias or property.
 struct ReturnItem {
   std::variant<std::string, PropertyExpr> return_item;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // RETURN clause.
 struct ReturnClause {
   std::vector<ReturnItem> items;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // DELETE clause.
 struct DeleteClause {
   std::vector<std::string> aliases;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // SET item.
@@ -52,14 +52,14 @@ struct SetItem {
   std::vector<std::pair<std::string, Literal>> properties;
   std::vector<std::string> labels;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // SET clause.
 struct SetClause {
   std::vector<SetItem> items;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // ORDER BY direction.
@@ -73,21 +73,21 @@ struct OrderItem {
   PropertyExpr property;
   OrderDirection direction = OrderDirection::Asc;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // ORDER BY clause.
 struct OrderClause {
   std::vector<OrderItem> items;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // LIMIT clause.
 struct LimitClause {
   size_t limit;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 using CreateItem = std::variant<NodePattern, CreateEdgePattern>;
@@ -96,7 +96,7 @@ using CreateItem = std::variant<NodePattern, CreateEdgePattern>;
 struct CreateClause {
   std::vector<CreateItem> created_items;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 // AST for query.
@@ -113,7 +113,7 @@ struct QueryAST {
 
   std::unique_ptr<CreateClause> create_clause;
 
-  std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 };
 
 } // namespace ast

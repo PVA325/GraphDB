@@ -1,18 +1,12 @@
 #pragma once
 
-#include <cctype>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <string_view>
-#include <unordered_set>
-#include <utility>
 
 #include "expression.hpp"
 #include "pattern.hpp"
 #include "value.hpp"
-#include "parser/error.hpp"
-#include "parser/lexer.hpp"
 
 namespace ast {
 

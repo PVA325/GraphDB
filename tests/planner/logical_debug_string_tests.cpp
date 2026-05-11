@@ -20,8 +20,8 @@ struct TestLeafOp final : graph::logical::LogicalOpZeroChild {
     return {nullptr, graph::optimizer::CostEstimate{}};
   }
 
-  [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const { return {}; };
-  [[nodiscard]] virtual graph::logical::LogicalOpType Type() const { return graph::logical::LogicalOpType::Create; }
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const override { return {}; };
+  [[nodiscard]] graph::logical::LogicalOpType Type() const override { return graph::logical::LogicalOpType::Create; }
 
   String debug_;
 };
@@ -41,8 +41,8 @@ struct TestUnaryOp final : graph::logical::LogicalOpUnaryChild {
     return {nullptr, graph::optimizer::CostEstimate{}};
   }
 
-  [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const { return {}; };
-  [[nodiscard]] virtual graph::logical::LogicalOpType Type() const { return graph::logical::LogicalOpType::Create; }
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const override { return {}; };
+  [[nodiscard]] graph::logical::LogicalOpType Type() const override { return graph::logical::LogicalOpType::Create; }
 
   String debug_;
 };
@@ -64,8 +64,8 @@ struct TestBinaryOp final : graph::logical::LogicalOpManyChildren {
     return {nullptr, graph::optimizer::CostEstimate{}};
   }
 
-  [[nodiscard]] virtual std::vector<String> GetSubtreeAliases() const { return {}; };
-  [[nodiscard]] virtual graph::logical::LogicalOpType Type() const { return graph::logical::LogicalOpType::Create; }
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const override { return {}; };
+  [[nodiscard]] graph::logical::LogicalOpType Type() const override { return graph::logical::LogicalOpType::Create; }
 
   String debug_;
 };
