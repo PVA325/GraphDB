@@ -1,13 +1,13 @@
 #pragma once
 
 #include "common/common_value.hpp"
-#include "storage/storage.hpp" /// TODO
+#include "storage/storage.hpp"
 
 namespace graph::exec {
 
 template <bool edge_outgoing>
 struct ExpandNodeCursorPhysical : RowCursor {
-  enum class Direction { Outgoing, Ingoing };
+  enum class Direction { kOutgoing, kIngoing };
 
   RowCursorPtr child_cursor;
   std::unique_ptr<storage::EdgeCursor> edge_cursor;
