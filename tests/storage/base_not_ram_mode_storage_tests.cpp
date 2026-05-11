@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <string>
 
-#include "graph_db.hpp"
+#include "storage/graph_db.hpp"
 
 using namespace storage;
 

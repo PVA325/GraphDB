@@ -1,7 +1,7 @@
 #include <filesystem>
 #include <cassert>
 
-#include "graph_db.hpp"
+#include "storage/graph_db.hpp"
 
 namespace storage {
   GraphDB::GraphDB(const std::string& dir)

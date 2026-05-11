@@ -2,7 +2,7 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "page_cache.hpp"
+#include "storage/page_cache.hpp"
 
 namespace storage {
   PageCache::PageCache(std::fstream& file, size_t max_pages)

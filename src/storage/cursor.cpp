@@ -1,5 +1,5 @@
-#include "cursor.hpp"
-#include "graph_db.hpp"
+#include "storage/cursor.hpp"
+#include "storage/graph_db.hpp"
 
 namespace storage {
   NodeCursor::NodeCursor(GraphDB* db, boost::intrusive_ptr<NodeIdList> ids,

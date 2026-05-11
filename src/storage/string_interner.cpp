@@ -1,6 +1,6 @@
 #include <stdexcept>
 
-#include "string_interner.hpp"
+#include "storage/string_interner.hpp"
 
 namespace storage {
 

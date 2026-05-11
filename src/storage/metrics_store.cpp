@@ -3,8 +3,8 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "metrics_store.hpp"
-#include "serialise.hpp"
+#include "storage/metrics_store.hpp"
+#include "storage/serialise.hpp"
 
 namespace storage {
   size_t LPVKeyHash::operator()(const LPVKey& k) const {

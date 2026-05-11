@@ -1,6 +1,6 @@
 #include <algorithm>
 
-#include "edge_index.hpp"
+#include "storage/edge_index.hpp"
 
 namespace storage {
 

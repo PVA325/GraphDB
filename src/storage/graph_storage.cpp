@@ -1,7 +1,7 @@
 #include <stdexcept>
 
-#include "graph_storage.hpp"
-#include "graph_db.hpp"
+#include "storage/graph_storage.hpp"
+#include "storage/graph_db.hpp"
 
 namespace storage {
   bool GraphStorage::save(const GraphDB& db, const std::string& path) {

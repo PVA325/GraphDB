@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include "unordered_map"
+#include "storage/types.hpp"
 
 namespace ast {
 // Edge direction.
@@ -28,33 +29,6 @@ using Bool = bool;
 
 using Value = std::variant<Int, Double, String, Bool>;
 }  // namespace graph
-
-namespace storage {
-using NodeId = size_t;
-using EdgeId = size_t;
-
-using Value = std::variant<int64_t, double, std::string, bool>;
-using Properties = std::unordered_map<std::string, Value>;
-
-struct Edge {
-  EdgeId id;
-  bool alive;
-
-  NodeId src;
-  NodeId dst;
-  std::string type;
-  Properties properties;
-};
-
-struct Node {
-  NodeId id;
-  bool alive;
-
-  std::vector<std::string> labels;
-  Properties properties;
-};
-struct GraphDB;
-}  // namespace storage
 
 namespace graph::exec {
 using storage::Node;

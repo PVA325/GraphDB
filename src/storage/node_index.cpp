@@ -1,6 +1,6 @@
 #include <algorithm>
 
-#include "node_index.hpp"
+#include "storage/node_index.hpp"
 
 namespace storage {
   void NodeIndex::vec_erase(std::vector<NodeId>& v, NodeId id) {
