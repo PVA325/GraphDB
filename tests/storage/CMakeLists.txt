@@ -1,5 +1,5 @@
-add_executable(physical_storage_tests physical_storage_tests.cpp)
-target_link_libraries(physical_storage_tests
+add_executable(all_storage_tests base_ram_mode_storage_tests.cpp base_not_ram_mode_storage_tests.cpp)
+target_link_libraries(all_storage_tests
         PUBLIC
         GTest::gtest
         GTest::gmock
@@ -7,7 +7,7 @@ target_link_libraries(physical_storage_tests
         planner
 )
 
-target_include_directories(physical_storage_tests
+target_include_directories(all_storage_tests
         PUBLIC
         "${PLANNER_INCLUDE_DIR}"
         "${STORAGE_INCLUDE_DIR}"
