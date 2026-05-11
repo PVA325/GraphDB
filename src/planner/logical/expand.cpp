@@ -50,4 +50,11 @@ BuildPhysicalType LogicalExpand::BuildPhysical(exec::ExecContext& ctx,
   return std::make_pair(std::move(physical_root), cost);
 }
 
+[[nodiscard]] std::vector<String> LogicalExpand::GetSubtreeAliases() const {
+  auto ans =child->GetSubtreeAliases();
+  ans.emplace_back(dst_alias);
+  ans.emplace_back(edge_alias);
+  return ans;
+}
+
 }
