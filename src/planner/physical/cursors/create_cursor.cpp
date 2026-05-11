@@ -1,8 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
-
 CreateCursor::CreateCursor(
   RowCursorPtr child,
   std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items,
@@ -25,7 +23,7 @@ bool CreateCursor::next(Row& out) {
 
         storage::NodeId created_node = db->create_node(node_spec.labels, m);
         out.AddSlot(db->get_node(created_node), node_spec.dst_alias,
-                     std::format("CreateCursor: Error, alias {} already exists", node_spec.dst_alias));
+                    std::format("CreateCursor: Error, alias {} already exists", node_spec.dst_alias));
       } else {
         const auto& edge_spec = std::get<logical::CreateEdgeSpec>(create_pattern);
 
@@ -49,7 +47,7 @@ bool CreateCursor::next(Row& out) {
 
         storage::EdgeId created_edge = db->create_edge(src->id, dst->id, edge_spec.edge_type, m);
         out.AddSlot(db->get_edge(created_edge), edge_spec.edge_alias,
-                     std::format("CreateCursor: Error, alias {} already exists", edge_spec.edge_alias));
+                    std::format("CreateCursor: Error, alias {} already exists", edge_spec.edge_alias));
       }
     }
     return true;
@@ -107,5 +105,4 @@ bool CreateCursor::next(Row& out) {
 void CreateCursor::close() {
   child->close();
 }
-
 }

@@ -76,5 +76,4 @@ bool SetCursor::next(Row& out) {
 void SetCursor::close() {
   child->close();
 }
-
 }

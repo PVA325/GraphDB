@@ -4,11 +4,9 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::optimizer {
-
 CostEstimate DefaultCostModel::EstimateAllNodeScan(
   const storage::GraphDB* db,
   const logical::LogicalScan& scan) const {
-
   if (!db) {
     throw std::runtime_error("DefaultCostModel(estimate_all_node_scan): Error, db is null");
   }
@@ -21,8 +19,8 @@ CostEstimate DefaultCostModel::EstimateAllNodeScan(
   node_scan.row_count = total_nodes * labels_sel * prop_sel;
 
   node_scan.cpu_cost = total_nodes * kCpuPerRow
-                     + node_scan.row_count * kFilterCpu
-                     + (total_nodes - node_scan.row_count) * kFilterCpu * 0.3;
+    + node_scan.row_count * kFilterCpu
+    + (total_nodes - node_scan.row_count) * kFilterCpu * 0.3;
 
   node_scan.io_cost = total_nodes * kSeqReadCost * kIoPerRow;
   node_scan.startup_cost = 1.0;
@@ -33,7 +31,6 @@ CostEstimate DefaultCostModel::EstimateAllNodeScan(
 std::pair<CostEstimate, String> DefaultCostModel::EstimateIndexSeekLabel(
   const storage::GraphDB* db,
   const logical::LogicalScan& scan) const {
-
   if (!db) {
     throw std::runtime_error("DefaultCostModel(estimate_index_seek_label): Error, db is null");
   }
@@ -48,8 +45,8 @@ std::pair<CostEstimate, String> DefaultCostModel::EstimateIndexSeekLabel(
   index_seek.row_count = total_nodes * labels_sel * prop_sel;
 
   index_seek.cpu_cost = index_rows * kCpuPerRow
-                      + index_seek.row_count * kFilterCpu
-                      + (index_rows - index_seek.row_count) * kFilterCpu * 0.3;
+    + index_seek.row_count * kFilterCpu
+    + (index_rows - index_seek.row_count) * kFilterCpu * 0.3;
 
   index_seek.io_cost = index_rows * kRandomReadCost * kIoPerRow;
   index_seek.startup_cost = 20.0;
@@ -61,7 +58,6 @@ CostEstimate DefaultCostModel::EstimateExpand(
   const storage::GraphDB* db,
   const logical::LogicalExpand& expand,
   const CostEstimate& input) const {
-
   if (!db) {
     throw std::runtime_error("DefaultCostModel(estimate_index_seek_label): Error, db is null");
   }
@@ -76,11 +72,11 @@ CostEstimate DefaultCostModel::EstimateExpand(
   expand_cost.row_count = total_rows * label_sel * prop_sel;
 
   expand_cost.cpu_cost = input.cpu_cost
-                       + total_rows * kCpuPerEdge
-                       + total_rows * kFilterCpu;
+    + total_rows * kCpuPerEdge
+    + total_rows * kFilterCpu;
 
   expand_cost.io_cost = input.io_cost
-                      + total_rows * kIoPerEdge;
+    + total_rows * kIoPerEdge;
 
   expand_cost.startup_cost = input.startup_cost + 1.0;
 
@@ -91,7 +87,6 @@ CostEstimate DefaultCostModel::EstimateFilter(
   const storage::GraphDB* db,
   const CostEstimate& input,
   const ast::Expr* pred) const {
-
   if (!db) {
     throw std::runtime_error("DefaultCostModel(estimate_filter): Error, db is null");
   }
@@ -100,7 +95,7 @@ CostEstimate DefaultCostModel::EstimateFilter(
   filter_cost.row_count = input.row_count * EstimateExprSelectivity(pred, db);
 
   filter_cost.cpu_cost = input.cpu_cost
-                         + input.row_count * kFilterCpu * EstimateExprCpuCost(pred, db);
+    + input.row_count * kFilterCpu * EstimateExprCpuCost(pred, db);
 
   filter_cost.io_cost = input.io_cost;
   filter_cost.startup_cost = input.startup_cost;
@@ -113,7 +108,6 @@ CostEstimate DefaultCostModel::EstimateNestedJoin(
   const CostEstimate& left,
   const CostEstimate& right,
   const ast::Expr* pred) const {
-
   if (!db) {
     throw std::runtime_error("DefaultCostModel(estimate_nested_join): Error, db is null");
   }
@@ -124,8 +118,8 @@ CostEstimate DefaultCostModel::EstimateNestedJoin(
   join_cost.row_count = pair_count * EstimateExprSelectivity(pred, db);
 
   join_cost.cpu_cost = left.cpu_cost
-                     + right.cpu_cost
-                     + pair_count * (kFilterCpu + kCpuPerRow) * EstimateExprCpuCost(pred, db);
+    + right.cpu_cost
+    + pair_count * (kFilterCpu + kCpuPerRow) * EstimateExprCpuCost(pred, db);
 
   join_cost.io_cost = left.io_cost + right.io_cost;
   join_cost.startup_cost = left.startup_cost + right.startup_cost + 1.0;
@@ -139,7 +133,6 @@ CostEstimate DefaultCostModel::EstimateHashJoin(
   const CostEstimate& right,
   const std::vector<ast::Expr*>& left_keys,
   const std::vector<ast::Expr*>& right_keys) const {
-
   if (!db) {
     throw std::runtime_error("DefaultCostModel(estimate_hash_join): Error, db is null");
   }
@@ -155,12 +148,12 @@ CostEstimate DefaultCostModel::EstimateHashJoin(
   join_cost.row_count = left.row_count * right.row_count * sel;
 
   join_cost.cpu_cost = left.cpu_cost
-                     + right.cpu_cost
-                     + (build * kCpuHashBuild + probe * kCpuHashProbe) * predicate_evaluation_cost;
+    + right.cpu_cost
+    + (build * kCpuHashBuild + probe * kCpuHashProbe) * predicate_evaluation_cost;
 
   join_cost.io_cost = left.io_cost
-                    + right.io_cost
-                    + build * kIoPerRow;
+    + right.io_cost
+    + build * kIoPerRow;
 
   join_cost.startup_cost = left.startup_cost + right.startup_cost + 1.0;
 
@@ -170,7 +163,6 @@ CostEstimate DefaultCostModel::EstimateHashJoin(
 CostEstimate DefaultCostModel::EstimateSort(
   const storage::GraphDB* db,
   const CostEstimate& input) const {
-
   if (!db) {
     throw std::runtime_error("DefaultCostModel(estimate_sort): Error, db is null");
   }
@@ -180,13 +172,13 @@ CostEstimate DefaultCostModel::EstimateSort(
 
   if (input.row_count >= 3) {
     sort_cost.cpu_cost = input.cpu_cost
-                       + (input.row_count * std::log2(input.row_count)) * kCpuPerRow;
+      + (input.row_count * std::log2(input.row_count)) * kCpuPerRow;
   } else {
     sort_cost.cpu_cost = input.cpu_cost;
   }
 
   sort_cost.io_cost = input.io_cost
-                    + input.row_count * kIoPerRow;
+    + input.row_count * kIoPerRow;
 
   sort_cost.startup_cost = input.startup_cost + 1.0;
 
@@ -197,7 +189,6 @@ CostEstimate DefaultCostModel::EstimateLimit(
   const storage::GraphDB* db,
   const CostEstimate& input,
   size_t limit) const {
-
   if (!db) {
     throw std::runtime_error("DefaultCostModel(estimate_limit): Error, db is null");
   }
@@ -206,7 +197,7 @@ CostEstimate DefaultCostModel::EstimateLimit(
   limit_cost.row_count = std::min(input.row_count, static_cast<double>(limit));
 
   limit_cost.cpu_cost = input.cpu_cost
-                      + limit_cost.row_count * kCpuPerRow;
+    + limit_cost.row_count * kCpuPerRow;
 
   limit_cost.io_cost = input.io_cost;
   limit_cost.startup_cost = input.startup_cost;
@@ -215,8 +206,7 @@ CostEstimate DefaultCostModel::EstimateLimit(
 }
 
 CostEstimate DefaultCostModel::EstimateSet(const storage::GraphDB* db, const CostEstimate& input,
-  const logical::LogicalSet& set) const {
-
+                                           const logical::LogicalSet& set) const {
   if (!db) {
     throw std::runtime_error("DefaultCostModel(EstimateSet): Error, db is null");
   }
@@ -229,8 +219,7 @@ CostEstimate DefaultCostModel::EstimateSet(const storage::GraphDB* db, const Cos
 }
 
 CostEstimate DefaultCostModel::EstimateCreate(const storage::GraphDB* db, const CostEstimate& input,
-  const logical::LogicalCreate& create) const {
-
+                                              const logical::LogicalCreate& create) const {
   if (!db) {
     throw std::runtime_error("DefaultCostModel(EstimateCreate): Error, db is null");
   }
@@ -243,8 +232,7 @@ CostEstimate DefaultCostModel::EstimateCreate(const storage::GraphDB* db, const 
 }
 
 CostEstimate DefaultCostModel::EstimateDelete(const storage::GraphDB* db, const CostEstimate& input,
-  const logical::LogicalDelete& del) const {
-
+                                              const logical::LogicalDelete& del) const {
   if (!db) {
     throw std::runtime_error("DefaultCostModel(EstimateDelete): Error, db is null");
   }
@@ -270,7 +258,7 @@ double DefaultCostModel::EstimateNodePropertySelectivity(const std::vector<std::
 }
 
 double DefaultCostModel::EstimateNodeLabelsSelectivity(const std::vector<String>& labels,
-  const storage::GraphDB* db) {
+                                                       const storage::GraphDB* db) {
   double selectivity = 1.0;
   auto node_count = static_cast<double>(db->node_count());
 
@@ -282,7 +270,7 @@ double DefaultCostModel::EstimateNodeLabelsSelectivity(const std::vector<String>
 }
 
 std::pair<double, String> DefaultCostModel::EstimateLowestLabelSelectivity(const std::vector<String>& labels,
-  const storage::GraphDB* db) {
+                                                                           const storage::GraphDB* db) {
   if (labels.empty()) {
     return {1.0, ""};
   }
@@ -301,7 +289,7 @@ std::pair<double, String> DefaultCostModel::EstimateLowestLabelSelectivity(const
 }
 
 double DefaultCostModel::EstimateEdgeTypeSelectivity(const std::optional<std::string>& label,
-  const storage::GraphDB* db) {
+                                                     const storage::GraphDB* db) {
   if (!label.has_value()) {
     return 1.0;
   }
@@ -332,7 +320,7 @@ double DefaultCostModel::EstimateExprSelectivity(const ast::Expr* expr, const st
     ast::Expr* left = expr_comparison->left_expr.get();
     ast::Expr* right = expr_comparison->right_expr.get();
     if ((left->Type() != ast::ExprType::Literal && left->Type() != ast::ExprType::Property) ||
-        (right->Type() != ast::ExprType::Literal && right->Type() != ast::ExprType::Property)) {
+      (right->Type() != ast::ExprType::Literal && right->Type() != ast::ExprType::Property)) {
       return 1.0;
     }
     if (left->Type() == ast::ExprType::Literal && right->Type() == ast::ExprType::Literal) {
@@ -376,7 +364,7 @@ double DefaultCostModel::EstimateExprSelectivity(const ast::Expr* expr, const st
   }
 
 #ifndef NDEBUG
-    assert(expr->Type() == ast::ExprType::Literal || expr->Type() == ast::ExprType::Property);
+  assert(expr->Type() == ast::ExprType::Literal || expr->Type() == ast::ExprType::Property);
 #endif
 
   return 1.0;
@@ -419,7 +407,7 @@ double DefaultCostModel::GetSelectivityByNodeCount(const size_t& node_count, con
 }
 
 std::unique_ptr<ast::Expr> DefaultCostModel::CreateExprByHashJoinKeys(const std::vector<ast::Expr*>& left_keys,
-  const std::vector<ast::Expr*>& right_keys) {
+                                                                      const std::vector<ast::Expr*>& right_keys) {
 #ifndef NDEBUG
   assert(left_keys.size() == right_keys.size());
 #endif
@@ -444,7 +432,6 @@ std::unique_ptr<ast::Expr> DefaultCostModel::CreateExprByHashJoinKeys(const std:
 CostEstimate DefaultCostModel::EstimateProject(
   const storage::GraphDB* db, const CostEstimate& child,
   const logical::LogicalProject& proj) const {
-
   CostEstimate cost = child;
   cost.cpu_cost += child.row_count * kCpuPerRow * static_cast<double>(proj.items.size());
 

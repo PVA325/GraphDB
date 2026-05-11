@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_PHYSICAL_PLAN_HPP
-#define GRAPHDB_PHYSICAL_PLAN_HPP
+#pragma once
 
 #include "common/common_value.hpp"
 #include "physical/physical_utils.hpp"
@@ -36,6 +35,3 @@
 #include "physical/operations/delete.hpp"
 #include "physical/operations/sort.hpp"
 #include "physical/operations/physical_plan.hpp"
-
-
-#endif //GRAPHDB_PHYSICAL_PLAN_HPP

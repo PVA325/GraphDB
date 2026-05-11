@@ -9,7 +9,6 @@
 using namespace graph;
 
 namespace {
-
 using LPtr = logical::LogicalOpPtr;
 
 LPtr MakeScan(const std::string& alias) {
@@ -31,7 +30,7 @@ ast::ExprPtr MakeProp(const std::string& alias, const std::string& property) {
 
 ast::ExprPtr MakeCmp(ast::ExprPtr lhs, ast::CompareOp op, ast::ExprPtr rhs) {
   return std::make_unique<ast::ComparisonExpr>(
-      std::move(lhs), op, std::move(rhs)
+    std::move(lhs), op, std::move(rhs)
   );
 }
 
@@ -66,13 +65,13 @@ struct MockCostModel final : optimizer::CostModel {
   }
 
   std::pair<optimizer::CostEstimate, String> EstimateIndexSeekLabel(const storage::GraphDB*,
-                                                                     const logical::LogicalScan&) const override {
+                                                                    const logical::LogicalScan&) const override {
     return {{1000.0, 100.0, 10.0, 0.0}, ""};
   }
 
   optimizer::CostEstimate EstimateExpand(const storage::GraphDB*,
-                                          const logical::LogicalExpand&,
-                                          const optimizer::CostEstimate& input) const override {
+                                         const logical::LogicalExpand&,
+                                         const optimizer::CostEstimate& input) const override {
     return {input.row_count, input.cpu_cost + 1.0, input.io_cost, input.startup_cost};
   }
 
@@ -132,19 +131,18 @@ struct MockCostModel final : optimizer::CostModel {
     return input;
   }
 };
-
-}  // namespace
+} // namespace
 
 TEST(OptimizerFilterPushdown, PushesSidePredicatesBelowJoin) {
   // (a.x = 1) AND (b.y = 2) AND (a.id = b.id)
   auto pred =
+    MakeAnd(
       MakeAnd(
-          MakeAnd(
-              MakeCmp(MakeProp("a", "x"), ast::CompareOp::Eq, MakeLiteral(1)),
-              MakeCmp(MakeProp("b", "y"), ast::CompareOp::Eq, MakeLiteral(2))
-          ),
-          MakeCmp(MakeProp("a", "id"), ast::CompareOp::Eq, MakeProp("b", "id"))
-      );
+        MakeCmp(MakeProp("a", "x"), ast::CompareOp::Eq, MakeLiteral(1)),
+        MakeCmp(MakeProp("b", "y"), ast::CompareOp::Eq, MakeLiteral(2))
+      ),
+      MakeCmp(MakeProp("a", "id"), ast::CompareOp::Eq, MakeProp("b", "id"))
+    );
 
   auto plan = MakeFilterOverJoin(std::move(pred));
   // std::cout << plan.SubtreeDebugString() << std::endl << "\n\n";
@@ -211,4 +209,3 @@ TEST(OptimizerHashJoin, ChoosesHashJoinForPureEquiJoin) {
   EXPECT_NE(dynamic_cast<exec::HashJoinOp*>(physical_root.get()), nullptr);
   EXPECT_EQ(dynamic_cast<exec::NestedLoopJoinOp*>(physical_root.get()), nullptr);
 }
-

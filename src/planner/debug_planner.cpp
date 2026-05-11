@@ -129,7 +129,7 @@ std::string ReturnItemDebugString(const ast::ReturnItem& item) {
   const auto& prop = std::get<1>(item.return_item);
   return std::format("{}.{}", prop.alias, prop.property);
 }
-}  // namespace
+} // namespace
 
 namespace graph::logical {
 String LogicalOpUnaryChild::SubtreeDebugString() const {
@@ -371,5 +371,4 @@ String PhysicalSortOp::DebugString() const {
 std::string PhysicalPlan::DebugString() const {
   return root->SubtreeDebugString();
 }
-
 } // namespace graph::exec

@@ -1,19 +1,19 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::logical {
-  LogicalExpand::LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
-                               std::optional<String> edge_type, std::vector<String> dst_vertex_labels,
-                               std::vector<std::pair<String, Value>> dst_vertex_properties,
-                               ast::EdgeDirection direction) :
-    AliasedLogicalOp(std::move(dst_alias)),
-    child(std::move(child)),
-    src_alias(std::move(src_alias)),
-    edge_alias(std::move(edge_alias)),
-    edge_type(std::move(edge_type)),
-    dst_vertex_labels(std::move(dst_vertex_labels)),
-    dst_vertex_properties(std::move(dst_vertex_properties)),
-    direction(direction) {
-  }
+LogicalExpand::LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
+                             std::optional<String> edge_type, std::vector<String> dst_vertex_labels,
+                             std::vector<std::pair<String, Value>> dst_vertex_properties,
+                             ast::EdgeDirection direction) :
+  AliasedLogicalOp(std::move(dst_alias)),
+  child(std::move(child)),
+  src_alias(std::move(src_alias)),
+  edge_alias(std::move(edge_alias)),
+  edge_type(std::move(edge_type)),
+  dst_vertex_labels(std::move(dst_vertex_labels)),
+  dst_vertex_properties(std::move(dst_vertex_properties)),
+  direction(direction) {
+}
 
 
 BuildPhysicalType LogicalExpand::BuildPhysical(exec::ExecContext& ctx,
@@ -51,10 +51,9 @@ BuildPhysicalType LogicalExpand::BuildPhysical(exec::ExecContext& ctx,
 }
 
 [[nodiscard]] std::vector<String> LogicalExpand::GetSubtreeAliases() const {
-  auto ans =child->GetSubtreeAliases();
+  auto ans = child->GetSubtreeAliases();
   ans.emplace_back(dst_alias);
   ans.emplace_back(edge_alias);
   return ans;
 }
-
 }

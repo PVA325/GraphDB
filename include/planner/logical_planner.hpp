@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_PLANNER_HPP
-#define GRAPHDB_LOGICAL_PLANNER_HPP
+#pragma once
 
 #include "common/common_value.hpp"
 #include "logical/logical_op.hpp"
@@ -17,4 +16,3 @@
 #include "logical/logical_create.hpp"
 #include "logical/logical_plan.hpp"
 
-#endif //GRAPHDB_LOGICAL_PLANNER_HPP

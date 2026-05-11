@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::logical {
-
 LogicalLimit::LogicalLimit(LogicalOpPtr child, size_t limit_size) :
   LogicalOpUnaryChild(std::move(child)),
   limit_size(limit_size) {
@@ -20,5 +19,4 @@ BuildPhysicalType LogicalLimit::BuildPhysical(
     cost_model->EstimateLimit(db, child_build.second, limit_size)
   );
 }
-
 }

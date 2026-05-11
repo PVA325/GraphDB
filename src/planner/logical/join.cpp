@@ -78,19 +78,19 @@ void FindFirstPairToJoin(
   std::swap(builds[first_pair_idx.second], builds[1]);
   std::swap(aliases[first_pair_idx.second], aliases[1]);
 }
-void FindNewToJoin(size_t start_search_idx,
-  const BuildPhysicalType& curr_join_build, const std::vector<String>& collected_aliases,
-  const std::unique_ptr<ast::Expr>& predicate, std::vector<BuildPhysicalType>& builds,
-  std::vector<std::vector<String>>& aliases,
-  exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) {
 
+void FindNewToJoin(size_t start_search_idx,
+                   const BuildPhysicalType& curr_join_build, const std::vector<String>& collected_aliases,
+                   const std::unique_ptr<ast::Expr>& predicate, std::vector<BuildPhysicalType>& builds,
+                   std::vector<std::vector<String>>& aliases,
+                   exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) {
   size_t children_cnt = builds.size();
   optimizer::CostEstimate min_cost = optimizer::CostEstimate::GetMaxCostEstimate();
   size_t best_idx = start_search_idx;
   for (size_t i = start_search_idx; i < children_cnt; ++i) {
-
     auto [hash_join_cost, _0, _1, _2] =
-      optimizer::EstimateHashJoin(collected_aliases, aliases[i], predicate, ctx, cost_model, db, curr_join_build.second, builds[i].second);
+      optimizer::EstimateHashJoin(collected_aliases, aliases[i], predicate, ctx, cost_model, db, curr_join_build.second,
+                                  builds[i].second);
 
     optimizer::CostEstimate dummy_join_cost = cost_model->EstimateNestedJoin(
       db, curr_join_build.second, builds[i].second, predicate.get()

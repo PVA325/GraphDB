@@ -32,5 +32,4 @@ bool DeleteCursor::next(Row& out) {
 void DeleteCursor::close() {
   child->close();
 }
-
 }

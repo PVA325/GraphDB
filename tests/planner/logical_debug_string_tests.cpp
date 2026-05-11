@@ -7,42 +7,44 @@ namespace {
 using graph::String;
 
 struct TestLeafOp final : graph::logical::LogicalOpZeroChild {
-  explicit TestLeafOp(String debug) : debug_(std::move(debug)) {}
+  explicit TestLeafOp(String debug) : debug_(std::move(debug)) {
+  }
 
   String DebugString() const override {
     return debug_;
   }
 
   graph::logical::BuildPhysicalType BuildPhysical(
-      graph::exec::ExecContext&,
-      graph::optimizer::CostModel*,
-      storage::GraphDB*) const override {
+    graph::exec::ExecContext&,
+    graph::optimizer::CostModel*,
+    storage::GraphDB*) const override {
     return {nullptr, graph::optimizer::CostEstimate{}};
   }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const override { return {}; };
-  [[nodiscard]] graph::logical::LogicalOpType Type() const override { return graph::logical::LogicalOpType::Create; }
+  [[nodiscard]] graph::logical::LogicalOpType Type() const override { return graph::logical::LogicalOpType::kCreateType; }
 
   String debug_;
 };
 
 struct TestUnaryOp final : graph::logical::LogicalOpUnaryChild {
   explicit TestUnaryOp(graph::logical::LogicalOpPtr child, String debug)
-      : LogicalOpUnaryChild(std::move(child)), debug_(std::move(debug)) {}
+    : LogicalOpUnaryChild(std::move(child)), debug_(std::move(debug)) {
+  }
 
   String DebugString() const override {
     return debug_;
   }
 
   graph::logical::BuildPhysicalType BuildPhysical(
-      graph::exec::ExecContext&,
-      graph::optimizer::CostModel*,
-      storage::GraphDB*) const override {
+    graph::exec::ExecContext&,
+    graph::optimizer::CostModel*,
+    storage::GraphDB*) const override {
     return {nullptr, graph::optimizer::CostEstimate{}};
   }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const override { return {}; };
-  [[nodiscard]] graph::logical::LogicalOpType Type() const override { return graph::logical::LogicalOpType::Create; }
+  [[nodiscard]] graph::logical::LogicalOpType Type() const override { return graph::logical::LogicalOpType::kCreateType; }
 
   String debug_;
 };
@@ -50,28 +52,30 @@ struct TestUnaryOp final : graph::logical::LogicalOpUnaryChild {
 struct TestBinaryOp final : graph::logical::LogicalOpManyChildren {
   TestBinaryOp(std::vector<graph::logical::LogicalOpPtr> children,
                String debug)
-      : LogicalOpManyChildren(std::move(children)),
-        debug_(std::move(debug)) {}
+    : LogicalOpManyChildren(std::move(children)),
+      debug_(std::move(debug)) {
+  }
 
   String DebugString() const override {
     return debug_;
   }
 
   graph::logical::BuildPhysicalType BuildPhysical(
-      graph::exec::ExecContext&,
-      graph::optimizer::CostModel*,
-      storage::GraphDB*) const override {
+    graph::exec::ExecContext&,
+    graph::optimizer::CostModel*,
+    storage::GraphDB*) const override {
     return {nullptr, graph::optimizer::CostEstimate{}};
   }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const override { return {}; };
-  [[nodiscard]] graph::logical::LogicalOpType Type() const override { return graph::logical::LogicalOpType::Create; }
+  [[nodiscard]] graph::logical::LogicalOpType Type() const override { return graph::logical::LogicalOpType::kCreateType; }
 
   String debug_;
 };
 
 struct FakeExpr final : ast::Expr {
-  explicit FakeExpr(String s) : s_(std::move(s)) {}
+  explicit FakeExpr(String s) : s_(std::move(s)) {
+  }
 
   graph::Value operator()(const ast::EvalContext&) const override {
     return false;
@@ -83,7 +87,8 @@ struct FakeExpr final : ast::Expr {
   virtual ast::ExprType Type() const override { return ast::ExprType::Literal; }
 
   // Collects all aliases used in the expression into the provided vector.
-  virtual void CollectAliases(std::vector<std::string>& aliases) const override {}
+  virtual void CollectAliases(std::vector<std::string>& aliases) const override {
+  }
 
   std::string DebugString() const override {
     return s_;
@@ -112,7 +117,8 @@ TEST(LogicalDebugString, BinarySubtreeHasLeftAndRightMarkers) {
   auto left = std::make_unique<TestLeafOp>("Left");
   auto right = std::make_unique<TestLeafOp>("Right");
   std::vector<graph::logical::LogicalOpPtr> ch;
-  ch.emplace_back(std::move(left)); ch.emplace_back(std::move(right));
+  ch.emplace_back(std::move(left));
+  ch.emplace_back(std::move(right));
   TestBinaryOp op(std::move(ch), "Binary");
 
   EXPECT_EQ(op.DebugString(), "Binary");
@@ -134,37 +140,37 @@ TEST(LogicalDebugString, LogicalScanWithoutLabelsAndProperties) {
 
 TEST(LogicalDebugString, LogicalScanWithLabelsAndProperties) {
   graph::logical::LogicalScan scan(
-      {"Person", "Employee"},
-      "n",
-      {{"age", graph::Value{42}}}
+    {"Person", "Employee"},
+    "n",
+    {{"age", graph::Value{42}}}
   );
 
   EXPECT_EQ(
-      scan.DebugString(),
-      "LogicalScan(as=n, labels=[Person, Employee], properties={age: 42})"
+    scan.DebugString(),
+    "LogicalScan(as=n, labels=[Person, Employee], properties={age: 42})"
   );
 }
 
 TEST(LogicalDebugString, LogicalExpandDebugString) {
   auto child = std::make_unique<TestLeafOp>("Scan");
   graph::logical::LogicalExpand op(
-      std::move(child),
-      "a",
-      "e",
-      "b",
-      std::optional<String>{"LIKES"},
-      {"Person"},
-      {},
-      ast::EdgeDirection::Right
+    std::move(child),
+    "a",
+    "e",
+    "b",
+    std::optional<String>{"LIKES"},
+    {"Person"},
+    {},
+    ast::EdgeDirection::Right
   );
 
   EXPECT_EQ(
-      op.DebugString(),
-      "LogicalExpand(a->b, edge_as=e, edge_label= LIKES, dst_labels=[Person])"
+    op.DebugString(),
+    "LogicalExpand(a->b, edge_as=e, edge_label= LIKES, dst_labels=[Person])"
   );
   EXPECT_EQ(
-      op.SubtreeDebugString(),
-      "LogicalExpand(a->b, edge_as=e, edge_label= LIKES, dst_labels=[Person])\n  Scan"
+    op.SubtreeDebugString(),
+    "LogicalExpand(a->b, edge_as=e, edge_label= LIKES, dst_labels=[Person])\n  Scan"
   );
 }
 
@@ -194,7 +200,8 @@ TEST(LogicalDebugString, LogicalJoinCrossDebugString) {
   auto left = std::make_unique<TestLeafOp>("Left");
   auto right = std::make_unique<TestLeafOp>("Right");
   std::vector<graph::logical::LogicalOpPtr> ch;
-  ch.emplace_back(std::move(left)); ch.emplace_back(std::move(right));
+  ch.emplace_back(std::move(left));
+  ch.emplace_back(std::move(right));
   graph::logical::LogicalJoin op(std::move(ch));
 
   EXPECT_EQ(op.DebugString(), "Join(cross)");
@@ -206,7 +213,8 @@ TEST(LogicalDebugString, LogicalJoinWithPredicate) {
   auto right = std::make_unique<TestLeafOp>("Right");
   auto pred = std::make_unique<FakeExpr>("a.id = b.id");
   std::vector<graph::logical::LogicalOpPtr> ch;
-  ch.emplace_back(std::move(left)); ch.emplace_back(std::move(right));
+  ch.emplace_back(std::move(left));
+  ch.emplace_back(std::move(right));
   graph::logical::LogicalJoin op(std::move(ch), std::move(pred));
 
   EXPECT_EQ(op.DebugString(), "Join(on=a.id = b.id)");
@@ -216,8 +224,8 @@ TEST(LogicalDebugString, LogicalSetDebugString) {
   auto child = std::make_unique<TestLeafOp>("Child");
   graph::logical::LogicalSet::Assignment ass{"n", {}, {std::make_pair("age", graph::Value(21))}};
   graph::logical::LogicalSet op(
-      std::move(child),
-      {ass}
+    std::move(child),
+    {ass}
   );
 
   EXPECT_EQ(op.DebugString(), "LogicalSet(alias=n, labels=, properties={age=21})");
@@ -227,8 +235,8 @@ TEST(LogicalDebugString, LogicalSetDebugString) {
 TEST(LogicalDebugString, LogicalDeleteDebugString) {
   auto child = std::make_unique<TestLeafOp>("Child");
   graph::logical::LogicalDelete op(
-      std::move(child),
-      {"n", "m"}
+    std::move(child),
+    {"n", "m"}
   );
 
   EXPECT_EQ(op.DebugString(), "LogicalDelete(n, m)");
@@ -304,12 +312,12 @@ TEST(LogicalDebugString, LogicalProjectWithPropertyExpr) {
   graph::logical::LogicalProject op(std::move(child), items);
 
   EXPECT_EQ(
-      op.DebugString(),
-      "Project(Property(a.age))"
+    op.DebugString(),
+    "Project(Property(a.age))"
   );
   EXPECT_EQ(
-      op.SubtreeDebugString(),
-      "Project(Property(a.age))\n  Child"
+    op.SubtreeDebugString(),
+    "Project(Property(a.age))\n  Child"
   );
 }
 
@@ -327,8 +335,8 @@ TEST(LogicalDebugString, LogicalProjectMixedItems) {
   graph::logical::LogicalProject op(std::move(child), items);
 
   EXPECT_EQ(
-      op.DebugString(),
-      "Project(a, Property(a.age))"
+    op.DebugString(),
+    "Project(a, Property(a.age))"
   );
 }
 
@@ -346,12 +354,12 @@ TEST(LogicalDebugString, LogicalSortSingleKeyAsc) {
   graph::logical::LogicalSort op(std::move(child), {item});
 
   EXPECT_EQ(
-      op.DebugString(),
-      "Sort(Property(a.age) ASC)"
+    op.DebugString(),
+    "Sort(Property(a.age) ASC)"
   );
   EXPECT_EQ(
-      op.SubtreeDebugString(),
-      "Sort(Property(a.age) ASC)\n  Child"
+    op.SubtreeDebugString(),
+    "Sort(Property(a.age) ASC)\n  Child"
   );
 }
 
@@ -372,7 +380,7 @@ TEST(LogicalDebugString, LogicalSortMultipleKeys) {
   graph::logical::LogicalSort op(std::move(child), {k1, k2});
 
   EXPECT_EQ(
-      op.DebugString(),
-      "Sort(Property(a.age) ASC, Property(b.name) DESC)"
+    op.DebugString(),
+    "Sort(Property(a.age) ASC, Property(b.name) DESC)"
   );
 }

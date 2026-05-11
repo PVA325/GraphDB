@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 PhysicalCreateOp::PhysicalCreateOp(std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items) :
   PhysicalOpUnaryChild(nullptr),
   items(std::move(items)) {
@@ -20,5 +19,4 @@ RowCursorPtr PhysicalCreateOp::open(ExecContext& ctx) {
     ctx.db
   );
 }
-
 }

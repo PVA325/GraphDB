@@ -22,13 +22,13 @@ using ExprPtr = std::unique_ptr<Expr>;
 }
 
 namespace graph {
-using Int = int64_t;
+using LongInt = int64_t;
 using Double = double;
 using String = std::string;
 using Bool = bool;
 
-using Value = std::variant<Int, Double, String, Bool>;
-}  // namespace graph
+using Value = std::variant<LongInt, Double, String, Bool>;
+} // namespace graph
 
 namespace graph::exec {
 using storage::Node;
@@ -39,11 +39,14 @@ struct Row;
 struct ExecContext;
 
 struct RowSlot {
-  RowSlot(const std::variant<Node*, Edge*, Value>& val): value(val) {}
+  RowSlot(const std::variant<Node*, Edge*, Value>& val) : value(val) {
+  }
+
   RowSlot(const std::variant<Node*, Edge*, Value>& val,
-    String out_name, String source_alias_name, String property_name):
+          String out_name, String source_alias_name, String property_name) :
     value(val), out_name(std::move(out_name)), source_alias_name(std::move(source_alias_name)),
-    property_name(std::move(property_name)) {}
+    property_name(std::move(property_name)) {
+  }
 
   RowSlot(const RowSlot&) = default;
   RowSlot& operator=(const RowSlot&) = default;
@@ -54,8 +57,8 @@ struct RowSlot {
   String out_name;
   String source_alias_name;
   String property_name;
-
 };
+
 using PhysicalOpPtr = std::unique_ptr<PhysicalOp>;
 using RowCursorPtr = std::unique_ptr<RowCursor>;
 
@@ -78,17 +81,17 @@ struct LogicalOp;
 using LogicalOpPtr = std::unique_ptr<LogicalOp>;
 
 enum class LogicalOpType {
-  Scan,
-  Expand,
-  Filter,
-  Project,
-  Limit,
-  Sort,
-  Join,
-  Set,
-  Create,
-  Delete,
-  Plan
+  kScanType,
+  kExpandType,
+  kFilterType,
+  kProjectType,
+  kLimitType,
+  kSortType,
+  kJoinType,
+  kSetType,
+  kCreateType,
+  kDeleteType,
+  kPlanType
 };
 }
 
@@ -103,17 +106,22 @@ struct CostEstimate {
   // nominal cost if read/write(or other heavy operations with ram, not cache) operations(for example for index scan)
   double startup_cost{0.0}; // cost to give first row
 
-  [[nodiscard]] double total() const { return startup_cost + cpu_cost + 5.0 * io_cost; } // FOR TEST ONLY, REWRITE
+  [[nodiscard]] double total() const { return startup_cost + cpu_cost + kIORelativeCost * io_cost; }
+  // FOR TEST ONLY, REWRITE
 
   static double kCostEstimateInf;
+
   static CostEstimate GetMaxCostEstimate() {
     return {kCostEstimateInf, kCostEstimateInf, kCostEstimateInf, kCostEstimateInf};
   }
+
+private:
+  constexpr static double kIORelativeCost = 5.0;
 };
 } // namespace graph::optimizer
 
 namespace graph::logical {
 using BuildPhysicalType = std::pair<exec::PhysicalOpPtr, optimizer::CostEstimate>;
-}  // namespace graph::logical
+} // namespace graph::logical
 
 #endif //GRAPHDB_COMMON_VALUE_HPP

@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 FilterCursor::FilterCursor(
   RowCursorPtr child_cursor,
   ast::Expr* predicate) :
@@ -27,5 +26,4 @@ bool FilterCursor::next(Row& out) {
 void FilterCursor::close() {
   child_cursor->close();
 }
-
 }

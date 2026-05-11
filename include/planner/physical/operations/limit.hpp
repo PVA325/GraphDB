@@ -6,9 +6,9 @@
 namespace graph::exec {
 struct LimitOp : public PhysicalOpUnaryChild {
   /// just physical limit
-  Int limit_size;
+  LongInt limit_size;
 
-  LimitOp(Int limit_size, PhysicalOpPtr child);
+  LimitOp(LongInt limit_size, PhysicalOpPtr child);
 
   RowCursorPtr open(ExecContext& ctx) override;
 

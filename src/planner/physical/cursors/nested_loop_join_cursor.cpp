@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 NestedLoopJoinCursor::NestedLoopJoinCursor(
   RowCursorPtr left_cursor,
   PhysicalOp* right_operation,
@@ -25,7 +24,7 @@ bool NestedLoopJoinCursor::next(Row& out) {
         return false;
       }
       right_cursor = std::move(right_operation->open(ctx));
-    } else  {
+    } else {
       auto [new_row, is_mergeable] = MergeRows(left_row, right_row);
       if (!is_mergeable) {
         continue;
@@ -45,5 +44,4 @@ void NestedLoopJoinCursor::close() {
   left_cursor->close();
   right_cursor->close();
 }
-
 }

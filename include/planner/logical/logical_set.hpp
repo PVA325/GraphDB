@@ -26,7 +26,7 @@ struct LogicalSet : LogicalOpUnaryChild {
 
   [[nodiscard]] String DebugString() const override;
 
-  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Set; }
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kSetType; }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 

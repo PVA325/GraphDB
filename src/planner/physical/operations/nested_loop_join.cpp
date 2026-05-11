@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 NestedLoopJoinOp::NestedLoopJoinOp(
   PhysicalOpPtr left,
   PhysicalOpPtr right,

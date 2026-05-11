@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 PhysicalDeleteOp::PhysicalDeleteOp(std::vector<String> aliases, PhysicalOpPtr child) :
   PhysicalOpUnaryChild(std::move(child)),
   aliases(std::move(aliases)) {
@@ -14,5 +13,4 @@ RowCursorPtr PhysicalDeleteOp::open(ExecContext& ctx) {
     ctx.db
   );
 }
-
 }

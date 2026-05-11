@@ -1,10 +1,10 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::logical {
-
 LogicalDelete::LogicalDelete(LogicalOpPtr child, std::vector<String> target) :
   LogicalOpUnaryChild(std::move(child)),
-  target(std::move(target)) {}
+  target(std::move(target)) {
+}
 
 BuildPhysicalType LogicalDelete::BuildPhysical(
   exec::ExecContext& ctx,
@@ -20,5 +20,4 @@ BuildPhysicalType LogicalDelete::BuildPhysical(
     cost_model->EstimateDelete(db, child_build.second, *this)
   );
 }
-
 }

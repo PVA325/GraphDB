@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_ROW_CURSOR_HPP
-#define GRAPHDB_ROW_CURSOR_HPP
+#pragma once
 
 #include "common/common_value.hpp"
 
@@ -17,6 +16,5 @@ struct RowCursor {
   virtual ~RowCursor() = default;
 };
 
-}
+} // namespace graph::exec
 
-#endif //GRAPHDB_ROW_CURSOR_HPP

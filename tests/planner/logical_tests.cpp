@@ -43,11 +43,11 @@ TEST(BuildPhysicalPlanComplex, MatchWhereReturnOrderLimitMapsToPhysicalTree) {
   EXPECT_TRUE(s.find("Sort(") != String::npos);
   EXPECT_TRUE(s.find("Filter(") != String::npos);
   EXPECT_TRUE(s.find("Join(") != String::npos
-           || s.find("NestedLoopJoin(") != String::npos
-           || s.find("HashJoin(") != String::npos);
+    || s.find("NestedLoopJoin(") != String::npos
+    || s.find("HashJoin(") != String::npos);
 
   EXPECT_TRUE(s.find("NodeScan(") != String::npos
-           || s.find("LabelIndexSeek(") != String::npos);
+    || s.find("LabelIndexSeek(") != String::npos);
 
   EXPECT_GE(CountSubstr(s, "Scan("), 0u);
 }
@@ -57,7 +57,7 @@ TEST(BuildPhysicalPlanComplex, MatchExpandSetMapsToExpandAndSet) {
 
   q.match_clause = std::make_unique<ast::MatchClause>();
   q.match_clause->patterns.push_back(
-      MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
+    MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
   );
 
   q.set_clause = std::make_unique<ast::SetClause>();
@@ -75,7 +75,7 @@ TEST(BuildPhysicalPlanComplex, MatchExpandSetMapsToExpandAndSet) {
   EXPECT_TRUE(s.find("Set(") != String::npos);
   EXPECT_TRUE(s.find("Expand(") != String::npos);
   EXPECT_TRUE(s.find("NodeScan(") != String::npos
-           || s.find("LabelIndexSeek(") != String::npos);
+    || s.find("LabelIndexSeek(") != String::npos);
 }
 
 static void SeedGraph1(storage::GraphDB& db) {
@@ -124,7 +124,7 @@ TEST(ExecutionComplex, MatchExpandJoinProjectLimit2) {
 
   q.match_clause = std::make_unique<ast::MatchClause>();
   q.match_clause->patterns.push_back(
-      MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
+    MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
   );
   q.match_clause->patterns.push_back(MakeNodePattern("c", {"City"}));
 
@@ -276,7 +276,7 @@ TEST(ExecutionComplex, MatchExpandReturnsNodeEdgeNode) {
   ast::QueryAST q;
   q.match_clause = std::make_unique<ast::MatchClause>();
   q.match_clause->patterns.push_back(
-      MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
+    MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
   );
 
   q.return_clause = std::make_unique<ast::ReturnClause>();
@@ -385,8 +385,8 @@ TEST(ExecutionComplex, MatchSetUpdatesMultipleProperties) {
   ast::SetItem item;
   item.alias = "a";
   item.properties = {
-      {"VIP", ast::Literal{true}},
-      {"age", ast::Literal{22}},
+    {"VIP", ast::Literal{true}},
+    {"age", ast::Literal{22}},
   };
   q.set_clause->items.push_back(std::move(item));
 
@@ -500,7 +500,7 @@ TEST(ExecutionComplex, MatchExpandJoinProjectTogether) {
   ast::QueryAST q;
   q.match_clause = std::make_unique<ast::MatchClause>();
   q.match_clause->patterns.push_back(
-      MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
+    MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
   );
   q.match_clause->patterns.push_back(MakeNodePattern("c", {"City"}));
 
@@ -559,7 +559,7 @@ TEST(ExecutionComplex, MatchExpandThenSetPropertyOnMatchedNode) {
   ast::QueryAST q;
   q.match_clause = std::make_unique<ast::MatchClause>();
   q.match_clause->patterns.push_back(
-      MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
+    MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
   );
 
   q.set_clause = std::make_unique<ast::SetClause>();
@@ -665,7 +665,7 @@ TEST(ExecutionComplex, MatchExpandDeleteRemovesMatchedEdge) {
   ast::QueryAST q;
   q.match_clause = std::make_unique<ast::MatchClause>();
   q.match_clause->patterns.push_back(
-      MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
+    MakeEdgePattern("a", "e", "b", "KNOWS", ast::EdgeDirection::Right)
   );
 
   q.delete_clause = std::make_unique<ast::DeleteClause>();
@@ -700,7 +700,7 @@ TEST(ExecutionComplex, MatchExpandSetAndDeleteDifferentTargets) {
 
   q.match_clause = std::make_unique<ast::MatchClause>();
   q.match_clause->patterns.push_back(
-      MakeEdgePattern("x", "e", "y", "KNOWS", ast::EdgeDirection::Right)
+    MakeEdgePattern("x", "e", "y", "KNOWS", ast::EdgeDirection::Right)
   );
 
   q.set_clause = std::make_unique<ast::SetClause>();

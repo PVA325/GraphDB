@@ -1,9 +1,9 @@
-#ifndef GRAPHDB_LOGICAL_SORT_HPP
-#define GRAPHDB_LOGICAL_SORT_HPP
+#pragma once
 
 #include "logical_op_unary_child.hpp"
 
 namespace graph::logical {
+
 struct LogicalSort : LogicalOpUnaryChild {
   /// Logical Sort - sort by expression in items
   /// for example
@@ -20,15 +20,16 @@ struct LogicalSort : LogicalOpUnaryChild {
   explicit LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> items);
 
   [[nodiscard]] String DebugString() const override;
+
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
                                   storage::GraphDB* db) const override;
 
-  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Sort; }
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kSortType; }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalSort() override = default;
 };
-}
 
-#endif //GRAPHDB_LOGICAL_SORT_HPP
+} // namespace graph::logical
+

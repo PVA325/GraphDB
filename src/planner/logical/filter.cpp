@@ -5,6 +5,7 @@ LogicalFilter::LogicalFilter(LogicalOpPtr child, std::unique_ptr<ast::Expr> pred
   LogicalOpUnaryChild(std::move(child)),
   predicate(std::move(predicate)) {
 }
+
 LogicalFilter::LogicalFilter(LogicalOpPtr child, ast::Expr* predicate) :
   LogicalOpUnaryChild(std::move(child)),
   predicate(predicate) {
@@ -23,5 +24,4 @@ BuildPhysicalType LogicalFilter::BuildPhysical(
     cost_model->EstimateFilter(db, child_build.second, predicate.get())
   );
 }
-
 }

@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_NESTEED_LOOP_JOIN_CURSOR_HPP
-#define GRAPHDB_NESTEED_LOOP_JOIN_CURSOR_HPP
+#pragma once
 
 #include "row_cursor.hpp"
 #include "eval_context/eval_context.hpp"
@@ -26,6 +25,5 @@ struct NestedLoopJoinCursor : public RowCursor {
   ~NestedLoopJoinCursor() override = default;
 };
 
-}
+} // namespace graph::exec
 
-#endif //GRAPHDB_NESTEED_LOOP_JOIN_CURSOR_HPP

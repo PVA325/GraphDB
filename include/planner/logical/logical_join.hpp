@@ -22,7 +22,7 @@ struct LogicalJoin : LogicalOpManyChildren {
 
   [[nodiscard]] String DebugString() const override;
 
-  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Join; }
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kJoinType; }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final;
 

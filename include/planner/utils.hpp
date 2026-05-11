@@ -1,5 +1,5 @@
-#ifndef GRAPHDB_UTILS_HPP
-#define GRAPHDB_UTILS_HPP
+#pragma once
+
 #include "common/common_value.hpp"
 #include "parser/ast.hpp"
 #include "storage/storage.hpp"
@@ -53,5 +53,3 @@ std::vector<T> MergeVectors(std::vector<T>&& l, std::vector<T>&& r) {
   return res;
 }
 } // namespace graph::PlannerUtils
-
-#endif //GRAPHDB_UTILS_HPP

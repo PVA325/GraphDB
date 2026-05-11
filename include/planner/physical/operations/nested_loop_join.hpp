@@ -17,7 +17,6 @@ struct NestedLoopJoinOp : public PhysicalOpBinaryChild {
   [[nodiscard]] String DebugString() const override;
   ~NestedLoopJoinOp() override = default;
 };
-
 }
 
 #endif //GRAPHDB_NESTED_LOOP_JOIN_HPP

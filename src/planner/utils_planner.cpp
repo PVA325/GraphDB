@@ -15,7 +15,7 @@ graph::String graph::PlannerUtils::EdgeStrByDirection(ast::EdgeDirection dir) {
 
 graph::String graph::PlannerUtils::ValueToString(const graph::Value& val) {
   const auto visitor = overloads{
-    [](Int cur) -> String { return std::to_string(cur); },
+    [](LongInt cur) -> String { return std::to_string(cur); },
     [](Double cur) -> String { return std::to_string(cur); },
     [](Bool cur) -> String { return (cur ? "true" : "false"); },
     [](String cur) -> String { return std::move(cur); }
@@ -25,7 +25,7 @@ graph::String graph::PlannerUtils::ValueToString(const graph::Value& val) {
 
 bool graph::PlannerUtils::ValueToBool(graph::Value val) {
   const auto visitor = overloads{
-    [](Int cur) -> bool { return cur; },
+    [](LongInt cur) -> bool { return cur; },
     [](Double cur) -> bool { return cur != 0.0; },
     [](Bool cur) -> bool { return cur; },
     [](const String& cur) -> bool { return (!cur.empty()); }

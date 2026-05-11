@@ -21,7 +21,7 @@ struct LogicalDelete : LogicalOpUnaryChild {
 
   [[nodiscard]] String DebugString() const override;
 
-  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Delete; }
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kDeleteType; }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 

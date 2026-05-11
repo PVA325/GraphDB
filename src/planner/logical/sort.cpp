@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::logical {
-
 LogicalSort::LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> items) :
   LogicalOpUnaryChild(std::move(child)),
   items(std::move(items)) {
@@ -20,5 +19,4 @@ BuildPhysicalType LogicalSort::BuildPhysical(
     cost_model->EstimateSort(db, child_build.second)
   );
 }
-
 }

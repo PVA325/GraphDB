@@ -44,5 +44,4 @@ BuildPhysicalType LogicalScan::BuildPhysical(
 
   return {std::move(physical_root), child_cost};
 }
-
 }

@@ -1,5 +1,5 @@
-#ifndef GRAPHDB_OPTIMIZER_HPP
-#define GRAPHDB_OPTIMIZER_HPP
+#pragma once
+
 #include "planner/utils.hpp"
 #include "planner/logical_planner.hpp"
 #include "common/common_value.hpp"
@@ -147,5 +147,5 @@ std::tuple<CostEstimate, ExprPtrVec, ExprPtrVec, std::unique_ptr<ast::Expr>> Est
   const CostEstimate& left_cost,
   const CostEstimate& right_cost
 );
-} // namespace graph::optimizer;
-#endif //GRAPHDB_OPTIMIZER_HPP
+} // namespace graph::optimizer
+

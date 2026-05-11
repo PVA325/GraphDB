@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 HashJoinCursor::CompositeKey HashJoinCursor::GetCompositeKey(const Row& row, const std::vector<ast::Expr*>& keys) {
   std::vector<Value> curr_key;
   for (ast::Expr* expr : keys) {
@@ -55,5 +54,4 @@ void HashJoinCursor::close() {
   left_cursor->close();
   right_cursor->close();
 }
-
 }

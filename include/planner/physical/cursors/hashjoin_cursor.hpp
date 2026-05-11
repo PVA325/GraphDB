@@ -8,7 +8,7 @@ namespace graph::exec {
 struct ValueHash {
   size_t operator()(const Value& k) const {
     const auto& visitor = PlannerUtils::overloads{
-      [](Int cur) { return std::hash<Int>()(cur); },
+      [](LongInt cur) { return std::hash<LongInt>()(cur); },
       [](const String& cur) { return std::hash<String>()(cur); },
       [](double cur) { return std::hash<double>()(cur); },
       [](bool cur) { return std::hash<bool>()(cur); }

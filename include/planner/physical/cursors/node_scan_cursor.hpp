@@ -1,10 +1,10 @@
-#ifndef GRAPHDB_NODE_SCAN_CURSOR_HPP
-#define GRAPHDB_NODE_SCAN_CURSOR_HPP
+#pragma once
 
 #include "row_cursor.hpp"
 #include "storage/storage.hpp" /// TODO
 
 namespace graph::exec {
+
 struct NodeScanCursor : RowCursor {
   std::unique_ptr<storage::NodeCursor> nodes_cursor;
   String out_alias;
@@ -20,5 +20,5 @@ struct NodeScanCursor : RowCursor {
   ~NodeScanCursor() override = default;
 };
 
-}
-#endif //GRAPHDB_NODE_SCAN_CURSOR_HPP
+} // namespace graph::exec
+

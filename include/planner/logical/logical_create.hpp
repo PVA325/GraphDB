@@ -1,9 +1,9 @@
-#ifndef GRAPHDB_LOGICAL_CREATE_HPP
-#define GRAPHDB_LOGICAL_CREATE_HPP
+#pragma once
 
 #include "logical_op_unary_child.hpp"
 
 namespace graph::logical {
+
 struct CreateNodeSpec {
   String dst_alias;
   std::vector<String> labels;
@@ -45,12 +45,12 @@ struct LogicalCreate : LogicalOpUnaryChild {
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
                                   storage::GraphDB* db) const override;
 
-  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Create; }
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kCreateType; }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   [[nodiscard]] String DebugString() const override;
 };
-}
 
-#endif //GRAPHDB_LOGICAL_CREATE_HPP
+} // namespace graph::logical
+

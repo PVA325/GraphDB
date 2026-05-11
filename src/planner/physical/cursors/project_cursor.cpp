@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 ProjectCursor::ProjectCursor(
   RowCursorPtr child_cursor,
   std::vector<ast::ReturnItem> items) :
@@ -77,5 +76,4 @@ bool ProjectCursor::next(Row& out) {
 void ProjectCursor::close() {
   child_cursor->close();
 }
-
 }

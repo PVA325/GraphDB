@@ -4,7 +4,8 @@
 using graph::String;
 
 struct FakeExpr final : ast::Expr {
-  explicit FakeExpr(String s) : s_(std::move(s)) {}
+  explicit FakeExpr(String s) : s_(std::move(s)) {
+  }
 
   graph::Value operator()(const ast::EvalContext&) const override {
     return false;
@@ -16,7 +17,8 @@ struct FakeExpr final : ast::Expr {
   virtual ast::ExprType Type() const override { return ast::ExprType::Literal; }
 
   // Collects all aliases used in the expression into the provided vector.
-  virtual void CollectAliases(std::vector<std::string>& aliases) const override {}
+  virtual void CollectAliases(std::vector<std::string>& aliases) const override {
+  }
 
   std::string DebugString() const override {
     return s_;
@@ -87,10 +89,10 @@ inline ast::Pattern MakeNodePattern(const String& alias, std::initializer_list<S
 }
 
 inline ast::Pattern MakeEdgePattern(const String& left_alias,
-                             const String& edge_alias,
-                             const String& right_alias,
-                             const String& label,
-                             ast::EdgeDirection dir) {
+                                    const String& edge_alias,
+                                    const String& right_alias,
+                                    const String& label,
+                                    ast::EdgeDirection dir) {
   ast::NodePattern left;
   left.alias = left_alias;
 

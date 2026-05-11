@@ -15,9 +15,8 @@ BuildPhysicalType LogicalProject::BuildPhysical(
     std::make_unique<exec::ProjectOp>(
       items,
       std::move(child_build.first)
-      ),
-      cost_model->EstimateProject(db, child_build.second, *this)
+    ),
+    cost_model->EstimateProject(db, child_build.second, *this)
   );
 }
-
 }

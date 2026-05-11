@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::logical {
-
 LogicalSet::LogicalSet(LogicalOpPtr child, std::vector<Assignment> assignment) :
   LogicalOpUnaryChild(std::move(child)),
   assignment(std::move(assignment)) {
@@ -21,5 +20,4 @@ BuildPhysicalType LogicalSet::BuildPhysical(
     cost_model->EstimateSet(db, child_build.second, *this)
   );
 }
-
 }

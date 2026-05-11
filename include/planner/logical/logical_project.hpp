@@ -16,7 +16,7 @@ struct LogicalProject : public LogicalOpUnaryChild {
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
                                   storage::GraphDB* db) const override;
 
-  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Project; }
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kProjectType; }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 

@@ -1,8 +1,7 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
-LimitOp::LimitOp(graph::Int limit_size, PhysicalOpPtr child) :
+LimitOp::LimitOp(graph::LongInt limit_size, PhysicalOpPtr child) :
   PhysicalOpUnaryChild(std::move(child)),
   limit_size(limit_size) {
 }
@@ -13,5 +12,4 @@ RowCursorPtr LimitOp::open(ExecContext& ctx) {
     limit_size
   );
 }
-
 }

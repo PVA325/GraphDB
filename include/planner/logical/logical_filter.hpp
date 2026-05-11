@@ -17,7 +17,7 @@ struct LogicalFilter : public LogicalOpUnaryChild {
   BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
                                   storage::GraphDB* db) const override;
 
-  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Filter; }
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kFilterType; }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 

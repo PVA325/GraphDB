@@ -49,5 +49,4 @@ bool SortCursor::next(Row& out) {
 void SortCursor::close() {
   child->close();
 }
-
 }

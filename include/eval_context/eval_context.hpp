@@ -33,7 +33,6 @@ struct SlotMapping {
 
   void clear() { alias_to_slot.clear(); }
 
-
 private:
   std::unordered_map<std::string, size_t> alias_to_slot;
 
@@ -104,12 +103,16 @@ struct EvalContext {
   graph::exec::RowSlot GetAliasedObj(const std::string& alias) const {
     return row_.GetAliasedObj(alias);
   }
+
   Value GetProperty(const std::string& alias, const std::string& property) const {
     return row_.GetProperty(alias, property);
   }
-  EvalContext(const graph::exec::Row& row): row_(row) {}
+
+  EvalContext(const graph::exec::Row& row) : row_(row) {
+  }
+
 private:
   const graph::exec::Row& row_;
 };
-}  // namespace ast
+} // namespace ast
 #endif //GRAPHDB_EVAL_CONTEXT_HPP

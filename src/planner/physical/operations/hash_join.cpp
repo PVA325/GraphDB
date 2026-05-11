@@ -28,5 +28,4 @@ RowCursorPtr HashJoinOp::open(struct ExecContext& ctx) {
     ExprPtrVecToBasePtrVec(right_keys)
   );
 }
-
 }

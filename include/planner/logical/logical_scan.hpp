@@ -1,9 +1,10 @@
-#ifndef GRAPHDB_LOGICAL_SCAN_HPP
-#define GRAPHDB_LOGICAL_SCAN_HPP
+#pragma once
+
 #include "common/common_value.hpp"
 #include "logical_op_aliased.hpp"
 
 namespace graph::logical {
+
 struct LogicalScan : public AliasedLogicalOp {
   /// Scan Nodes that has specified labels
   /// and write out in row with slot name alias
@@ -16,14 +17,15 @@ struct LogicalScan : public AliasedLogicalOp {
 
   BuildPhysicalType
   BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model, storage::GraphDB* db) const override;
+
   [[nodiscard]] String DebugString() const override;
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return {dst_alias}; }
 
-  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Scan; }
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kScanType; }
 
   ~LogicalScan() override = default;
 };
-}
 
-#endif //GRAPHDB_LOGICAL_SCAN_HPP
+} // namespace graph::logical
+

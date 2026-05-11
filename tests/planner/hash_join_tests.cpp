@@ -8,7 +8,6 @@
 using namespace graph;
 
 namespace {
-
 using LPtr = logical::LogicalOpPtr;
 
 LPtr MakeScan(const std::string& alias, std::initializer_list<String> labels) {
@@ -86,7 +85,7 @@ struct MockCostModel final : optimizer::CostModel {
   }
 
   std::pair<optimizer::CostEstimate, String> EstimateIndexSeekLabel(const storage::GraphDB*,
-                                                                     const logical::LogicalScan&) const override {
+                                                                    const logical::LogicalScan&) const override {
     return {{1000.0, 100.0, 10.0, 0.0}, ""};
   }
 
@@ -152,7 +151,6 @@ struct MockCostModel final : optimizer::CostModel {
     return input;
   }
 };
-
 } // namespace
 
 TEST(HashJoinComplex, LargeDatabaseFilterPushdownAndEquiJoin) {
@@ -164,26 +162,26 @@ TEST(HashJoinComplex, LargeDatabaseFilterPushdownAndEquiJoin) {
 
   for (int i = 0; i < 12; ++i) {
     AddCreatedNode(
-        *create_q.create_clause,
-        "a" + std::to_string(i),
-        "Person",
-        {
-            {"id", ast::Literal{i}},
-            {"city_id", ast::Literal{i % 4}},
-            {"age", ast::Literal{20 + i}}
-        }
+      *create_q.create_clause,
+      "a" + std::to_string(i),
+      "Person",
+      {
+        {"id", ast::Literal{i}},
+        {"city_id", ast::Literal{i % 4}},
+        {"age", ast::Literal{20 + i}}
+      }
     );
   }
 
   for (int i = 0; i < 4; ++i) {
     AddCreatedNode(
-        *create_q.create_clause,
-        "b" + std::to_string(i),
-        "City",
-        {
-            {"id", ast::Literal{i}},
-            {"population", ast::Literal{5000 + i}}
-        }
+      *create_q.create_clause,
+      "b" + std::to_string(i),
+      "City",
+      {
+        {"id", ast::Literal{i}},
+        {"population", ast::Literal{5000 + i}}
+      }
     );
   }
 
@@ -202,11 +200,11 @@ TEST(HashJoinComplex, LargeDatabaseFilterPushdownAndEquiJoin) {
   auto join = std::make_unique<logical::LogicalJoin>(std::move(left), std::move(right));
 
   auto filter_pred = MakeAnd(
-      std::move(join_pred),
-      MakeAnd(
-          MakeGe(MakeProp("a", "age"), MakeLiteral(25)),
-          MakeGt(MakeProp("b", "population"), MakeLiteral(1000))
-      )
+    std::move(join_pred),
+    MakeAnd(
+      MakeGe(MakeProp("a", "age"), MakeLiteral(25)),
+      MakeGt(MakeProp("b", "population"), MakeLiteral(1000))
+    )
   );
 
   auto filter = std::make_unique<logical::LogicalFilter>(std::move(join), std::move(filter_pred));
@@ -215,7 +213,7 @@ TEST(HashJoinComplex, LargeDatabaseFilterPushdownAndEquiJoin) {
   optimizer::optimize_logical_plan_impl(plan.root);
 
   auto* phys_join = dynamic_cast<exec::HashJoinOp*>(
-      plan.root->BuildPhysical(*(new graph::exec::ExecContext(&db)), new MockCostModel(), &db).first.get()
+    plan.root->BuildPhysical(*(new graph::exec::ExecContext(&db)), new MockCostModel(), &db).first.get()
   );
   ASSERT_NE(phys_join, nullptr);
 
@@ -265,27 +263,27 @@ TEST(HashJoinComplex, CompositeKeyJoinOnLargeDataSet) {
 
   for (int i = 0; i < 12; ++i) {
     AddCreatedNode(
-        *create_q.create_clause,
-        "a" + std::to_string(i),
-        "Person",
-        {
-            {"k1", ast::Literal{i}},
-            {"k2", ast::Literal{i + 100}},
-            {"age", ast::Literal{20 + i}}
-        }
+      *create_q.create_clause,
+      "a" + std::to_string(i),
+      "Person",
+      {
+        {"k1", ast::Literal{i}},
+        {"k2", ast::Literal{i + 100}},
+        {"age", ast::Literal{20 + i}}
+      }
     );
   }
 
   for (int i = 0; i < 12; ++i) {
     AddCreatedNode(
-        *create_q.create_clause,
-        "b" + std::to_string(i),
-        "Dept",
-        {
-            {"k1", ast::Literal{i}},
-            {"k2", ast::Literal{i + 100}},
-            {"weight", ast::Literal{1000 + i}}
-        }
+      *create_q.create_clause,
+      "b" + std::to_string(i),
+      "Dept",
+      {
+        {"k1", ast::Literal{i}},
+        {"k2", ast::Literal{i + 100}},
+        {"weight", ast::Literal{1000 + i}}
+      }
     );
   }
 
@@ -302,14 +300,14 @@ TEST(HashJoinComplex, CompositeKeyJoinOnLargeDataSet) {
   auto join = std::make_unique<logical::LogicalJoin>(std::move(left), std::move(right));
 
   auto pred = MakeAnd(
-      MakeAnd(
-          MakeEq(MakeProp("a", "k1"), MakeProp("b", "k1")),
-          MakeEq(MakeProp("a", "k2"), MakeProp("b", "k2"))
-      ),
-      MakeAnd(
-          MakeGe(MakeProp("a", "age"), MakeLiteral(25)),
-          MakeGt(MakeProp("b", "weight"), MakeLiteral(1005))
-      )
+    MakeAnd(
+      MakeEq(MakeProp("a", "k1"), MakeProp("b", "k1")),
+      MakeEq(MakeProp("a", "k2"), MakeProp("b", "k2"))
+    ),
+    MakeAnd(
+      MakeGe(MakeProp("a", "age"), MakeLiteral(25)),
+      MakeGt(MakeProp("b", "weight"), MakeLiteral(1005))
+    )
   );
 
   auto filter = std::make_unique<logical::LogicalFilter>(std::move(join), std::move(pred));
@@ -369,13 +367,13 @@ TEST(HashJoinComplex, SelfJoinSameCityWithAgeOrderingUsesHashJoin) {
   // Total expected rows = 4 * 3 = 12.
   for (int i = 0; i < 12; ++i) {
     AddCreatedNode(
-        *create_q.create_clause,
-        "p" + std::to_string(i),
-        "Person",
-        {
-            {"city_id", ast::Literal{i % 4}},
-            {"age", ast::Literal{20 + i}}
-        }
+      *create_q.create_clause,
+      "p" + std::to_string(i),
+      "Person",
+      {
+        {"city_id", ast::Literal{i % 4}},
+        {"age", ast::Literal{20 + i}}
+      }
     );
   }
 
@@ -390,13 +388,13 @@ TEST(HashJoinComplex, SelfJoinSameCityWithAgeOrderingUsesHashJoin) {
   auto right = MakeScan("b", {"Person"});
 
   auto join_pred = MakeAnd(
-  MakeEq(MakeProp("a", "city_id"), MakeProp("b", "city_id")),
-  MakeGt(MakeProp("a", "age"), MakeProp("b", "age"))
+    MakeEq(MakeProp("a", "city_id"), MakeProp("b", "city_id")),
+    MakeGt(MakeProp("a", "age"), MakeProp("b", "age"))
   );
   auto residual = std::make_unique<logical::LogicalJoin>(std::move(left), std::move(right), std::move(join_pred));
 
   auto plan = logical::LogicalPlan(
-      std::move(residual)
+    std::move(residual)
   );
 
   optimizer::optimize_logical_plan_impl(plan.root);
@@ -451,13 +449,13 @@ TEST(HashJoinComplex, FactToDimensionJoinWithRightSideFilterUsesHashJoin) {
   // Dimension table: 8 sessions, active for even sid.
   for (int i = 0; i < 8; ++i) {
     AddCreatedNode(
-        *create_q.create_clause,
-        "s" + std::to_string(i),
-        "Session",
-        {
-            {"sid", ast::Literal{i}},
-            {"active", ast::Literal{(i % 2) == 0}}
-        }
+      *create_q.create_clause,
+      "s" + std::to_string(i),
+      "Session",
+      {
+        {"sid", ast::Literal{i}},
+        {"active", ast::Literal{(i % 2) == 0}}
+      }
     );
   }
 
@@ -465,14 +463,14 @@ TEST(HashJoinComplex, FactToDimensionJoinWithRightSideFilterUsesHashJoin) {
   // Even sessions are 0,2,4,6, so exactly 10 logs should survive the right-side active filter.
   for (int i = 0; i < 20; ++i) {
     AddCreatedNode(
-        *create_q.create_clause,
-        "l" + std::to_string(i),
-        "Log",
-        {
-            {"session_id", ast::Literal{i % 8}},
-            {"severity", ast::Literal{i % 3}},
-            {"ts", ast::Literal{i}}
-        }
+      *create_q.create_clause,
+      "l" + std::to_string(i),
+      "Log",
+      {
+        {"session_id", ast::Literal{i % 8}},
+        {"severity", ast::Literal{i % 3}},
+        {"ts", ast::Literal{i}}
+      }
     );
   }
 
@@ -488,8 +486,8 @@ TEST(HashJoinComplex, FactToDimensionJoinWithRightSideFilterUsesHashJoin) {
   auto right = MakeScan("b", {"Session"});
 
   auto active_pred = MakeAnd(
-  MakeEq(MakeProp("a", "session_id"), MakeProp("b", "sid")),
-  MakeEq(MakeProp("b", "active"), MakeBoolLiteral(true))
+    MakeEq(MakeProp("a", "session_id"), MakeProp("b", "sid")),
+    MakeEq(MakeProp("b", "active"), MakeBoolLiteral(true))
   );
   auto active_only = std::make_unique<logical::LogicalFilter>(
     std::move(std::make_unique<logical::LogicalJoin>(std::move(left), std::move(right))),
@@ -498,7 +496,7 @@ TEST(HashJoinComplex, FactToDimensionJoinWithRightSideFilterUsesHashJoin) {
 
   // Right-side filter that should be pushed down below join.
   auto plan = logical::LogicalPlan(
-      std::move(active_only)
+    std::move(active_only)
   );
 
   optimizer::optimize_logical_plan_impl(plan.root);

@@ -7,11 +7,9 @@ bool isSubset(const std::vector<T>& larger, const std::vector<T>& smaller) {
     return std::find(larger.begin(), larger.end(), x) != larger.end();
   });
 }
-
 }
 
 namespace graph::exec {
-
 NodePropertyFilterCursor::NodePropertyFilterCursor(RowCursorPtr child_cursor, String alias,
                                                    std::vector<String> labels,
                                                    std::vector<std::pair<String, Value>> properties) :
@@ -39,7 +37,7 @@ bool NodePropertyFilterCursor::next(Row& out) {
       isSubset(p, properties)) {
       found = true;
       break;
-      }
+    }
     out = mark;
   }
   return found;
@@ -48,5 +46,4 @@ bool NodePropertyFilterCursor::next(Row& out) {
 void NodePropertyFilterCursor::close() {
   child_cursor->close();
 }
-
 }

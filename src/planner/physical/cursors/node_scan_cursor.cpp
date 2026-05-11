@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 NodeScanCursor::NodeScanCursor(
   std::unique_ptr<storage::NodeCursor> nodes_cursor,
   String out_alias) :

@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 LabelIndexSeekOp::LabelIndexSeekOp(
   String alias, String label) :
   out_alias(std::move(alias)),
@@ -14,5 +13,4 @@ RowCursorPtr LabelIndexSeekOp::open(ExecContext& ctx) {
     out_alias
   );
 }
-
 }

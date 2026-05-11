@@ -30,7 +30,7 @@ struct LogicalExpand : public AliasedLogicalOp {
   [[nodiscard]] String DebugString() const override;
   [[nodiscard]] String SubtreeDebugString() const final;
 
-  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::Expand; }
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kExpandType; }
 
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final;
 

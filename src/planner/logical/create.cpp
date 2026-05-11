@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::logical {
-
 CreateNodeSpec::CreateNodeSpec(const ast::NodePattern& pattern) :
   dst_alias(pattern.alias),
   labels(pattern.labels) {
@@ -46,10 +45,10 @@ LogicalCreate::LogicalCreate(LogicalOpPtr child, const std::vector<ast::CreateIt
 }
 
 BuildPhysicalType LogicalCreate::BuildPhysical(exec::ExecContext& ctx,
-  optimizer::CostModel* cost_model, storage::GraphDB* db) const {
+                                               optimizer::CostModel* cost_model, storage::GraphDB* db) const {
   if (!child) {
     return std::make_pair(
-    std::make_unique<exec::PhysicalCreateOp>(
+      std::make_unique<exec::PhysicalCreateOp>(
         items,
         nullptr
       ),
@@ -61,8 +60,8 @@ BuildPhysicalType LogicalCreate::BuildPhysical(exec::ExecContext& ctx,
     std::make_unique<exec::PhysicalCreateOp>(
       items,
       std::move(child_build.first)
-      ),
-      cost_model->EstimateCreate(db, child_build.second, *this)
-    );
+    ),
+    cost_model->EstimateCreate(db, child_build.second, *this)
+  );
 }
 }

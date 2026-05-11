@@ -1,7 +1,6 @@
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {
-
 Value GetFeatureFromSlot(const RowSlot& slot, const String& feature_key) {
   if (std::holds_alternative<Value>(slot.value)) {
     if (!feature_key.empty()) {
@@ -35,5 +34,4 @@ std::tuple<Row, bool> MergeRows(const Row& first, const Row& second) {
 
   return {std::move(ans), true};
 }
-
 }

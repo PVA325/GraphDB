@@ -35,9 +35,9 @@ Value Row::GetProperty(const std::string& alias, const std::string& property, co
       std::format("EvalContext({}): Error, invalid expression {} has is not a node or an edge", parent_op, alias)
     );
   }
-  const auto& props = (std::holds_alternative<graph::exec::Edge*>(slot.value) ?
-        std::get<graph::exec::Edge*>(slot.value)->properties
-      : std::get<graph::exec::Node*>(slot.value)->properties
+  const auto& props = (std::holds_alternative<graph::exec::Edge*>(slot.value)
+                         ? std::get<graph::exec::Edge*>(slot.value)->properties
+                         : std::get<graph::exec::Node*>(slot.value)->properties
   );
   auto it = props.find(property);
   if (it == props.end()) {
