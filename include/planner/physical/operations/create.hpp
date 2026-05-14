@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_CREATE_HPP
-#define GRAPHDB_CREATE_HPP
+#pragma once
 
 #include "physical_op_unary_child.hpp"
 #include "planner/logical/logical_create.hpp"
@@ -19,5 +18,3 @@ struct PhysicalCreateOp : PhysicalOpUnaryChild {
 };
 
 }
-
-#endif //GRAPHDB_CREATE_HPP

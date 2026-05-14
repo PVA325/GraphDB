@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_OP_ZERO_CHILD_HPP
-#define GRAPHDB_LOGICAL_OP_ZERO_CHILD_HPP
+#pragma once
 
 #include "logical_op.hpp"
 
@@ -13,5 +12,3 @@ struct LogicalOpZeroChild : LogicalOp {
   ~LogicalOpZeroChild() override = default;
 };
 }
-
-#endif //GRAPHDB_LOGICAL_OP_ZERO_CHILD_HPP

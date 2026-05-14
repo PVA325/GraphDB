@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_OP_ALIASED_HPP
-#define GRAPHDB_LOGICAL_OP_ALIASED_HPP
+#pragma once
 
 #include "common/common_value.hpp"
 #include "logical_op_zero_child.hpp"
@@ -12,5 +11,3 @@ struct AliasedLogicalOp : public LogicalOpZeroChild {
   }
 };
 }
-
-#endif //GRAPHDB_LOGICAL_OP_ALIASED_HPP

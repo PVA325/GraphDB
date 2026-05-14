@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LIMIT_CURSOR_HPP
-#define GRAPHDB_LIMIT_CURSOR_HPP
+#pragma once
 
 #include "row_cursor.hpp"
 
@@ -22,5 +21,3 @@ struct LimitCursor : RowCursor {
   ~LimitCursor() override = default;
 };
 }
-
-#endif //GRAPHDB_LIMIT_CURSOR_HPP

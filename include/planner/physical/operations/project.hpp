@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_PROJECT_HPP
-#define GRAPHDB_PROJECT_HPP
+#pragma once
 
 #include "physical_op_unary_child.hpp"
 
@@ -18,5 +17,3 @@ struct ProjectOp : public PhysicalOpUnaryChild {
   ~ProjectOp() override = default;
 };
 }
-
-#endif //GRAPHDB_PROJECT_HPP

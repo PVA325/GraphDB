@@ -1,9 +1,4 @@
-//
-// Created by uladzislau on 04.05.2026.
-//
-
-#ifndef GRAPHDB_FILTER_CURSOR_HPP
-#define GRAPHDB_FILTER_CURSOR_HPP
+#pragma once
 
 #include "row_cursor.hpp"
 
@@ -25,4 +20,3 @@ struct FilterCursor : RowCursor {
   ~FilterCursor() override = default;
 };
 }
-#endif //GRAPHDB_FILTER_CURSOR_HPP

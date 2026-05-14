@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_DELETE_HPP
-#define GRAPHDB_DELETE_HPP
+#pragma once
 
 #include "physical_op_unary_child.hpp"
 
@@ -17,5 +16,3 @@ struct PhysicalDeleteOp : PhysicalOpUnaryChild {
 };
 
 }
-
-#endif //GRAPHDB_DELETE_HPP

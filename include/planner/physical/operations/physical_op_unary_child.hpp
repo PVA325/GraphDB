@@ -1,5 +1,5 @@
-#ifndef GRAPHDB_PHYSICAL_OP_UNARY_CHILD_HPP
-#define GRAPHDB_PHYSICAL_OP_UNARY_CHILD_HPP
+#pragma once
+
 #include "common/common_value.hpp"
 #include "physical_op.hpp"
 namespace graph::exec {
@@ -14,4 +14,3 @@ struct PhysicalOpUnaryChild : PhysicalOp {
   ~PhysicalOpUnaryChild() override = default;
 };
 }
-#endif //GRAPHDB_PHYSICAL_OP_UNARY_CHILD_HPP

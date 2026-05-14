@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_JOIN_HPP
-#define GRAPHDB_LOGICAL_JOIN_HPP
+#pragma once
 
 #include "logical_op_many_children.hpp"
 
@@ -29,5 +28,3 @@ struct LogicalJoin : LogicalOpManyChildren {
   ~LogicalJoin() override = default;
 };
 }
-
-#endif //GRAPHDB_LOGICAL_JOIN_HPP

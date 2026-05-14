@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_FILTER_HPP
-#define GRAPHDB_LOGICAL_FILTER_HPP
+#pragma once
 
 #include "logical_op_unary_child.hpp"
 
@@ -24,5 +23,3 @@ struct LogicalFilter : public LogicalOpUnaryChild {
   ~LogicalFilter() override = default;
 };
 }
-
-#endif //GRAPHDB_LOGICAL_FILTER_HPP

@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_FILTER_HPP
-#define GRAPHDB_FILTER_HPP
+#pragma once
 
 #include "physical_op_unary_child.hpp"
 
@@ -22,5 +21,3 @@ private:
   String debugString_;
 };
 }
-
-#endif //GRAPHDB_FILTER_HPP

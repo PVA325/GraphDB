@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_HASHJOIN_CURSOR_HPP
-#define GRAPHDB_HASHJOIN_CURSOR_HPP
+#pragma once
 
 #include "row_cursor.hpp"
 #include "planner/utils.hpp"
@@ -56,5 +55,3 @@ private:
 };
 
 }
-
-#endif //GRAPHDB_HASHJOIN_CURSOR_HPP

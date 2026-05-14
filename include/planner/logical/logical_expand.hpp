@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_EXPAND_HPP
-#define GRAPHDB_LOGICAL_EXPAND_HPP
+#pragma once
 
 #include "logical_op_aliased.hpp"
 #include <optional>
@@ -37,5 +36,3 @@ struct LogicalExpand : public AliasedLogicalOp {
   ~LogicalExpand() override = default;
 };
 }
-
-#endif //GRAPHDB_LOGICAL_EXPAND_HPP

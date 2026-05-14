@@ -1,5 +1,5 @@
-#ifndef GRAPHDB_COMMON_VALUE_HPP
-#define GRAPHDB_COMMON_VALUE_HPP
+#pragma once
+
 #include <variant>
 #include <tuple>
 #include <memory>
@@ -122,5 +122,3 @@ private:
 namespace graph::logical {
 using BuildPhysicalType = std::pair<exec::PhysicalOpPtr, optimizer::CostEstimate>;
 } // namespace graph::logical
-
-#endif //GRAPHDB_COMMON_VALUE_HPP

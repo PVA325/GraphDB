@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_SET_HPP
-#define GRAPHDB_LOGICAL_SET_HPP
+#pragma once
 
 #include "logical_op_unary_child.hpp"
 
@@ -33,5 +32,3 @@ struct LogicalSet : LogicalOpUnaryChild {
   ~LogicalSet() override = default;
 };
 }
-
-#endif //GRAPHDB_LOGICAL_SET_HPP

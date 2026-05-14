@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_EXPAND_HPP
-#define GRAPHDB_EXPAND_HPP
+#pragma once
 
 #include <optional>
 
@@ -27,5 +26,3 @@ struct ExpandOp : public PhysicalOpUnaryChild {
 }
 
 #include "expand.tpp"
-
-#endif //GRAPHDB_EXPAND_HPP

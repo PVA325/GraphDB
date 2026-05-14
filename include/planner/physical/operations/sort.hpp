@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_SORT_HPP
-#define GRAPHDB_SORT_HPP
+#pragma once
 
 #include "physical_op_unary_child.hpp"
 
@@ -14,5 +13,3 @@ struct PhysicalSortOp : PhysicalOpUnaryChild {
   ~PhysicalSortOp() override = default;
 };
 }
-
-#endif //GRAPHDB_SORT_HPP

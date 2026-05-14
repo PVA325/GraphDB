@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_PHYSICAL_OP_HPP
-#define GRAPHDB_PHYSICAL_OP_HPP
+#pragma once
 
 #include "common/common_value.hpp"
 
@@ -16,4 +15,3 @@ struct PhysicalOp {
 };
 }
 
-#endif //GRAPHDB_PHYSICAL_OP_HPP

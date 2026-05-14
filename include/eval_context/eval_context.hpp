@@ -1,5 +1,5 @@
-#ifndef GRAPHDB_EVAL_CONTEXT_HPP
-#define GRAPHDB_EVAL_CONTEXT_HPP
+#pragma once
+
 #include <format>
 #include <variant>
 #include "common/common_value.hpp"
@@ -115,4 +115,3 @@ private:
   const graph::exec::Row& row_;
 };
 } // namespace ast
-#endif //GRAPHDB_EVAL_CONTEXT_HPP

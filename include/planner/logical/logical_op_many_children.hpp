@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_OP_BINARY_CHILD_HPP
-#define GRAPHDB_LOGICAL_OP_BINARY_CHILD_HPP
+#pragma once
 
 #include "common/common_value.hpp"
 #include "logical_op.hpp"
@@ -25,5 +24,3 @@ struct LogicalOpManyChildren : LogicalOp {
   ~LogicalOpManyChildren() override = default;
 };
 }
-
-#endif //GRAPHDB_LOGICAL_OP_BINARY_CHILD_HPP

@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_PHYISCAL_PLAN_HPP
-#define GRAPHDB_PHYISCAL_PLAN_HPP
+#pragma once
 
 #include "physical_op_no_child.hpp"
 
@@ -23,5 +22,3 @@ struct PhysicalPlan {
 };
 
 }
-
-#endif //GRAPHDB_PHYISCAL_PLAN_HPP

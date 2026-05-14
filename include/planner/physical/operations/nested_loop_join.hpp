@@ -1,5 +1,5 @@
-#ifndef GRAPHDB_NESTED_LOOP_JOIN_HPP
-#define GRAPHDB_NESTED_LOOP_JOIN_HPP
+#pragma once
+
 
 #include "physical_op_binary.hpp"
 
@@ -18,5 +18,3 @@ struct NestedLoopJoinOp : public PhysicalOpBinaryChild {
   ~NestedLoopJoinOp() override = default;
 };
 }
-
-#endif //GRAPHDB_NESTED_LOOP_JOIN_HPP

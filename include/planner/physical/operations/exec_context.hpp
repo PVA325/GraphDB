@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_EXEC_CONTEXT_HPP
-#define GRAPHDB_EXEC_CONTEXT_HPP
+#pragma once
 
 #include "common/common_value.hpp"
 
@@ -22,5 +21,3 @@ struct ExecContext {
   }
 };
 }
-
-#endif //GRAPHDB_EXEC_CONTEXT_HPP

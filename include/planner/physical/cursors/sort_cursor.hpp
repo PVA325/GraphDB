@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_SORT_CURSOR_HPP
-#define GRAPHDB_SORT_CURSOR_HPP
+#pragma once
 
 #include "row_cursor.hpp"
 
@@ -17,5 +16,3 @@ struct SortCursor : RowCursor {
 };
 
 }
-
-#endif //GRAPHDB_SORT_CURSOR_HPP

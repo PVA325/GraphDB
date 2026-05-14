@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LABEL_INDEX_SEEK_HPP
-#define GRAPHDB_LABEL_INDEX_SEEK_HPP
+#pragma once
 
 #include "physical_op_no_child.hpp"
 
@@ -18,5 +17,3 @@ struct LabelIndexSeekOp : public PhysicalOpNoChild {
   ~LabelIndexSeekOp() override = default;
 };
 }
-
-#endif //GRAPHDB_LABEL_INDEX_SEEK_HPP

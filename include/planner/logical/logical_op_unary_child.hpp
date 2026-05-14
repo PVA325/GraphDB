@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_OP_UNARY_CHILD_HPP
-#define GRAPHDB_LOGICAL_OP_UNARY_CHILD_HPP
+#pragma once
 
 #include "common/common_value.hpp"
 #include "logical_op.hpp"
@@ -16,4 +15,3 @@ struct LogicalOpUnaryChild : LogicalOp {
   ~LogicalOpUnaryChild() override = default;
 };
 }
-#endif //GRAPHDB_LOGICAL_OP_UNARY_CHILD_HPP

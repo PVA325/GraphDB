@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_DELETE_CURSOR_HPP
-#define GRAPHDB_DELETE_CURSOR_HPP
+#pragma once
 
 #include "row_cursor.hpp"
 
@@ -17,5 +16,3 @@ struct DeleteCursor : RowCursor {
 };
 
 }
-
-#endif //GRAPHDB_DELETE_CURSOR_HPP

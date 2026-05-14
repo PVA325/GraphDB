@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_SET_HPP
-#define GRAPHDB_SET_HPP
+#pragma once
 
 #include "physical_op_unary_child.hpp"
 #include "planner/logical/logical_set.hpp"
@@ -18,5 +17,3 @@ struct PhysicalSetOp : public PhysicalOpUnaryChild {
 };
 
 }
-
-#endif //GRAPHDB_SET_HPP

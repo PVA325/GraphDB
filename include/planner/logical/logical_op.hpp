@@ -1,5 +1,5 @@
-#ifndef GRAPHDB_LOGICAL_OP_HPP
-#define GRAPHDB_LOGICAL_OP_HPP
+#pragma once
+
 #include "common/common_value.hpp"
 
 namespace graph::logical {
@@ -19,4 +19,3 @@ struct LogicalOp {
 };
 }
 
-#endif //GRAPHDB_LOGICAL_OP_HPP

@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_EXPAND_TPP
-#define GRAPHDB_EXPAND_TPP
+#pragma once
 
 namespace graph::exec {
 template<bool edge_outgoing>
@@ -43,6 +42,3 @@ String ExpandOp<edge_outgoing>::DebugString() const {
   );
 }
 }
-
-
-#endif //GRAPHDB_EXPAND_TPP

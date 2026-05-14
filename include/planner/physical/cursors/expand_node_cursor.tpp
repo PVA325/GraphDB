@@ -1,4 +1,5 @@
 #pragma once
+
 #include <format>
 
 namespace graph::exec {

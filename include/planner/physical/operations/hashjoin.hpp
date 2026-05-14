@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_HASHJOIN_HPP
-#define GRAPHDB_HASHJOIN_HPP
+#pragma once
 
 #include "physical_op_binary.hpp"
 
@@ -22,5 +21,3 @@ struct HashJoinOp : public PhysicalOpBinaryChild {
 };
 
 }
-
-#endif //GRAPHDB_HASHJOIN_HPP

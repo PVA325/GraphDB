@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_NODE_SCAN_HPP
-#define GRAPHDB_NODE_SCAN_HPP
+#pragma once
 
 #include "physical_op_no_child.hpp"
 
@@ -18,5 +17,3 @@ struct NodeScanOp : public PhysicalOpNoChild {
   ~NodeScanOp() override = default;
 };
 }
-
-#endif //GRAPHDB_NODE_SCAN_HPP

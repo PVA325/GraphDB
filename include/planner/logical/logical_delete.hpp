@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LOGICAL_DELETE_HPP
-#define GRAPHDB_LOGICAL_DELETE_HPP
+#pragma once
 
 #include "logical_op_unary_child.hpp"
 
@@ -28,5 +27,3 @@ struct LogicalDelete : LogicalOpUnaryChild {
   ~LogicalDelete() override = default;
 };
 }
-
-#endif //GRAPHDB_LOGICAL_DELETE_HPP

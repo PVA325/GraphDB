@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_LIMIT_HPP
-#define GRAPHDB_LIMIT_HPP
+#pragma once
 
 #include "physical_op_unary_child.hpp"
 
@@ -16,5 +15,3 @@ struct LimitOp : public PhysicalOpUnaryChild {
   ~LimitOp() override = default;
 };
 }
-
-#endif //GRAPHDB_LIMIT_HPP

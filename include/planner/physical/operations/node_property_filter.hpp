@@ -1,5 +1,4 @@
-#ifndef GRAPHDB_NODE_PROPERTY_FILTER_HPP
-#define GRAPHDB_NODE_PROPERTY_FILTER_HPP
+#pragma once
 
 #include "physical_op_unary_child.hpp"
 
@@ -18,5 +17,3 @@ struct NodePropertyFilterOp : PhysicalOpUnaryChild {
   ~NodePropertyFilterOp() override = default;
 };
 }
-
-#endif //GRAPHDB_NODE_PROPERTY_FILTER_HPP
