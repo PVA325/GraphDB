@@ -210,8 +210,8 @@ class Lexer {
         {"OR", TokenType::OR},
         {"ASC", TokenType::ASC},
         {"DESC", TokenType::DESC},
-        {"TRUE", TokenType::TRUE},
-        {"FALSE", TokenType::FALSE},
+        {"true", TokenType::TRUE},
+        {"false", TokenType::FALSE},
     };
 
     auto iter = keywords.find(text);
