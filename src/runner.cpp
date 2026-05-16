@@ -112,11 +112,13 @@ std::string SlotToString(const graph::exec::RowSlot& slot) {
 }
 
 void PrintRow(const graph::exec::Row& row) {
-  for (size_t i = 0; i < row.slots.size(); ++i) {
+  const auto& slots_names =  row.SlotsNames();
+  const auto& slots = row.Slots();
+  for (size_t i = 0; i < slots.size(); ++i) {
     if (i) {
       std::cout << " | ";
     }
-    std::cout << row.slots_names[i] << ": " << SlotToString(row.slots[i]);
+    std::cout << slots_names[i] << ": " << SlotToString(slots[i]);
   }
   std::cout << '\n';
 }

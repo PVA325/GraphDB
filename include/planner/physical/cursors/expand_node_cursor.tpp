@@ -39,11 +39,11 @@ namespace graph::exec {
       if (!child_cursor->next(out)) {
         return false;
       }
-      size_t src_idx = out.slots_mapping.map_and_check(src_node_alias, "Invalid alias for PhysicalExpand, src_alias do not exists");
-      if (!std::holds_alternative<Node*>(out.slots[src_idx].value)) {
+      auto slots_val = out.GetAliasedObj(src_node_alias, "Invalid alias for PhysicalExpand, src_alias do not exists");
+      if (!std::holds_alternative<Node*>(slots_val.value)) {
         throw std::logic_error("Invalid PhysicalExpand, src_alias is not a Node");
       }
-      auto node = std::get<Node *>(out.slots[src_idx].value);
+      auto node = std::get<Node *>(slots_val.value);
       if constexpr (edge_outgoing) {
         edge_cursor = db->outgoing_edges(node->id);
       } else {

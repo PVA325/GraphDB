@@ -229,12 +229,12 @@ TEST(HashJoinComplex, LargeDatabaseFilterPushdownAndEquiJoin) {
   size_t count = 0;
   while (cursor->next(row)) {
     ++count;
-    ASSERT_EQ(row.slots.size(), 2u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1].value));
+    ASSERT_EQ(row.Slots().size(), 2u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[1].value));
 
-    auto* a = std::get<storage::Node*>(row.slots[0].value);
-    auto* b = std::get<storage::Node*>(row.slots[1].value);
+    auto* a = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* b = std::get<storage::Node*>(row.Slots()[1].value);
     ASSERT_NE(a, nullptr);
     ASSERT_NE(b, nullptr);
 
@@ -331,10 +331,10 @@ TEST(HashJoinComplex, CompositeKeyJoinOnLargeDataSet) {
   size_t count = 0;
   while (cursor->next(row)) {
     ++count;
-    ASSERT_EQ(row.slots.size(), 2u);
+    ASSERT_EQ(row.Slots().size(), 2u);
 
-    auto* a = std::get<storage::Node*>(row.slots[0].value);
-    auto* b = std::get<storage::Node*>(row.slots[1].value);
+    auto* a = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* b = std::get<storage::Node*>(row.Slots()[1].value);
     ASSERT_NE(a, nullptr);
     ASSERT_NE(b, nullptr);
 
@@ -410,12 +410,12 @@ TEST(HashJoinComplex, SelfJoinSameCityWithAgeOrderingUsesHashJoin) {
 
   while (cursor->next(row)) {
     ++count;
-    ASSERT_EQ(row.slots.size(), 2u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1].value));
+    ASSERT_EQ(row.Slots().size(), 2u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[1].value));
 
-    auto* a = std::get<storage::Node*>(row.slots[0].value);
-    auto* b = std::get<storage::Node*>(row.slots[1].value);
+    auto* a = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* b = std::get<storage::Node*>(row.Slots()[1].value);
     ASSERT_NE(a, nullptr);
     ASSERT_NE(b, nullptr);
 
@@ -512,12 +512,12 @@ TEST(HashJoinComplex, FactToDimensionJoinWithRightSideFilterUsesHashJoin) {
 
   while (cursor->next(row)) {
     ++count;
-    ASSERT_EQ(row.slots.size(), 2u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1].value));
+    ASSERT_EQ(row.Slots().size(), 2u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[1].value));
 
-    auto* log = std::get<storage::Node*>(row.slots[0].value);
-    auto* session = std::get<storage::Node*>(row.slots[1].value);
+    auto* log = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* session = std::get<storage::Node*>(row.Slots()[1].value);
     ASSERT_NE(log, nullptr);
     ASSERT_NE(session, nullptr);
 

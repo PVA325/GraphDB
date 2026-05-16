@@ -17,18 +17,18 @@ Value GetFeatureFromSlot(const RowSlot& slot, const String& feature_key) {
 std::tuple<Row, bool> MergeRows(const Row& first, const Row& second) {
   Row ans = first;
 
-  for (size_t i = 0; i < second.slots_names.size(); ++i) {
-    const auto& name = second.slots_names[i];
+  for (size_t i = 0; i < second.slots_names_.size(); ++i) {
+    const auto& name = second.slots_names_[i];
 
-    if (ans.slots_mapping.key_exists(name)) {
-      size_t pos = ans.slots_mapping.map(name);
-      if (ans.slots[pos] != second.slots[i]) {
+    if (ans.slots_mapping_.key_exists(name)) {
+      size_t pos = ans.slots_mapping_.map(name);
+      if (ans.slots_[pos] != second.slots_[i]) {
         return {Row{}, false};
       }
     } else {
-      ans.slots.emplace_back(second.slots[i]);
-      ans.slots_names.emplace_back(name);
-      ans.slots_mapping.add_map(ans.slots_names.back(), ans.slots.size() - 1);
+      ans.slots_.emplace_back(second.slots_[i]);
+      ans.slots_names_.emplace_back(name);
+      ans.slots_mapping_.add_map(ans.slots_names_.back(), ans.slots_.size() - 1);
     }
   }
 

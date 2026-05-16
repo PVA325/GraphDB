@@ -36,7 +36,6 @@ using storage::Edge;
 struct PhysicalOp;
 struct RowCursor;
 struct Row;
-struct ExecContext;
 
 struct RowSlot {
   RowSlot(const std::variant<Node*, Edge*, Value>& val) : value(val) {

@@ -12,15 +12,15 @@ bool DeleteCursor::next(Row& out) {
     return false;
   }
   for (const auto& alias : aliases) {
-    size_t alias_idx = out.slots_mapping.map_and_check(
+    const RowSlot& row_slot = out.GetAliasedObj(
       alias,
       std::format("DeleteCursor: Error, invalid source alias {}", alias)
     );
-    const RowSlot& row_slot = out.slots[alias_idx];
-    if (row_slot.value.index() == 2) {
+
+    if (std::holds_alternative<Value>(row_slot.value)) {
       continue;
     }
-    if (row_slot.value.index() == 0) {
+    if (std::holds_alternative<Node*>(row_slot.value)) {
       db->delete_node(std::get<Node*>(row_slot.value)->id);
     } else {
       db->delete_edge(std::get<Edge*>(row_slot.value)->id);

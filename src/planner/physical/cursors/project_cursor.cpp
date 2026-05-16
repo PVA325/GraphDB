@@ -16,24 +16,22 @@ bool ProjectCursor::next(Row& out) {
   for (const auto& ret_item : items) {
     if (ret_item.return_item.index() == 0) {
       String alias = std::get<0>(ret_item.return_item);
-      size_t old_row_idx = out.slots_mapping.map_and_check(
-        alias,
-        std::format("PhysicalProject: Error, no alias \"{}\"", alias)
-      );
+
+      auto old_rowslot = out.GetAliasedObj(alias, std::format("PhysicalProject: Error, no alias \"{}\"", alias));
 
       new_row.AddSlot(
-        out.slots[old_row_idx],
+        old_rowslot,
         alias,
         std::format("PhysicalProject: Error, alias {} is already in use", alias)
       );
       continue;
     }
     ast::PropertyExpr prop = std::get<1>(ret_item.return_item);
-    size_t old_row_idx = out.slots_mapping.map_and_check(
+    const auto& cur_prop_src = out.GetAliasedObj(
       prop.alias,
       std::format("PhysicalProject: Error, no alias \"{}\"", prop.alias)
     );
-    const auto& cur_prop_src = out.slots[old_row_idx];
+
     String new_alias = prop.alias + "." + prop.property;
     if (cur_prop_src.value.index() == 2) {
       throw std::runtime_error(std::format("PhysicalProject: Error, trying to project {}.{}, but {} is Value",

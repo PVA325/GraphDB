@@ -27,7 +27,7 @@ struct SlotMapping {
   bool key_exists(const std::string& key) const;
 
   size_t map(const std::string& key) const;
-  size_t map_and_check(const String& key, const String& err_msg = "") const;
+  size_t map_and_check(const String& key, std::string_view err_msg = "") const;
 
   void add_map(const String& key, size_t idx);
 
@@ -36,30 +36,24 @@ struct SlotMapping {
 private:
   std::unordered_map<std::string, size_t> alias_to_slot;
 
-  friend std::tuple<Row, bool> MergeRows(Row& first, Row& second);
+  friend std::tuple<Row, bool> MergeRows(const Row& first, const Row& second);
 };
 
 struct Row {
   /// store current row values and names
-  std::vector<RowSlot> slots;
-  std::vector<String> slots_names;
-  SlotMapping slots_mapping;
-
   void clear() {
-    slots.clear();
-    slots_names.clear();
-    slots_mapping.clear();
+    slots_.clear();
+    slots_names_.clear();
+    slots_mapping_.clear();
   }
 
   Row() = default;
   Row(const Row& other) = default;
 
   Row(Row&& other) noexcept :
-    slots(std::move(other.slots)),
-    slots_names(std::move(other.slots_names)),
-    slots_mapping(std::move(other.slots_mapping)) {
-    other.slots.clear();
-    other.slots_names.clear();
+    slots_(std::move(other.slots_)),
+    slots_names_(std::move(other.slots_names_)),
+    slots_mapping_(std::move(other.slots_mapping_)) {
   }
 
   Row& operator=(const Row& other) = default;
@@ -68,9 +62,9 @@ struct Row {
     if (this == &other) {
       return *this;
     }
-    slots = std::move(other.slots);
-    slots_names = std::move(other.slots_names);
-    slots_mapping = std::move(other.slots_mapping);
+    slots_ = std::move(other.slots_);
+    slots_names_ = std::move(other.slots_names_);
+    slots_mapping_ = std::move(other.slots_mapping_);
     return *this;
   }
 
@@ -78,23 +72,32 @@ struct Row {
     requires std::is_constructible_v<RowSlot, T>
   void AddSlot(T&& val, const String& alias, const String& error_msg = "") {
     if (alias == "") return;
-    if (slots_mapping.key_exists(alias)) {
+    if (slots_mapping_.key_exists(alias)) {
       throw std::runtime_error(error_msg);
     }
-    slots.emplace_back(std::forward<T>(val));
-    slots_names.emplace_back(alias);
-    slots_mapping.add_map(alias, slots.size() - 1);
+    slots_.emplace_back(std::forward<T>(val));
+    slots_names_.emplace_back(alias);
+    slots_mapping_.add_map(alias, slots_.size() - 1);
   }
 
-  [[nodiscard]] graph::exec::RowSlot GetAliasedObj(const std::string& alias) const {
-    return slots[slots_mapping.map_and_check(
+  [[nodiscard]] graph::exec::RowSlot GetAliasedObj(const std::string& alias, std::string_view alias_not_found_err = "") const {
+    return slots_[slots_mapping_.map_and_check(
       alias,
-      std::format("EvalContext: Error, no {} alias in slots", alias)
+      (alias_not_found_err.empty() ? std::format("EvalContext: Error, no {} alias in slots", alias) : alias_not_found_err)
     )];
   }
 
   Value GetProperty(const std::string& alias, const std::string& property, const std::string& parent_op = "") const;
+  bool KeyExists(const String& key) const { return slots_mapping_.key_exists(key); }
+  const std::vector<RowSlot> Slots() const { return slots_; }
+  const std::vector<String> SlotsNames() const { return slots_names_; }
   ~Row() = default;
+private:
+  std::vector<RowSlot> slots_;
+  std::vector<String> slots_names_;
+  SlotMapping slots_mapping_;
+
+  friend std::tuple<Row, bool> MergeRows(const Row& first, const Row& second);
 };
 }
 

@@ -15,11 +15,11 @@ bool SetCursor::next(Row& out) {
   }
   for (const auto& assignment : assignments) {
     const String& cur_alias = assignment.alias;
-    size_t cur_slot_idx = out.slots_mapping.map_and_check(
+    const RowSlot& row_slot = out.GetAliasedObj(
       cur_alias,
       std::format("SetCursor: Error, no src alias {}", cur_alias));
 
-    RowSlot& row_slot = out.slots[cur_slot_idx];
+
     if (std::holds_alternative<Value>(row_slot.value)) {
       throw std::runtime_error("Error while setting, invalid type");
     }

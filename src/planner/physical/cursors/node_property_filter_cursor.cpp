@@ -23,11 +23,9 @@ bool NodePropertyFilterCursor::next(Row& out) {
   Row mark = out;
   bool found = false;
   while (child_cursor->next(out)) {
-    size_t slot_idx = out.slots_mapping.map_and_check(
-      alias,
-      std::format("NodePropertyFilterCursor: Error, no src alias", alias)
-    );
-    const auto& row_slot = out.slots[slot_idx];
+
+    const auto& row_slot = out.GetAliasedObj(alias,
+      std::format("NodePropertyFilterCursor: Error, no src alias", alias));
     if (!std::holds_alternative<Node*>(row_slot.value)) {
       throw std::runtime_error("NodePropertyFilterCursor: Error not a node");
     }

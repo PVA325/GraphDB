@@ -9,10 +9,10 @@ size_t SlotMapping::map(const String& key) const {
   return alias_to_slot.at(key);
 }
 
-size_t SlotMapping::map_and_check(const String& key, const String& err_msg) const {
+size_t SlotMapping::map_and_check(const String& key, std::string_view err_msg) const {
   auto it = alias_to_slot.find(key);
   if (it == alias_to_slot.end()) {
-    throw std::runtime_error(err_msg);
+    throw std::runtime_error(String(err_msg));
   }
   return it->second;
 }
@@ -22,7 +22,7 @@ void SlotMapping::add_map(const String& key, size_t idx) {
 }
 
 Value Row::GetProperty(const std::string& alias, const std::string& property, const std::string& parent_op) const {
-  if (!slots_mapping.key_exists(alias)) {
+  if (!slots_mapping_.key_exists(alias)) {
     auto slot = GetAliasedObj(alias + "." + property);
     if (!std::holds_alternative<Value>(slot.value)) {
       throw std::runtime_error(std::format("GetProperty({}): Error after Project", parent_op));

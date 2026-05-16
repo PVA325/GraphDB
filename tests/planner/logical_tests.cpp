@@ -151,11 +151,11 @@ TEST(ExecutionComplex, MatchExpandJoinProjectLimit2) {
 
   while (cursor->next(row)) {
     ++count;
-    ASSERT_EQ(row.slots.size(), 4u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Edge*>(row.slots[1].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[2].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[3].value));
+    ASSERT_EQ(row.Slots().size(), 4u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Edge*>(row.Slots()[1].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[2].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[3].value));
     row.clear();
   }
 
@@ -299,14 +299,14 @@ TEST(ExecutionComplex, MatchExpandReturnsNodeEdgeNode) {
   while (cursor->next(row)) {
     ++count;
 
-    ASSERT_EQ(row.slots.size(), 3u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Edge*>(row.slots[1].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[2].value));
+    ASSERT_EQ(row.Slots().size(), 3u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Edge*>(row.Slots()[1].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[2].value));
 
-    auto* a = std::get<storage::Node*>(row.slots[0].value);
-    auto* e = std::get<storage::Edge*>(row.slots[1].value);
-    auto* b = std::get<storage::Node*>(row.slots[2].value);
+    auto* a = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* e = std::get<storage::Edge*>(row.Slots()[1].value);
+    auto* b = std::get<storage::Node*>(row.Slots()[2].value);
 
     ASSERT_NE(a, nullptr);
     ASSERT_NE(e, nullptr);
@@ -353,12 +353,12 @@ TEST(ExecutionComplex, MatchTwoNodePatternsProducesCartesianProduct) {
   while (cursor->next(row)) {
     ++count;
 
-    ASSERT_EQ(row.slots.size(), 2u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1].value));
+    ASSERT_EQ(row.Slots().size(), 2u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[1].value));
 
-    auto* a = std::get<storage::Node*>(row.slots[0].value);
-    auto* b = std::get<storage::Node*>(row.slots[1].value);
+    auto* a = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* b = std::get<storage::Node*>(row.Slots()[1].value);
 
     ASSERT_NE(a, nullptr);
     ASSERT_NE(b, nullptr);
@@ -525,16 +525,16 @@ TEST(ExecutionComplex, MatchExpandJoinProjectTogether) {
   while (cursor->next(row)) {
     ++count;
 
-    ASSERT_EQ(row.slots.size(), 4u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Edge*>(row.slots[1].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[2].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[3].value));
+    ASSERT_EQ(row.Slots().size(), 4u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Edge*>(row.Slots()[1].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[2].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[3].value));
 
-    auto* a = std::get<storage::Node*>(row.slots[0].value);
-    auto* e = std::get<storage::Edge*>(row.slots[1].value);
-    auto* b = std::get<storage::Node*>(row.slots[2].value);
-    auto* c = std::get<storage::Node*>(row.slots[3].value);
+    auto* a = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* e = std::get<storage::Edge*>(row.Slots()[1].value);
+    auto* b = std::get<storage::Node*>(row.Slots()[2].value);
+    auto* c = std::get<storage::Node*>(row.Slots()[3].value);
 
     ASSERT_NE(a, nullptr);
     ASSERT_NE(e, nullptr);
@@ -585,10 +585,10 @@ TEST(ExecutionComplex, MatchExpandThenSetPropertyOnMatchedNode) {
   size_t count = 0;
   while (cursor->next(row)) {
     ++count;
-    ASSERT_EQ(row.slots.size(), 2u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1].value));
+    ASSERT_EQ(row.Slots().size(), 2u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[1].value));
 
-    auto* b = std::get<storage::Node*>(row.slots[1].value);
+    auto* b = std::get<storage::Node*>(row.Slots()[1].value);
     ASSERT_NE(b, nullptr);
     ASSERT_TRUE(b->properties.contains("VIP"));
     EXPECT_EQ(std::get<bool>(b->properties.at("VIP")), true);
@@ -629,12 +629,12 @@ TEST(ExecutionComplex, MatchTwoPatternsJoinThenProjectAndReturnOnlyAliases) {
   while (cursor->next(row)) {
     ++count;
 
-    ASSERT_EQ(row.slots.size(), 2u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1].value));
+    ASSERT_EQ(row.Slots().size(), 2u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[1].value));
 
-    auto* a = std::get<storage::Node*>(row.slots[0].value);
-    auto* b = std::get<storage::Node*>(row.slots[1].value);
+    auto* a = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* b = std::get<storage::Node*>(row.Slots()[1].value);
 
     ASSERT_NE(a, nullptr);
     ASSERT_NE(b, nullptr);
@@ -730,12 +730,12 @@ TEST(ExecutionComplex, MatchExpandSetAndDeleteDifferentTargets) {
   while (cursor->next(row)) {
     ++count;
 
-    ASSERT_EQ(row.slots.size(), 2u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1].value));
+    ASSERT_EQ(row.Slots().size(), 2u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[1].value));
 
-    auto* x = std::get<storage::Node*>(row.slots[0].value);
-    auto* y = std::get<storage::Node*>(row.slots[1].value);
+    auto* x = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* y = std::get<storage::Node*>(row.Slots()[1].value);
 
     ASSERT_NE(x, nullptr);
     ASSERT_NE(y, nullptr);
@@ -800,14 +800,14 @@ TEST(ExecutionComplex, CreateNodesAndEdgeThenReturnAliases) {
   while (cursor->next(row)) {
     ++count;
 
-    ASSERT_EQ(row.slots.size(), 3u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[1].value));
-    ASSERT_TRUE(std::holds_alternative<storage::Edge*>(row.slots[2].value));
+    ASSERT_EQ(row.Slots().size(), 3u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[1].value));
+    ASSERT_TRUE(std::holds_alternative<storage::Edge*>(row.Slots()[2].value));
 
-    auto* na = std::get<storage::Node*>(row.slots[0].value);
-    auto* nb = std::get<storage::Node*>(row.slots[1].value);
-    auto* ne = std::get<storage::Edge*>(row.slots[2].value);
+    auto* na = std::get<storage::Node*>(row.Slots()[0].value);
+    auto* nb = std::get<storage::Node*>(row.Slots()[1].value);
+    auto* ne = std::get<storage::Edge*>(row.Slots()[2].value);
 
     ASSERT_NE(na, nullptr);
     ASSERT_NE(nb, nullptr);
@@ -863,10 +863,10 @@ TEST(ExecutionComplex, CreateSingleNodeWithPropertyAndReturn) {
   while (cursor->next(row)) {
     ++count;
 
-    ASSERT_EQ(row.slots.size(), 1u);
-    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.slots[0].value));
+    ASSERT_EQ(row.Slots().size(), 1u);
+    ASSERT_TRUE(std::holds_alternative<storage::Node*>(row.Slots()[0].value));
 
-    auto* node = std::get<storage::Node*>(row.slots[0].value);
+    auto* node = std::get<storage::Node*>(row.Slots()[0].value);
     ASSERT_NE(node, nullptr);
 
     EXPECT_TRUE(std::find(node->labels.begin(), node->labels.end(), "Person") != node->labels.end());

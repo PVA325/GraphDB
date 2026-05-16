@@ -14,12 +14,10 @@ bool NodeScanCursor::next(Row& out) {
   if (!nodes_cursor->next(node_ptr)) {
     return false;
   }
-  if (out.slots_mapping.key_exists(out_alias)) {
+  if (out.KeyExists(out_alias)) {
     throw std::runtime_error("Invalid alias for PhysicalScan, alias already exists");
   }
-  out.slots.emplace_back(node_ptr);
-  out.slots_names.emplace_back(out_alias);
-  out.slots_mapping.add_map(out_alias, out.slots.size() - 1);
+  out.AddSlot(node_ptr, out_alias);
   return true;
 }
 

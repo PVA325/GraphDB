@@ -27,21 +27,21 @@ bool CreateCursor::next(Row& out) {
       } else {
         const auto& edge_spec = std::get<logical::CreateEdgeSpec>(create_pattern);
 
-        size_t src_idx = out.slots_mapping.map_and_check(
+        const RowSlot& src_rowslot = out.GetAliasedObj(
           edge_spec.src_alias,
           std::format("CreateCursor: Error, no src alias {} for edge creating", edge_spec.src_alias)
         );
-        size_t dst_idx = out.slots_mapping.map_and_check(
+        const RowSlot& dst_rowslot = out.GetAliasedObj(
           edge_spec.dst_node_alias,
           std::format("CreateCursor: Error, no dst alias {} for edge creating", edge_spec.dst_node_alias)
         );
 
-        if (!std::holds_alternative<Node*>(out.slots[src_idx].value) ||
-          !std::holds_alternative<Node*>(out.slots[dst_idx].value)) {
+        if (!std::holds_alternative<Node*>(src_rowslot.value) ||
+          !std::holds_alternative<Node*>(dst_rowslot.value)) {
           throw std::runtime_error("CreateCursor: Error, edge should be between vertexes");
         }
-        const auto& src = std::get<Node*>(out.slots[src_idx].value);
-        const auto& dst = std::get<Node*>(out.slots[dst_idx].value);
+        const auto& src = std::get<Node*>(src_rowslot.value);
+        const auto& dst = std::get<Node*>(dst_rowslot.value);
 
         std::unordered_map<String, Value> m(edge_spec.properties.begin(), edge_spec.properties.end());
 
@@ -65,26 +65,21 @@ bool CreateCursor::next(Row& out) {
     }
     const auto& edge_spec = std::get<logical::CreateEdgeSpec>(create_pattern);
 
-    const auto& src = out.slots[
-      out.slots_mapping.map_and_check(
-        edge_spec.src_alias,
-        std::format("CreateCursor: Error, invalid src alias {}", edge_spec.src_alias))
-    ];
-    const auto& dst = out.slots[
-      out.slots_mapping.map_and_check(
-        edge_spec.dst_node_alias,
-        std::format("CreateCursor: Error, invalid src alias {}", edge_spec.dst_node_alias)
-      )
-    ];
-    if (src.value.index() != 0 || dst.value.index() != 0) {
+    const auto& src_rowslot = out.GetAliasedObj(edge_spec.src_alias,
+    std::format("CreateCursor: Error, invalid src alias {}", edge_spec.src_alias)
+    );
+    const auto& dst_rowslot = out.GetAliasedObj(edge_spec.dst_node_alias,
+    std::format("CreateCursor: Error, invalid src alias {}", edge_spec.dst_node_alias)
+    );
+    if (src_rowslot.value.index() != 0 || dst_rowslot.value.index() != 0) {
       throw std::runtime_error("CreateCursor: Error, edge must be between vertexes");
     }
 
     if (edge_spec.direction == ast::EdgeDirection::Right ||
       edge_spec.direction == ast::EdgeDirection::Undirected) {
       db->create_edge(
-        std::get<0>(src.value)->id,
-        std::get<0>(dst.value)->id,
+        std::get<0>(src_rowslot.value)->id,
+        std::get<0>(dst_rowslot.value)->id,
         edge_spec.edge_type,
         std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end())
       );
@@ -92,8 +87,8 @@ bool CreateCursor::next(Row& out) {
     if (edge_spec.direction == ast::EdgeDirection::Left ||
       edge_spec.direction == ast::EdgeDirection::Undirected) {
       db->create_edge(
-        std::get<0>(dst.value)->id,
-        std::get<0>(src.value)->id,
+        std::get<0>(dst_rowslot.value)->id,
+        std::get<0>(src_rowslot.value)->id,
         edge_spec.edge_type,
         std::unordered_map(edge_spec.properties.begin(), edge_spec.properties.end())
       );

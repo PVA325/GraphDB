@@ -2,7 +2,7 @@
 
 #include "common/common_value.hpp"
 #include "physical/physical_utils.hpp"
-#include "physical/operations/exec_context.hpp"
+#include "physical/exec_context.hpp"
 #include "physical/cursors/row_cursor.hpp"
 #include "physical/operations/physical_op.hpp"
 #include "physical/operations/physical_op_no_child.hpp"

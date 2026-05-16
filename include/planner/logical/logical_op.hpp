@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/common_value.hpp"
+#include "planner/physical/exec_context.hpp"
 
 namespace graph::logical {
 struct LogicalOp {
