@@ -45,5 +45,9 @@ add_library(planner SHARED
         cost_model.cpp
         optimizer.cpp
 )
-target_include_directories(planner PUBLIC "${CMAKE_SOURCE_DIR}/include")
+target_include_directories(planner
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 target_link_libraries(planner PUBLIC parser lexer storage)

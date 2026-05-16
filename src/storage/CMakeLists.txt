@@ -13,4 +13,8 @@ add_library(storage SHARED
         page_cache.cpp
         string_interner.cpp
 )
-target_include_directories(storage PUBLIC "${CMAKE_SOURCE_DIR}/include")
+target_include_directories(storage
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
