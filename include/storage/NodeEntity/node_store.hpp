@@ -5,8 +5,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "page_cache.hpp"
-#include "types.hpp"
+#include "storage/page_cache.hpp"
+#include "storage/types.hpp"
 
 namespace storage {
   struct NodeSlot {

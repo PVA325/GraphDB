@@ -42,7 +42,7 @@ namespace storage {
 
     while (index_ < db_->nodes_ram_.size()) {
       if (limit_ && returned_ >= limit_) return false;
-      Node& node = db_->nodes_ram_[index_++];
+      Node& node = db_->nodes_ram_[++index_];
       if (!node.alive) continue;
       if (predicate_ && !predicate_(&node)) continue;
       out = &node;

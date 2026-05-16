@@ -24,7 +24,7 @@ namespace storage {
 
       bool alive = node && node->alive;
       NodeId nid = i;
-      os.write(reinterpret_cast<const char*>(&nid),   sizeof(nid));
+      os.write(reinterpret_cast<const char*>(&nid),sizeof(nid));
       os.write(reinterpret_cast<const char*>(&alive),  sizeof(alive));
 
       size_t label_count = alive ? node->labels.size() : 0;

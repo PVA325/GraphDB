@@ -4,7 +4,7 @@
 #include "storage/graph_db.hpp"
 
 namespace storage {
-  GraphDB::GraphDB(const std::string& dir)
+  GraphDB::GraphDB(const std::filesystem::path& dir)
     : dir_(dir)
   {
     metrics_ = std::make_unique<MetricsStore>(dir_);

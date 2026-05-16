@@ -3,8 +3,8 @@
 #include <stdexcept>
 #include <filesystem>
 
-#include "storage/edge_store.hpp"
-#include "storage/serialise.hpp"
+#include "storage/EdgeEntity/edge_store.hpp"
+#include "storage/serialize.hpp"
 
 namespace storage {
 

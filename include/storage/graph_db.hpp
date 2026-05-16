@@ -1,23 +1,24 @@
 #pragma once
 
 #include <deque>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 
 #include "cursor.hpp"
-#include "edge_manager.hpp"
+#include "storage/EdgeEntity/edge_manager.hpp"
 #include "graph_storage.hpp"
 #include "free_list.hpp"
 #include "metrics_store.hpp"
-#include "node_manager.hpp"
+#include "storage/NodeEntity/node_manager.hpp"
 #include "types.hpp"
 
 namespace storage {
   class GraphDB {
   public:
-    explicit GraphDB(const std::string& dir = "");
+    explicit GraphDB(const std::filesystem::path& dir = "");
     ~GraphDB();
 
     NodeId create_node(const std::vector<std::string>& labels,
@@ -82,8 +83,9 @@ namespace storage {
     friend class AllNodesCursor;
 
   private:
-    std::string dir_;
     bool disk_mode() const { return !dir_.empty(); }
+
+    std::filesystem::path dir_;
 
     std::unique_ptr<NodeStore> node_store_;
     std::unique_ptr<EdgeStore> edge_store_;

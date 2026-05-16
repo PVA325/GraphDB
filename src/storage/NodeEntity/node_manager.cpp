@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include "storage/node_manager.hpp"
+#include "storage/NodeEntity/node_manager.hpp"
 
 namespace storage {
 

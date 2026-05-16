@@ -1,6 +1,6 @@
 #include <cassert>
 
-#include "storage/edge_manager.hpp"
+#include "storage/EdgeEntity/edge_manager.hpp"
 
 namespace storage {
 

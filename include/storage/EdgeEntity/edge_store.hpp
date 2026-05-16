@@ -5,10 +5,11 @@
 #include <string>
 #include <unordered_map>
 
-#include "page_cache.hpp"
-#include "types.hpp"
+#include "storage/page_cache.hpp"
+#include "storage/types.hpp"
 
 namespace storage {
+
   struct EdgeSlot {
     static constexpr size_t kSize = 29;
 
@@ -36,6 +37,12 @@ namespace storage {
     size_t slot_count() const { return slot_count_; }
 
   private:
+    EdgeSlot read_slot(EdgeId id);
+    void write_slot(EdgeId id, const EdgeSlot& slot);
+    Edge deserialise(EdgeId id, const EdgeSlot& slot);
+    size_t serialise(const Edge& edge);
+    void evict_obj_cache();
+
     std::fstream slots_file_;
     std::fstream props_file_;
     PageCache slots_cache_;
@@ -45,12 +52,6 @@ namespace storage {
     size_t props_end_ = 0;
 
     std::unordered_map<EdgeId, Edge> obj_cache_;
-
-    EdgeSlot read_slot(EdgeId id);
-    void write_slot(EdgeId id, const EdgeSlot& slot);
-    Edge deserialise(EdgeId id, const EdgeSlot& slot);
-    size_t serialise(const Edge& edge);
-    void evict_obj_cache();
   };
 
 } // namespace storage

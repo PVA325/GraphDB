@@ -4,15 +4,9 @@
 #include <stdexcept>
 
 #include "storage/metrics_store.hpp"
-#include "storage/serialise.hpp"
+#include "storage/serialize.hpp"
 
 namespace storage {
-  size_t LPVKeyHash::operator()(const LPVKey& k) const {
-    size_t h = std::hash<uint32_t>{}(k.label_id);
-    h ^= std::hash<uint32_t>{}(k.prop_id) + 0x9e3779b9 + (h << 6) + (h >> 2);
-    h ^= std::hash<Value>{}(k.value) + 0x9e3779b9 + (h << 6) + (h >> 2);
-    return h;
-  }
 
   MetricsStore::MetricsStore(const std::string& dir)
     : dir_(dir) {}

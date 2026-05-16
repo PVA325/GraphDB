@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "types.hpp"
+#include "storage/types.hpp"
 
 namespace storage {
   class NodeIndex {

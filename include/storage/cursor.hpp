@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
-#include "edge_index.hpp"
-#include "node_index.hpp"
+#include "storage/EdgeEntity/edge_index.hpp"
+#include "storage/NodeEntity/node_index.hpp"
 #include "types.hpp"
 
 namespace storage {
@@ -104,7 +104,7 @@ namespace storage {
       std::function<bool(Edge*)> predicate, size_t limit);
 
   private:
-    GraphDB*   db_;
+    GraphDB* db_;
     NodeIndex* node_index_;
     EdgeIndex* edge_index_;
   };

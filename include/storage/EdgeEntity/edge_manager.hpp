@@ -1,14 +1,13 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
-#include "edge_index.hpp"
+#include "storage/EdgeEntity/edge_index.hpp"
 #include "edge_store.hpp"
-#include "free_list.hpp"
-#include "metrics_store.hpp"
-#include "node_store.hpp"
-#include "types.hpp"
+#include "storage/free_list.hpp"
+#include "storage/metrics_store.hpp"
+#include "storage/NodeEntity/node_store.hpp"
+#include "storage/types.hpp"
 
 namespace storage {
   class EdgeManager {
