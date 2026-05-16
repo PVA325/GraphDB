@@ -5,8 +5,6 @@
 namespace graph::exec {
 struct ProjectOp : public PhysicalOpUnaryChild {
   /// child is next operator in the tree
-  std::vector<ast::ReturnItem> items;
-
   ProjectOp(std::vector<ast::ReturnItem> items,
             PhysicalOpPtr child);
 
@@ -15,5 +13,8 @@ struct ProjectOp : public PhysicalOpUnaryChild {
   [[nodiscard]] String DebugString() const override;
 
   ~ProjectOp() override = default;
+
+public:
+  std::vector<ast::ReturnItem> items;
 };
 }

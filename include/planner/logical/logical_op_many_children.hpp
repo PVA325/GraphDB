@@ -6,8 +6,6 @@
 
 namespace graph::logical {
 struct LogicalOpManyChildren : LogicalOp {
-  std::vector<LogicalOpPtr> children;
-
   LogicalOpManyChildren() = default;
   LogicalOpManyChildren(std::vector<LogicalOpPtr> children): children(std::move(children)) {}
 
@@ -22,5 +20,8 @@ struct LogicalOpManyChildren : LogicalOp {
   }
 
   ~LogicalOpManyChildren() override = default;
+
+public:
+  std::vector<LogicalOpPtr> children;
 };
 }

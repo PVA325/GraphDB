@@ -5,8 +5,6 @@
 namespace graph::exec {
 struct NodeScanOp : public PhysicalOpNoChild {
   /// co complete Node scan and return Row to every Node
-  String out_alias;
-
   NodeScanOp(String out_alias) : out_alias(std::move(out_alias)) {
   }
 
@@ -15,5 +13,8 @@ struct NodeScanOp : public PhysicalOpNoChild {
   [[nodiscard]] String DebugString() const override;
 
   ~NodeScanOp() override = default;
+
+public:
+  String out_alias;
 };
 }

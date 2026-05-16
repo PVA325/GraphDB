@@ -5,9 +5,6 @@
 namespace graph::exec {
 
 struct ProjectCursor : RowCursor {
-  RowCursorPtr child_cursor;
-  std::vector<ast::ReturnItem> items;
-
   ProjectCursor(const ProjectCursor&) = delete;
 
   ProjectCursor(ProjectCursor&&) = default;
@@ -19,6 +16,10 @@ struct ProjectCursor : RowCursor {
   void close() override;
 
   ~ProjectCursor() override = default;
+
+public:
+  RowCursorPtr child_cursor;
+  std::vector<ast::ReturnItem> items;
 };
 
 } // namespace graph::exec

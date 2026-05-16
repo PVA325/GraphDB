@@ -5,8 +5,6 @@
 namespace graph::logical {
 struct LogicalFilter : public LogicalOpUnaryChild {
   /// Filter - not include int answer all values that do not satisfy predicate
-  std::unique_ptr<ast::Expr> predicate;
-
   LogicalFilter() = delete;
 
   explicit LogicalFilter(LogicalOpPtr child, std::unique_ptr<ast::Expr> predicate);
@@ -21,5 +19,8 @@ struct LogicalFilter : public LogicalOpUnaryChild {
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalFilter() override = default;
+
+public:
+  std::unique_ptr<ast::Expr> predicate;
 };
 }

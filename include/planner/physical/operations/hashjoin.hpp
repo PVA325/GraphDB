@@ -5,9 +5,6 @@
 namespace graph::exec {
 struct HashJoinOp : public PhysicalOpBinaryChild {
   /// do hashJoin
-  std::vector<ast::ExprPtr> left_keys;
-  std::vector<ast::ExprPtr> right_keys;
-
   HashJoinOp(PhysicalOpPtr left, PhysicalOpPtr right,
                 std::vector<ast::ExprPtr>&& left_keys,
                 std::vector<ast::ExprPtr>&& right_keys);
@@ -18,6 +15,10 @@ struct HashJoinOp : public PhysicalOpBinaryChild {
   ~HashJoinOp() override = default;
 
   static std::vector<ast::Expr*> ExprPtrVecToBasePtrVec(std::vector<ast::ExprPtr>& expr_vec);
+
+public:
+  std::vector<ast::ExprPtr> left_keys;
+  std::vector<ast::ExprPtr> right_keys;
 };
 
 }

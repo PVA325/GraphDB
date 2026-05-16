@@ -5,8 +5,6 @@
 
 namespace graph::exec {
 struct PhysicalSetOp : public PhysicalOpUnaryChild {
-  std::vector<logical::LogicalSet::Assignment> assignments;
-
   PhysicalSetOp(PhysicalOpPtr child, std::vector<logical::LogicalSet::Assignment> assignments);
 
   RowCursorPtr open(ExecContext& ctx) override;
@@ -14,6 +12,9 @@ struct PhysicalSetOp : public PhysicalOpUnaryChild {
   [[nodiscard]] String DebugString() const override;
 
   ~PhysicalSetOp() override = default;
+
+public:
+  std::vector<logical::LogicalSet::Assignment> assignments;
 };
 
 }

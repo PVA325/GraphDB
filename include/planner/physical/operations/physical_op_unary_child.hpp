@@ -4,13 +4,14 @@
 #include "physical_op.hpp"
 namespace graph::exec {
 struct PhysicalOpUnaryChild : PhysicalOp {
-  PhysicalOpPtr child;
-
   PhysicalOpUnaryChild(PhysicalOpPtr child) : child(std::move(child)) {
   }
 
   [[nodiscard]] String SubtreeDebugString() const override;
 
   ~PhysicalOpUnaryChild() override = default;
+
+public:
+  PhysicalOpPtr child;
 };
 }

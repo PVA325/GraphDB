@@ -6,16 +6,17 @@
 namespace graph::exec {
 
 struct SetCursor : RowCursor {
-  RowCursorPtr child;
-  std::vector<logical::LogicalSet::Assignment> assignments;
-  storage::GraphDB* db;
-
   SetCursor(RowCursorPtr child,
             std::vector<logical::LogicalSet::Assignment> assignments,
             storage::GraphDB* db);
 
   bool next(Row& out) override;
   void close() override;
+
+public:
+  RowCursorPtr child;
+  std::vector<logical::LogicalSet::Assignment> assignments;
+  storage::GraphDB* db;
 };
 
 } // namespace graph::exec

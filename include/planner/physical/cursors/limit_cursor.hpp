@@ -4,10 +4,6 @@
 
 namespace graph::exec {
 struct LimitCursor : RowCursor {
-  RowCursorPtr child_cursor;
-  size_t limit_count;
-  size_t used_count{0};
-
   LimitCursor(const LimitCursor&) = delete;
 
   LimitCursor(LimitCursor&&) = default;
@@ -19,5 +15,10 @@ struct LimitCursor : RowCursor {
   void close() override;
 
   ~LimitCursor() override = default;
+
+public:
+  RowCursorPtr child_cursor;
+  size_t limit_count;
+  size_t used_count{0};
 };
 }

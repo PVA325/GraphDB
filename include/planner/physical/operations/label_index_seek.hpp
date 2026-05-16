@@ -5,9 +5,6 @@
 namespace graph::exec {
 struct LabelIndexSeekOp : public PhysicalOpNoChild {
   /// used for node filtering(for more optimized by label we dont need to do all node scan)
-  String out_alias;
-  String label;
-
   LabelIndexSeekOp(String alias, String label);
 
   RowCursorPtr open(ExecContext& ctx) override;
@@ -15,5 +12,9 @@ struct LabelIndexSeekOp : public PhysicalOpNoChild {
   [[nodiscard]] String DebugString() const override;
 
   ~LabelIndexSeekOp() override = default;
+
+public:
+  String out_alias;
+  String label;
 };
 }

@@ -6,8 +6,6 @@ namespace graph::logical {
 
 struct LogicalPlan : LogicalOpZeroChild {
   /// Container logical plan
-  LogicalOpPtr root;
-
   LogicalPlan() : root(nullptr) {}
 
   LogicalPlan(LogicalPlan&& other) noexcept : root(std::move(other.root)) {}
@@ -35,6 +33,9 @@ struct LogicalPlan : LogicalOpZeroChild {
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return root->GetSubtreeAliases(); }
 
   ~LogicalPlan() override = default;
+
+public:
+  LogicalOpPtr root;
 };
 
 } // namespace graph::logical

@@ -31,6 +31,16 @@ struct HashJoinCursor : public RowCursor {
   /// do join for 2 NestedLoopJoin Cursor expressions based on predicate
   using CompositeKey = std::vector<Value>;
 
+  HashJoinCursor(RowCursorPtr left_cursor_a, RowCursorPtr right_cursor_a,
+        const std::vector<ast::Expr*>& left_keys_a, const std::vector<ast::Expr*>& right_keys_b);
+
+  bool next(Row& out) override;
+
+  void close() override;
+
+  ~HashJoinCursor() override = default;
+
+public:
   RowCursorPtr left_cursor;
   RowCursorPtr right_cursor;
   std::vector<ast::Expr*> left_keys;
@@ -42,14 +52,6 @@ struct HashJoinCursor : public RowCursor {
   std::unordered_map<CompositeKey, std::vector<Row>, VecValueHash>::iterator it_left;
   size_t vec_left_idx{std::numeric_limits<size_t>::max()};
 
-  HashJoinCursor(RowCursorPtr left_cursor_a, RowCursorPtr right_cursor_a,
-        const std::vector<ast::Expr*>& left_keys_a, const std::vector<ast::Expr*>& right_keys_b);
-
-  bool next(Row& out) override;
-
-  void close() override;
-
-  ~HashJoinCursor() override = default;
 private:
   static CompositeKey GetCompositeKey(const Row& row, const std::vector<ast::Expr*>& keys);
 };

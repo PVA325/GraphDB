@@ -11,8 +11,6 @@ struct LogicalSet : LogicalOpUnaryChild {
     std::vector<std::pair<String, Value>> properties;
   };
 
-  std::vector<Assignment> assignment;
-
   LogicalSet(const LogicalSet&) = delete;
 
   LogicalSet(LogicalSet&& other) noexcept : LogicalOpUnaryChild(std::move(other.child)),
@@ -30,5 +28,8 @@ struct LogicalSet : LogicalOpUnaryChild {
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalSet() override = default;
+
+public:
+  std::vector<Assignment> assignment;
 };
 }

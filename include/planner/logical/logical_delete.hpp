@@ -5,8 +5,6 @@
 namespace graph::logical {
 struct LogicalDelete : LogicalOpUnaryChild {
   /// Create logical operation in a tree to delete a target
-  std::vector<String> target;
-
   LogicalDelete(const LogicalDelete&) = delete;
 
   LogicalDelete(LogicalDelete&& other) noexcept : LogicalOpUnaryChild(std::move(other.child)),
@@ -25,5 +23,8 @@ struct LogicalDelete : LogicalOpUnaryChild {
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalDelete() override = default;
+
+public:
+  std::vector<String> target;
 };
 }

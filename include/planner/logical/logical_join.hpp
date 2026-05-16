@@ -5,9 +5,6 @@
 namespace graph::logical {
 struct LogicalJoin : LogicalOpManyChildren {
   /// Logical Join for many results with predicate(optional)
-
-  std::unique_ptr<ast::Expr> predicate;
-
   LogicalJoin() = delete;
 
   LogicalJoin(LogicalOpPtr left, LogicalOpPtr right);
@@ -26,5 +23,8 @@ struct LogicalJoin : LogicalOpManyChildren {
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final;
 
   ~LogicalJoin() override = default;
+
+public:
+  std::unique_ptr<ast::Expr> predicate;
 };
 }

@@ -5,8 +5,6 @@
 namespace graph::exec {
 struct PhysicalPlan {
   /// creates physical plan
-  PhysicalOpPtr root;
-
   PhysicalPlan() = default;
 
   PhysicalPlan(PhysicalPlan&& other) noexcept : root(std::move(other.root)) {}
@@ -19,6 +17,9 @@ struct PhysicalPlan {
   explicit PhysicalPlan(PhysicalOpPtr root): root(std::move(root)) {}
 
   [[nodiscard]] std::string DebugString() const;
+
+public:
+  PhysicalOpPtr root;
 };
 
 }

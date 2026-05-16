@@ -6,16 +6,6 @@
 namespace graph::logical {
 struct LogicalExpand : public AliasedLogicalOp {
   /// Expand Nodes that are located in row by $src_alias slot name and move to $dst_alias
-  LogicalOpPtr child;
-
-  String src_alias;
-  String edge_alias;
-
-  std::optional<String> edge_type;
-  std::vector<String> dst_vertex_labels;
-  std::vector<std::pair<String, Value>> dst_vertex_properties;
-  ast::EdgeDirection direction;
-
   LogicalExpand() = delete;
 
   LogicalExpand(LogicalOpPtr child, String src_alias, String edge_alias, String dst_alias,
@@ -34,5 +24,16 @@ struct LogicalExpand : public AliasedLogicalOp {
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final;
 
   ~LogicalExpand() override = default;
+
+public:
+  LogicalOpPtr child;
+
+  String src_alias;
+  String edge_alias;
+
+  std::optional<String> edge_type;
+  std::vector<String> dst_vertex_labels;
+  std::vector<std::pair<String, Value>> dst_vertex_properties;
+  ast::EdgeDirection direction;
 };
 }

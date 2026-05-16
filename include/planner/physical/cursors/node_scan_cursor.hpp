@@ -6,9 +6,6 @@
 namespace graph::exec {
 
 struct NodeScanCursor : RowCursor {
-  std::unique_ptr<storage::NodeCursor> nodes_cursor;
-  String out_alias;
-
   NodeScanCursor(NodeScanCursor&&) = default;
 
   NodeScanCursor(std::unique_ptr<storage::NodeCursor> nodes_cursor, String out_alias);
@@ -18,6 +15,10 @@ struct NodeScanCursor : RowCursor {
   void close() override;
 
   ~NodeScanCursor() override = default;
+
+public:
+  std::unique_ptr<storage::NodeCursor> nodes_cursor;
+  String out_alias;
 };
 
 } // namespace graph::exec

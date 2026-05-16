@@ -13,8 +13,6 @@ struct LogicalSort : LogicalOpUnaryChild {
       {expr2, false}   // DESC
     } and sort if by expr1 and if they are equal by expr2
    */
-  std::vector<ast::OrderItem> items;
-
   LogicalSort() = delete;
 
   explicit LogicalSort(LogicalOpPtr child, std::vector<ast::OrderItem> items);
@@ -29,6 +27,9 @@ struct LogicalSort : LogicalOpUnaryChild {
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalSort() override = default;
+
+public:
+  std::vector<ast::OrderItem> items;
 };
 
 } // namespace graph::logical

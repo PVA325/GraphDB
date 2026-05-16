@@ -8,9 +8,6 @@ namespace graph::logical {
 struct LogicalScan : public AliasedLogicalOp {
   /// Scan Nodes that has specified labels
   /// and write out in row with slot name alias
-  std::vector<String> labels;
-  std::vector<std::pair<String, Value>> property_filters;
-
   LogicalScan(std::vector<String> labels, String dst_alias);
 
   LogicalScan(std::vector<String> labels, String alias, std::vector<std::pair<String, Value>> property_filters);
@@ -25,6 +22,10 @@ struct LogicalScan : public AliasedLogicalOp {
   [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kScanType; }
 
   ~LogicalScan() override = default;
+
+public:
+  std::vector<String> labels;
+  std::vector<std::pair<String, Value>> property_filters;
 };
 
 } // namespace graph::logical

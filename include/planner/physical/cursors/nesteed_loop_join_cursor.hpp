@@ -7,14 +7,6 @@ namespace graph::exec {
 
 struct NestedLoopJoinCursor : public RowCursor {
   /// do join for 2 expressions based on predicate
-  RowCursorPtr left_cursor;
-  RowCursorPtr right_cursor;
-  PhysicalOp* right_operation;
-  const ast::Expr* predicate;
-  ExecContext& ctx;
-
-  Row left_row;
-
   NestedLoopJoinCursor(RowCursorPtr left_cursor, PhysicalOp* right_operation,
                        const ast::Expr* pred, ExecContext& ctx);
 
@@ -23,6 +15,15 @@ struct NestedLoopJoinCursor : public RowCursor {
   void close() override;
 
   ~NestedLoopJoinCursor() override = default;
+
+public:
+  RowCursorPtr left_cursor;
+  RowCursorPtr right_cursor;
+  PhysicalOp* right_operation;
+  const ast::Expr* predicate;
+  ExecContext& ctx;
+
+  Row left_row;
 };
 
 } // namespace graph::exec

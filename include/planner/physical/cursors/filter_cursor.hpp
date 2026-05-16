@@ -4,9 +4,6 @@
 
 namespace graph::exec {
 struct FilterCursor : RowCursor {
-  RowCursorPtr child_cursor;
-  ast::Expr* predicate;
-
   FilterCursor(const FilterCursor&) = delete;
 
   FilterCursor(FilterCursor&&) = default;
@@ -18,5 +15,9 @@ struct FilterCursor : RowCursor {
   void close() override;
 
   ~FilterCursor() override = default;
+
+public:
+  RowCursorPtr child_cursor;
+  ast::Expr* predicate;
 };
 }

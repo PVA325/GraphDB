@@ -6,8 +6,6 @@
 namespace graph::logical {
 struct LogicalProject : public LogicalOpUnaryChild {
   /// Project of values to items(can be field - string or Expression)
-  std::vector<ast::ReturnItem> items;
-
   LogicalProject() = delete;
 
   LogicalProject(LogicalOpPtr child, std::vector<ast::ReturnItem> items);
@@ -21,6 +19,9 @@ struct LogicalProject : public LogicalOpUnaryChild {
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalProject() override = default;
+
+public:
+  std::vector<ast::ReturnItem> items;
 };
 }
 

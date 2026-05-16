@@ -5,8 +5,6 @@
 
 namespace graph::exec {
 struct PhysicalCreateOp : PhysicalOpUnaryChild {
-  std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items;
-
   PhysicalCreateOp(std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items);
   PhysicalCreateOp(std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items,
                    PhysicalOpPtr child);
@@ -15,6 +13,9 @@ struct PhysicalCreateOp : PhysicalOpUnaryChild {
   [[nodiscard]] String DebugString() const override;
 
   ~PhysicalCreateOp() override = default;
+
+public:
+  std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items;
 };
 
 }

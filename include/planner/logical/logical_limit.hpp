@@ -6,8 +6,6 @@ namespace graph::logical {
 
 struct LogicalLimit : public LogicalOpUnaryChild {
   /// Logical Limit - nothing to comment
-  size_t limit_size;
-
   LogicalLimit() = delete;
 
   explicit LogicalLimit(LogicalOpPtr child, size_t limit_size);
@@ -22,6 +20,9 @@ struct LogicalLimit : public LogicalOpUnaryChild {
   [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
 
   ~LogicalLimit() override = default;
+
+public:
+  size_t limit_size;
 };
 
 } // namespace graph::logical
