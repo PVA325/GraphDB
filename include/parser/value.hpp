@@ -9,9 +9,9 @@ using Value = std::variant<int64_t, double, std::string, bool>;
 
 // Literal value.
 struct Literal {
-  Value value;
-
   [[nodiscard]] std::string DebugString() const;
+
+  Value value;
 };
 
 } // namespace ast

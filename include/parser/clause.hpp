@@ -13,53 +13,53 @@ namespace ast {
 
 // MATCH clause.
 struct MatchClause {
-  std::vector<Pattern> patterns;
-
   [[nodiscard]] std::string DebugString() const;
+
+  std::vector<Pattern> patterns;
 };
 
 // WHERE clause.
 struct WhereClause {
-  ExprPtr expression;
-
   [[nodiscard]] std::string DebugString() const;
+
+  ExprPtr expression;
 };
 
 // RETURN item: either alias or property.
 struct ReturnItem {
-  std::variant<std::string, PropertyExpr> return_item;
-
   [[nodiscard]] std::string DebugString() const;
+
+  std::variant<std::string, PropertyExpr> return_item;
 };
 
 // RETURN clause.
 struct ReturnClause {
-  std::vector<ReturnItem> items;
-
   [[nodiscard]] std::string DebugString() const;
+
+  std::vector<ReturnItem> items;
 };
 
 // DELETE clause.
 struct DeleteClause {
-  std::vector<std::string> aliases;
-
   [[nodiscard]] std::string DebugString() const;
+
+  std::vector<std::string> aliases;
 };
 
 // SET item.
 struct SetItem {
+  [[nodiscard]] std::string DebugString() const;
+
   std::string alias;
   std::vector<std::pair<std::string, Literal>> properties;
   std::vector<std::string> labels;
-
-  [[nodiscard]] std::string DebugString() const;
 };
 
 // SET clause.
 struct SetClause {
-  std::vector<SetItem> items;
-
   [[nodiscard]] std::string DebugString() const;
+
+  std::vector<SetItem> items;
 };
 
 // ORDER BY direction.
@@ -70,37 +70,39 @@ enum class OrderDirection {
 
 // ORDER BY item.
 struct OrderItem {
+  [[nodiscard]] std::string DebugString() const;
+
   PropertyExpr property;
   OrderDirection direction = OrderDirection::Asc;
-
-  [[nodiscard]] std::string DebugString() const;
 };
 
 // ORDER BY clause.
 struct OrderClause {
-  std::vector<OrderItem> items;
-
   [[nodiscard]] std::string DebugString() const;
+
+  std::vector<OrderItem> items;
 };
 
 // LIMIT clause.
 struct LimitClause {
-  size_t limit;
-
   [[nodiscard]] std::string DebugString() const;
+
+  size_t limit;
 };
 
 using CreateItem = std::variant<NodePattern, CreateEdgePattern>;
 
 // CREATE clause.
 struct CreateClause {
-  std::vector<CreateItem> created_items;
-
   [[nodiscard]] std::string DebugString() const;
+
+  std::vector<CreateItem> created_items;
 };
 
 // AST for query.
 struct QueryAST {
+  [[nodiscard]] std::string DebugString() const;
+
   std::unique_ptr<MatchClause> match_clause;
   std::unique_ptr<WhereClause> where_clause;
 
@@ -112,8 +114,6 @@ struct QueryAST {
   std::unique_ptr<LimitClause> limit_clause;
 
   std::unique_ptr<CreateClause> create_clause;
-
-  [[nodiscard]] std::string DebugString() const;
 };
 
 } // namespace ast

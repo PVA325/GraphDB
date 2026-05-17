@@ -13,18 +13,20 @@ using PropertyMap = std::vector<std::pair<std::string, Literal>>;
 
 // Node pattern in MATCH clause.
 struct NodePattern {
+  [[nodiscard]] std::string DebugString() const;
+
   std::string alias;
   std::vector<std::string> labels;
   PropertyMap properties;
 
   size_t line = 0;
   size_t col = 0;
-
-  [[nodiscard]] std::string DebugString() const;
 };
 
 // Edge pattern between nodes.
 struct MatchEdgePattern {
+  [[nodiscard]] std::string DebugString() const;
+
   std::string alias;
   std::string label;
   PropertyMap properties;
@@ -32,43 +34,43 @@ struct MatchEdgePattern {
 
   size_t line = 0;
   size_t col = 0;
-
-  [[nodiscard]] std::string DebugString() const;
 };
 
 using MatchItem = std::variant<NodePattern, MatchEdgePattern>;
 
 // Node or Edge pattern element.
 struct PatternElement {
-  MatchItem element;
-
   [[nodiscard]] bool IsNode() const;
   [[nodiscard]] bool IsEdge() const;
   [[nodiscard]] const NodePattern& AsNode() const;
   [[nodiscard]] const MatchEdgePattern& AsEdge() const;
 
   [[nodiscard]] std::string DebugString() const;
+
+  MatchItem element;
 };
 
 // Full graph pattern.
 struct Pattern {
-  std::vector<PatternElement> elements;
-
   [[nodiscard]] std::string DebugString() const;
+
+  std::vector<PatternElement> elements;
 };
 
 // Node reference in CREATE clause.
 struct CreateNodeRef {
+  [[nodiscard]] std::string DebugString() const;
+
   std::string alias;
 
   size_t line = 0;
   size_t col = 0;
-
-  [[nodiscard]] std::string DebugString() const;
 };
 
 // CREATE edge pattern.
 struct CreateEdgePattern {
+  [[nodiscard]] std::string DebugString() const;
+
   CreateNodeRef left_node;
   std::string alias;
   std::string label;
@@ -78,8 +80,6 @@ struct CreateEdgePattern {
 
   size_t line = 0;
   size_t col = 0;
-
-  [[nodiscard]] std::string DebugString() const;
 };
 
 } // namespace ast

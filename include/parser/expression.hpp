@@ -8,9 +8,6 @@
 
 namespace ast {
 
-struct Expr;
-struct EvalContext;
-
 // Abstract class for all expressions in AST.
 enum class ExprType {
   Literal,
