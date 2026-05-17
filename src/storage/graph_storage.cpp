@@ -238,7 +238,7 @@ namespace storage {
     }
   }
 
-  Value GraphStorage::deserialize_value(std::istream& is) {
+  [[nodiscard]] Value GraphStorage::deserialize_value(std::istream& is) {
     uint8_t type;
     is.read(reinterpret_cast<char*>(&type), sizeof(type));
     switch (type) {
@@ -278,7 +278,7 @@ namespace storage {
     }
   }
 
-  Properties GraphStorage::deserialize_properties(std::istream& is) {
+  [[nodiscard]] Properties GraphStorage::deserialize_properties(std::istream& is) {
     size_t count;
     is.read(reinterpret_cast<char*>(&count), sizeof(count));
     Properties props;

@@ -43,7 +43,9 @@ namespace storage {
     slot.props_size = static_cast<uint32_t>(props_end_ - props_offset);
     write_slot(id, slot);
 
-    if (obj_cache_.size() >= kMaxNodeAmount) { evict_obj_cache(); }
+    if (obj_cache_.size() >= kMaxNodeAmount) {
+      evict_obj_cache();
+    }
     obj_cache_[id] = node;
     obj_cache_[id].id = id;
     obj_cache_[id].alive = true;
@@ -78,7 +80,7 @@ namespace storage {
     props_cache_.flush();
   }
 
-  NodeSlot NodeStore::read_slot(NodeId id) {
+  [[nodiscard]] NodeSlot NodeStore::read_slot(NodeId id) {
     NodeSlot slot;
     size_t   offset = id * NodeSlot::kSize;
     slots_cache_.read(offset,     &slot.props_offset, 8);
@@ -98,7 +100,7 @@ namespace storage {
     if (id >= slot_count_) { slot_count_ = id + 1; }
   }
 
-  size_t NodeStore::serialise(const Node& node) {
+  [[nodiscard]] size_t NodeStore::serialise(const Node& node) {
     std::ostringstream buf(std::ios::binary);
     write<uint32_t>(buf, static_cast<uint32_t>(node.labels.size()));
     for (const auto& label : node.labels) { write_str(buf, label); }
@@ -111,7 +113,7 @@ namespace storage {
     return offset;
   }
 
-  Node NodeStore::deserialise(NodeId id, const NodeSlot& slot) {
+  [[nodiscard]] Node NodeStore::deserialise(NodeId id, const NodeSlot& slot) {
     std::string buf(slot.props_size, '\0');
     props_cache_.read(slot.props_offset, buf.data(), slot.props_size);
     std::istringstream is(buf, std::ios::binary);
@@ -122,13 +124,17 @@ namespace storage {
 
     uint32_t label_count = read<uint32_t>(is);
     node.labels.resize(label_count);
-    for (uint32_t i = 0; i < label_count; ++i) { node.labels[i] = read_str(is); }
+    for (uint32_t i = 0; i < label_count; ++i) {
+      node.labels[i] = read_str(is);
+    }
     node.properties = read_properties(is);
     return node;
   }
 
   void NodeStore::evict_obj_cache() {
-    if (!obj_cache_.empty()) { obj_cache_.erase(obj_cache_.begin()); }
+    if (!obj_cache_.empty()) {
+      obj_cache_.erase(obj_cache_.begin());
+    }
   }
 
 } // namespace storage

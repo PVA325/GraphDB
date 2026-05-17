@@ -5,8 +5,7 @@
 
 namespace storage {
   GraphDB::GraphDB(const std::filesystem::path& dir)
-    : dir_(dir)
-  {
+    : dir_(dir) {
     metrics_ = std::make_unique<MetricsStore>(dir_);
 
     if (disk_mode()) {
@@ -57,12 +56,8 @@ namespace storage {
     NodeId id = node_id_free_.next(nodes_ram_.size());
     Node node{ id, true, labels, props };
 
-    if (id == nodes_ram_.size()) {
-      nodes_ram_.push_back(std::move(node));
-    }
-    else {
-      nodes_ram_[id] = std::move(node);
-    }
+    if (id == nodes_ram_.size()) nodes_ram_.push_back(std::move(node));
+    else                         nodes_ram_[id] = std::move(node);
 
     for (const auto& label : labels) { node_index_.add_label(id, label); }
     for (const auto& [k, v] : props) { node_index_.add_property(id, k, v); }
@@ -127,16 +122,11 @@ namespace storage {
 
   void GraphDB::delete_node(NodeId id) {
     if (disk_mode()) {
-      auto out = edge_index_.outgoing(id);
-      if (out) {
-        auto edges = out->data;
-        for (EdgeId eid : edges) edge_manager_->remove(eid);
-      }
-      auto in = edge_index_.incoming(id);
-      if (in) {
-        auto edges = in->data;
-        for (EdgeId eid : edges) edge_manager_->remove(eid);
-      }
+      // копируем вектор — remove будет менять индекс во время итерации
+      const std::vector<EdgeId> out(edge_index_.outgoing(id));
+      for (EdgeId eid : out) edge_manager_->remove(eid);
+      const std::vector<EdgeId> in(edge_index_.incoming(id));
+      for (EdgeId eid : in) edge_manager_->remove(eid);
       node_manager_->remove(id);
       return;
     }
@@ -144,12 +134,12 @@ namespace storage {
     Node* node = node_ptr(id);
     assert(node && node->alive);
 
-    auto out = edge_index_.outgoing(id);
-    if (out) { auto edges = out->data; for (EdgeId eid : edges) delete_edge(eid); }
-    auto in  = edge_index_.incoming(id);
-    if (in)  { auto edges = in->data;  for (EdgeId eid : edges) delete_edge(eid); }
+    const std::vector<EdgeId> out(edge_index_.outgoing(id));
+    for (EdgeId eid : out) delete_edge(eid);
+    const std::vector<EdgeId> in(edge_index_.incoming(id));
+    for (EdgeId eid : in) delete_edge(eid);
 
-    for (const auto& label : node->labels)    node_index_.remove_label(id, label);
+    for (const auto& label : node->labels)      node_index_.remove_label(id, label);
     for (const auto& [k, v] : node->properties) node_index_.remove_property(id, k, v);
 
     metrics_->on_node_deleted(node->labels, node->properties);
@@ -159,7 +149,6 @@ namespace storage {
     node->alive = false;
     node_id_free_.free(id);
   }
-
 
   EdgeId GraphDB::create_edge(NodeId src, NodeId dst,
                               const std::string& type, const Properties& props) {
@@ -221,78 +210,74 @@ namespace storage {
     edge_id_free_.free(id);
   }
 
-  std::unique_ptr<NodeCursor> GraphDB::all_nodes(
+  [[nodiscard]] std::unique_ptr<NodeCursor> GraphDB::all_nodes(
     std::function<bool(Node*)> predicate, size_t limit) {
-
-    bool   dm    = disk_mode();
+    bool dm = disk_mode();
     size_t slots = dm ? node_store_->slot_count() : nodes_ram_.size();
-    return std::unique_ptr<NodeCursor>(
-      new AllNodesCursor(this, predicate, limit, dm, slots));
+    return std::unique_ptr<NodeCursor>(new AllNodesCursor(this, predicate, limit, dm, slots));
   }
 
-  std::unique_ptr<NodeCursor> GraphDB::nodes_with_label(
+  [[nodiscard]] std::unique_ptr<NodeCursor> GraphDB::nodes_with_label(
     const std::string& label,
     std::function<bool(Node*)> predicate, size_t limit) {
     return cursor_factory_->nodes_with_label(label, predicate, limit);
   }
 
-  std::unique_ptr<NodeCursor> GraphDB::nodes_with_property(
+  [[nodiscard]] std::unique_ptr<NodeCursor> GraphDB::nodes_with_property(
     const std::string& key, const Value& val,
     std::function<bool(Node*)> predicate, size_t limit) {
     return cursor_factory_->nodes_with_property(key, val, predicate, limit);
   }
 
-  std::unique_ptr<EdgeCursor> GraphDB::outgoing_edges(
+  [[nodiscard]] std::unique_ptr<EdgeCursor> GraphDB::outgoing_edges(
     NodeId node_id,
     std::function<bool(Edge*)> predicate, size_t limit) {
     return cursor_factory_->outgoing_edges(node_id, predicate, limit);
   }
 
-  std::unique_ptr<EdgeCursor> GraphDB::incoming_edges(
+  [[nodiscard]] std::unique_ptr<EdgeCursor> GraphDB::incoming_edges(
     NodeId node_id,
     std::function<bool(Edge*)> predicate, size_t limit) {
     return cursor_factory_->incoming_edges(node_id, predicate, limit);
   }
 
-  std::unique_ptr<EdgeCursor> GraphDB::edges_by_type(
+  [[nodiscard]] std::unique_ptr<EdgeCursor> GraphDB::edges_by_type(
     const std::string& type,
     std::function<bool(Edge*)> predicate, size_t limit) {
     return cursor_factory_->edges_by_type(type, predicate, limit);
   }
 
-
-  size_t GraphDB::node_count() const {
+  [[nodiscard]] size_t GraphDB::node_count() const {
     return metrics_->node_count();
   }
 
-  size_t GraphDB::edge_count_with_type(const std::string& type) const {
+  [[nodiscard]] size_t GraphDB::edge_count_with_type(const std::string& type) const {
     return edge_index_.count_by_type(type);
   }
 
-  size_t GraphDB::node_count_with_label(const std::string& label) const {
+  [[nodiscard]] size_t GraphDB::node_count_with_label(const std::string& label) const {
     return metrics_->node_count_with_label(label);
   }
 
-  std::optional<size_t> GraphDB::property_distinct_count(
+  [[nodiscard]] std::optional<size_t> GraphDB::property_distinct_count(
     const std::string& property, const std::string& label) const {
     return metrics_->property_distinct_count(property, label);
   }
 
-  double GraphDB::avg_out_degree(const std::string& label) const {
+  [[nodiscard]] double GraphDB::avg_out_degree(const std::string& label) const {
     return metrics_->avg_out_degree(label);
   }
 
-  bool GraphDB::has_property_index(const std::string& label,
-                                   const std::string& property) const {
+  [[nodiscard]] bool GraphDB::has_property_index(const std::string& label,
+                                                 const std::string& property) const {
     return metrics_->has_property_index(label, property);
   }
 
-  size_t GraphDB::property_count(const std::string& property,
-                                 const Value& value,
-                                 const std::string& label) const {
+  [[nodiscard]] size_t GraphDB::property_count(const std::string& property,
+                                               const Value& value,
+                                               const std::string& label) const {
     if (label.empty()) {
-      auto list = node_index_.by_property(property, value);
-      return list ? list->data.size() : 0;
+      return node_index_.by_property(property, value).size();
     }
     return metrics_->property_count(property, value, label);
   }

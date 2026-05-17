@@ -4,9 +4,9 @@
 
 namespace storage {
 
-  EdgeManager::EdgeManager(EdgeStore*    store,
-                           EdgeIndex*    index,
-                           NodeStore*    node_store,
+  EdgeManager::EdgeManager(EdgeStore* store,
+                           EdgeIndex* index,
+                           NodeStore* node_store,
                            MetricsStore* metrics,
                            FreeList*  free_ids)
     : store_(store), index_(index), node_store_(node_store),

@@ -63,7 +63,7 @@ namespace storage {
     if (!slot.alive) {return nullptr;}
 
     if (obj_cache_.size() >= kMaxNodeAmount) {evict_obj_cache();}
-    obj_cache_[id] = deserialise(id, slot);
+    obj_cache_[id] = deserialize(id, slot);
     return &obj_cache_[id];
   }
 
@@ -81,7 +81,7 @@ namespace storage {
   }
 
 
-  EdgeSlot EdgeStore::read_slot(EdgeId id) {
+  [[nodiscard]] EdgeSlot EdgeStore::read_slot(EdgeId id) {
     EdgeSlot slot;
     size_t   offset = id * EdgeSlot::kSize;
     slots_cache_.read(offset,      &slot.props_offset, 8);
@@ -105,7 +105,7 @@ namespace storage {
     if (id >= slot_count_) { slot_count_ = id + 1; }
   }
 
-  size_t EdgeStore::serialise(const Edge& edge) {
+  [[nodiscard]] size_t EdgeStore::serialise(const Edge& edge) {
     std::ostringstream buf(std::ios::binary);
     write_str(buf, edge.type);
     write_properties(buf, edge.properties);
@@ -117,7 +117,7 @@ namespace storage {
     return offset;
   }
 
-  Edge EdgeStore::deserialise(EdgeId id, const EdgeSlot& slot) {
+  [[nodiscard]] Edge EdgeStore::deserialize(EdgeId id, const EdgeSlot& slot) {
     std::string buf(slot.props_size, '\0');
     props_cache_.read(slot.props_offset, buf.data(), slot.props_size);
     std::istringstream is(buf, std::ios::binary);

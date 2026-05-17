@@ -9,8 +9,8 @@ namespace storage {
     size_t next(size_t current_size);
     void free(size_t id);
 
-    size_t free_count() const { return free_ids_.size(); }
-    const std::vector<size_t>& free_ids() const { return free_ids_; }
+    [[nodiscard]] size_t free_count() const { return free_ids_.size(); }
+    [[nodiscard]] const std::vector<size_t>& free_ids() const { return free_ids_; }
 
   private:
     std::vector<size_t> free_ids_;

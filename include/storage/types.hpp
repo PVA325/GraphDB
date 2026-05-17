@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/intrusive_ptr.hpp>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -14,20 +14,6 @@ namespace storage {
 
   using Value = std::variant<int64_t, double, std::string, bool>;
   using Properties = std::unordered_map<std::string, Value>;
-
-  template<typename T>
-  struct RefCountedVector {
-    std::vector<T> data;
-    mutable int ref_count = 0;
-
-    friend void intrusive_ptr_add_ref(const RefCountedVector* p) { ++p->ref_count; }
-    friend void intrusive_ptr_release(const RefCountedVector* p) {
-      if (--p->ref_count == 0) { delete p; }
-    }
-  };
-
-  using NodeIdList = RefCountedVector<NodeId>;
-  using EdgeIdList = RefCountedVector<EdgeId>;
 
   struct Node {
     NodeId id;
@@ -63,7 +49,7 @@ namespace storage {
              value == item.value;
     }
   };
-  struct LPVKeyHash { size_t operator()(const LPVKey& k) const; };
+  struct LPVKeyHash { inline size_t operator()(const LPVKey& k) const; };
 
   struct LPKey {
     uint32_t label_id;
@@ -79,14 +65,13 @@ namespace storage {
     }
   };
 
-  size_t LPVKeyHash::operator()(const LPVKey& k) const {
+  inline size_t LPVKeyHash::operator()(const LPVKey& k) const {
     size_t h = std::hash<uint32_t>{}(k.label_id);
     h ^= std::hash<uint32_t>{}(k.prop_id) + 0x9e3779b9 + (h << 6) + (h >> 2);
     h ^= std::hash<Value>{}(k.value) + 0x9e3779b9 + (h << 6) + (h >> 2);
     return h;
   }
 
-  // change name
   struct Delta {
     std::unordered_map<LPVKey, int32_t, LPVKeyHash> count_delta;
     std::unordered_map<LPKey, std::unordered_set<Value>, LPKeyHash> new_distinct;

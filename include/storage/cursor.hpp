@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
-#include "storage/EdgeEntity/edge_index.hpp"
-#include "storage/NodeEntity/node_index.hpp"
+#include "EdgeEntity/edge_index.hpp"
+#include "NodeEntity/node_index.hpp"
 #include "types.hpp"
 
 namespace storage {
@@ -16,21 +16,16 @@ namespace storage {
   class Cursor {
   protected:
     GraphDB* db_;
-    boost::intrusive_ptr<RefCountedVector<Id>> ids_;
+    const std::vector<Id>& ids_;
     std::function<bool(T*)> predicate_ = nullptr;
     size_t index_ = 0;
     size_t limit_ = 0;
     size_t returned_ = 0;
 
   public:
-    Cursor(GraphDB* db, boost::intrusive_ptr<RefCountedVector<Id>> ids,
+    Cursor(GraphDB* db, const std::vector<Id>& ids,
            std::function<bool(T*)> predicate = nullptr, size_t limit = 0)
       : db_(db), ids_(ids), predicate_(predicate), limit_(limit) {}
-
-    Cursor(GraphDB* db, std::vector<Id>&& ids,
-           std::function<bool(T*)> predicate = nullptr, size_t limit = 0)
-      : db_(db), ids_(new RefCountedVector<Id>{std::move(ids)}),
-        predicate_(predicate), limit_(limit) {}
 
     virtual ~Cursor() = default;
     virtual bool next(T*& out);
@@ -42,20 +37,18 @@ namespace storage {
 
   class NodeCursor : public Cursor<Node, NodeId> {
   public:
-    NodeCursor(GraphDB* db, boost::intrusive_ptr<NodeIdList> ids,
+    NodeCursor(GraphDB* db, const std::vector<NodeId>& ids,
                std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
-    NodeCursor(GraphDB* db, std::vector<NodeId>&& ids,
-               std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
+
   protected:
     Node* get_from_db(NodeId id) override;
   };
 
   class EdgeCursor : public Cursor<Edge, EdgeId> {
   public:
-    EdgeCursor(GraphDB* db, boost::intrusive_ptr<EdgeIdList> ids,
+    EdgeCursor(GraphDB* db, const std::vector<EdgeId>& ids,
                std::function<bool(Edge*)> predicate = nullptr, size_t limit = 0);
-    EdgeCursor(GraphDB* db, std::vector<EdgeId>&& ids,
-               std::function<bool(Edge*)> predicate, size_t limit);
+
   protected:
     Edge* get_from_db(EdgeId id) override;
   };
@@ -67,7 +60,7 @@ namespace storage {
                    size_t limit = 0,
                    bool disk_mode = false,
                    size_t total_slots = 0)
-      : NodeCursor(db, boost::intrusive_ptr<NodeIdList>(nullptr), predicate, limit),
+      : NodeCursor(db,std::vector<NodeId>{}, predicate, limit),
         disk_mode_(disk_mode), total_slots_(total_slots) {}
     bool next(Node*& out) override;
 
@@ -104,7 +97,7 @@ namespace storage {
       std::function<bool(Edge*)> predicate, size_t limit);
 
   private:
-    GraphDB* db_;
+    GraphDB*   db_;
     NodeIndex* node_index_;
     EdgeIndex* edge_index_;
   };

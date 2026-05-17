@@ -34,13 +34,13 @@ namespace storage {
     void remove(EdgeId id);
     void flush();
 
-    size_t slot_count() const { return slot_count_; }
+    [[nodiscard]] size_t slot_count() const { return slot_count_; }
 
   private:
-    EdgeSlot read_slot(EdgeId id);
+    [[nodiscard]] EdgeSlot read_slot(EdgeId id);
     void write_slot(EdgeId id, const EdgeSlot& slot);
-    Edge deserialise(EdgeId id, const EdgeSlot& slot);
-    size_t serialise(const Edge& edge);
+    [[nodiscard]] Edge deserialize(EdgeId id, const EdgeSlot& slot);
+    [[nodiscard]] size_t serialise(const Edge& edge);
     void evict_obj_cache();
 
     std::fstream slots_file_;

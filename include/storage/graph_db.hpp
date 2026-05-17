@@ -8,11 +8,11 @@
 #include <string>
 
 #include "cursor.hpp"
-#include "storage/EdgeEntity/edge_manager.hpp"
+#include "EdgeEntity/edge_manager.hpp"
 #include "graph_storage.hpp"
 #include "free_list.hpp"
 #include "metrics_store.hpp"
-#include "storage/NodeEntity/node_manager.hpp"
+#include "NodeEntity/node_manager.hpp"
 #include "types.hpp"
 
 namespace storage {
@@ -44,46 +44,46 @@ namespace storage {
     }
     void flush();
 
-    std::unique_ptr<NodeCursor> all_nodes(
+    [[nodiscard]] std::unique_ptr<NodeCursor> all_nodes(
       std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<NodeCursor> nodes_with_label(
+    [[nodiscard]] std::unique_ptr<NodeCursor> nodes_with_label(
       const std::string& label,
       std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<NodeCursor> nodes_with_property(
+    [[nodiscard]] std::unique_ptr<NodeCursor> nodes_with_property(
       const std::string& key, const Value& val,
       std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<EdgeCursor> outgoing_edges(
+    [[nodiscard]] std::unique_ptr<EdgeCursor> outgoing_edges(
       NodeId node_id,
       std::function<bool(Edge*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<EdgeCursor> incoming_edges(
+    [[nodiscard]] std::unique_ptr<EdgeCursor> incoming_edges(
       NodeId node_id,
       std::function<bool(Edge*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<EdgeCursor> edges_by_type(
+    [[nodiscard]] std::unique_ptr<EdgeCursor> edges_by_type(
       const std::string& type,
       std::function<bool(Edge*)> predicate = nullptr, size_t limit = 0);
 
-    size_t node_count() const;
-    size_t edge_count_with_type  (const std::string& type) const;
-    size_t node_count_with_label (const std::string& label) const;
-    std::optional<size_t> property_distinct_count(
-      const std::string& property, const std::string& label) const;
-    double avg_out_degree(const std::string& label) const;
-    bool has_property_index(const std::string& label,
-                              const std::string& property) const;
-    size_t property_count(const std::string& property,
-                                  const Value& value,
-                                  const std::string& label) const;
+    [[nodiscard]] size_t node_count() const;
+    [[nodiscard]] size_t edge_count_with_type  (const std::string& type) const;
+    [[nodiscard]] size_t node_count_with_label (const std::string& label) const;
+    [[nodiscard]] std::optional<size_t> property_distinct_count(
+                        const std::string& property, const std::string& label) const;
+    [[nodiscard]] double avg_out_degree(const std::string& label) const;
+    [[nodiscard]] bool has_property_index(const std::string& label,
+                                          const std::string& property) const;
+    [[nodiscard]] size_t property_count(const std::string& property,
+                                        const Value& value,
+                                        const std::string& label) const;
 
     friend class GraphStorage;
     friend class AllNodesCursor;
 
   private:
-    bool disk_mode() const { return !dir_.empty(); }
+    [[nodiscard]] bool disk_mode() const { return !dir_.empty(); }
 
     std::filesystem::path dir_;
 

@@ -80,7 +80,7 @@ namespace storage {
     }
   }
 
-  void MetricsStore::on_edge_created(const std::vector<std::string>& src_labels) {
+  void MetricsStore:: on_edge_created(const std::vector<std::string>& src_labels) {
     for (const auto& label : src_labels) {
       ++label_total_out_degree_[label];
     }

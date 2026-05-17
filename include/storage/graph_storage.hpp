@@ -16,9 +16,9 @@ namespace storage {
 
   private:
     static void serialize_value(std::ostream& os, const Value& val);
-    static Value deserialize_value(std::istream& is);
+    [[nodiscard]] static Value deserialize_value(std::istream& is);
     static void serialize_properties(std::ostream& os, const Properties& p);
-    static Properties deserialize_properties(std::istream& is);
+    [[nodiscard]] static Properties deserialize_properties(std::istream& is);
   };
 
 } // namespace storage
