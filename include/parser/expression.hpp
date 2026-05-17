@@ -41,6 +41,9 @@ using ExprPtr = std::unique_ptr<Expr>;
 struct LiteralExpr : Expr {
   Literal literal;
 
+  LiteralExpr() = default;
+  LiteralExpr(Literal lit)  : literal(std::move(lit)) {};
+
   [[nodiscard]] LiteralExpr* copy() const override;
 
   Value operator()(const EvalContext& ctx) const override;
@@ -57,6 +60,7 @@ struct PropertyExpr : Expr {
   std::string property;
 
   PropertyExpr() = default;
+  PropertyExpr(std::string al, std::string prop): alias(std::move(al)), property(std::move(prop)) {}
 
   [[nodiscard]] PropertyExpr* copy() const override;
 
@@ -81,7 +85,7 @@ enum class CompareOp {
 // Comparison expression.
 struct ComparisonExpr : Expr {
   ExprPtr left_expr;
-  CompareOp op;
+  CompareOp op{};
   ExprPtr right_expr;
 
   ComparisonExpr() = default;
@@ -107,7 +111,7 @@ enum class LogicalOp {
 // Logical expression (AND / OR).
 struct LogicalExpr : Expr {
   ExprPtr left_expr;
-  LogicalOp op;
+  LogicalOp op{};
   ExprPtr right_expr;
 
   LogicalExpr() = default;
