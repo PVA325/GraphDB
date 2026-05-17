@@ -34,7 +34,8 @@ namespace storage {
 
   NodeStore::~NodeStore() { flush(); }
 
-  void NodeStore::put(NodeId id, const Node& node) {
+  void NodeStore::put(const Node& node) {
+    NodeId id = node.id;
     size_t props_offset = serialise(node);
 
     NodeSlot slot;

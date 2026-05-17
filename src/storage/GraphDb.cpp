@@ -54,13 +54,20 @@ namespace storage {
     }
 
     NodeId id = node_id_free_.next(nodes_ram_.size());
-    Node node{ id, true, labels, props };
+    Node node{id, true, labels, props};
 
-    if (id == nodes_ram_.size()) nodes_ram_.push_back(std::move(node));
-    else                         nodes_ram_[id] = std::move(node);
+    if (id == nodes_ram_.size()) {
+      nodes_ram_.push_back(std::move(node));
+    } else {
+      nodes_ram_[id] = std::move(node);
+    }
 
-    for (const auto& label : labels) { node_index_.add_label(id, label); }
-    for (const auto& [k, v] : props) { node_index_.add_property(id, k, v); }
+    for (const auto& label : labels) {
+      node_index_.add_label(id, label);
+    }
+    for (const auto& [k, v] : props) {
+      node_index_.add_property(id, k, v);
+    }
     metrics_->on_node_created(labels, props);
 
     return id;

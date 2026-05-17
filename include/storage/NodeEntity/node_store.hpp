@@ -26,7 +26,7 @@ namespace storage {
     explicit NodeStore(const std::string& dir);
     ~NodeStore();
 
-    void put(NodeId id, const Node& node);
+    void put(const Node& node);
     Node* get(NodeId id);
     void remove(NodeId id);
     void flush();

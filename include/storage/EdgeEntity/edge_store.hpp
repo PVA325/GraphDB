@@ -22,15 +22,11 @@ namespace storage {
 
   class EdgeStore {
   public:
-    static constexpr size_t kMaxSlotsPageAmount = 256;
-    static constexpr size_t kMaxPropsPageAmount = 512;
-    static constexpr size_t kMaxNodeAmount = 4096;
-
     explicit EdgeStore(const std::string& dir);
     ~EdgeStore();
 
-    void put(EdgeId id, const Edge& edge);
-    Edge* get(EdgeId id);
+    void put(const Edge& edge);
+    [[nodiscard]] Edge* get(EdgeId id);
     void remove(EdgeId id);
     void flush();
 
@@ -40,7 +36,7 @@ namespace storage {
     [[nodiscard]] EdgeSlot read_slot(EdgeId id);
     void write_slot(EdgeId id, const EdgeSlot& slot);
     [[nodiscard]] Edge deserialize(EdgeId id, const EdgeSlot& slot);
-    [[nodiscard]] size_t serialise(const Edge& edge);
+    [[nodiscard]] size_t serialize(const Edge& edge);
     void evict_obj_cache();
 
     std::fstream slots_file_;
@@ -52,6 +48,11 @@ namespace storage {
     size_t props_end_ = 0;
 
     std::unordered_map<EdgeId, Edge> obj_cache_;
+
+  public:
+    static constexpr size_t kMaxSlotsPageAmount = 256;
+    static constexpr size_t kMaxPropsPageAmount = 512;
+    static constexpr size_t kMaxEdgeAmount = 4096;
   };
 
 } // namespace storage

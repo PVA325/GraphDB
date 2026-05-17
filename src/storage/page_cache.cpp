@@ -29,6 +29,7 @@ namespace storage {
 
   void PageCache::write(size_t offset, const void* src, size_t size) {
     size_t bytes_written = 0;
+
     while (bytes_written < size) {
       size_t cur_offset = offset + bytes_written;
       size_t page_id = cur_offset / KPageSize;
@@ -55,7 +56,7 @@ namespace storage {
     lru_.clear();
   }
 
-  PageCache::Page& PageCache::get_page(size_t page_id) {
+  Page& PageCache::get_page(size_t page_id) {
     auto it = pages_.find(page_id);
     if (it != pages_.end()) {
       lru_.erase(it->second.second);

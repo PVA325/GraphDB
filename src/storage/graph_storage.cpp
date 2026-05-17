@@ -115,7 +115,7 @@ namespace storage {
       if (!is) { return false; }
 
       Node node;
-      node.id    = nid;
+      node.id = nid;
       node.alive = alive;
       node.labels.resize(label_count);
 
@@ -137,7 +137,7 @@ namespace storage {
       }
 
       if (dm) {
-        db.node_store_->put(nid, node);
+        db.node_store_->put(node);
       }
       else    db.nodes_ram_[i] = std::move(node);
     }
@@ -178,7 +178,7 @@ namespace storage {
       }
 
       if (dm) {
-        db.edge_store_->put(eid, edge);
+        db.edge_store_->put(edge);
       } else {
         db.edges_ram_[i] = std::move(edge);
       }

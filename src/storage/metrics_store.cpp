@@ -21,7 +21,7 @@ namespace storage {
     for (const auto& label : labels) {
       ++label_node_count_[label];
       for (const auto& [prop, val] : props) {
-        LPVKey lpv = make_lpv(label, prop, val);
+        LabelPropertyValueKey lpv = make_lpv(label, prop, val);
         ++delta_.count_delta[lpv];
         delta_.new_distinct[make_lp(label, prop)].insert(val);
         ++delta_.write_count;
@@ -45,7 +45,7 @@ namespace storage {
       }
 
       for (const auto& [prop, val] : props) {
-        LPVKey lpv = make_lpv(label, prop, val);
+        LabelPropertyValueKey lpv = make_lpv(label, prop, val);
         --delta_.count_delta[lpv];
         ++delta_.write_count;
       }
@@ -60,7 +60,7 @@ namespace storage {
     label_total_out_degree_[label] += out_degree;
 
     for (const auto& [prop, val] : node_props) {
-      LPVKey lpv = make_lpv(label, prop, val);
+      LabelPropertyValueKey lpv = make_lpv(label, prop, val);
       delta_.count_delta[lpv]++;
       delta_.new_distinct[make_lp(label, prop)].insert(val);
       ++delta_.write_count;
@@ -121,7 +121,7 @@ namespace storage {
       return 0;
     }
 
-    LPKey lp{lid, pid};
+    LabelPropertyKey lp{lid, pid};
 
     size_t delta_distinct = 0;
     auto dit = delta_.new_distinct.find(lp);
@@ -155,7 +155,7 @@ namespace storage {
     if (lid == StringInterner::kUnvalidID || pid == StringInterner::kUnvalidID) {
       return false;
     }
-    LPKey lp{lid, pid};
+    LabelPropertyKey lp{lid, pid};
     return lp_distinct_.count(lp) > 0 || delta_.new_distinct.count(lp) > 0;
   }
 
@@ -172,7 +172,7 @@ namespace storage {
       return 0;
     }
 
-    LPVKey lpv{lid, pid, value};
+    LabelPropertyValueKey lpv{lid, pid, value};
 
     size_t base = 0;
     auto it = lpv_count_.find(lpv);
@@ -205,18 +205,18 @@ namespace storage {
     delta_.clear();
   }
 
-  LPVKey MetricsStore::make_lpv(const std::string& label,
-                                const std::string& prop,
-                                const Value& val) {
-    return LPVKey{
+  LabelPropertyValueKey MetricsStore::make_lpv(const std::string& label,
+                                               const std::string& prop,
+                                               const Value& val) {
+    return LabelPropertyValueKey{
       label_interner_.intern(label),
       prop_interner_.intern(prop),
       val
     };
   }
 
-  LPKey MetricsStore::make_lp(const std::string& label, const std::string& prop) {
-    return LPKey{
+  LabelPropertyKey MetricsStore::make_lp(const std::string& label, const std::string& prop) {
+    return LabelPropertyKey{
       label_interner_.intern(label),
       prop_interner_.intern(prop)
     };

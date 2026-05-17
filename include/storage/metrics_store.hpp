@@ -19,17 +19,17 @@ namespace storage {
     explicit MetricsStore(const std::string& dir);
     ~MetricsStore();
 
-    void on_node_created (const std::vector<std::string>& labels, const Properties& props);
-    void on_node_deleted (const std::vector<std::string>& labels, const Properties& props);
+    void on_node_created(const std::vector<std::string>& labels, const Properties& props);
+    void on_node_deleted(const std::vector<std::string>& labels, const Properties& props);
 
-    void on_label_added  (const std::string& label, const Properties& node_props, size_t out_degree);
+    void on_label_added(const std::string& label, const Properties& node_props, size_t out_degree);
     void on_label_removed(const std::string& label, size_t out_degree);
 
     void on_edge_created(const std::vector<std::string>& src_labels);
     void on_edge_deleted(const std::vector<std::string>& src_labels);
 
     size_t node_count() const;
-    size_t node_count_with_label  (const std::string& label) const;
+    size_t node_count_with_label(const std::string& label) const;
     std::optional<size_t> property_distinct_count(const std::string& prop,
                                                   const std::string& label) const;
     double avg_out_degree(const std::string& label) const;
@@ -52,13 +52,13 @@ namespace storage {
 
     std::unordered_map<std::string, std::unordered_set<Value>> property_distinct_;
 
-    std::unordered_map<LPVKey, size_t, LPVKeyHash> lpv_count_;
-    std::unordered_map<LPKey, std::unordered_set<Value>, LPKeyHash> lp_distinct_;
+    std::unordered_map<LabelPropertyValueKey, size_t, LPVKeyHash> lpv_count_;
+    std::unordered_map<LabelPropertyKey, std::unordered_set<Value>, LPKeyHash> lp_distinct_;
 
     Delta delta_;
 
-    LPVKey make_lpv(const std::string& label, const std::string& prop, const Value& val);
-    LPKey make_lp(const std::string& label, const std::string& prop);
+    LabelPropertyValueKey make_lpv(const std::string& label, const std::string& prop, const Value& val);
+    LabelPropertyKey make_lp(const std::string& label, const std::string& prop);
 
     void apply_delta();
     void persist_delta();

@@ -23,7 +23,7 @@ namespace storage {
     node.labels = labels;
     node.properties = props;
 
-    store_->put(id, node);
+    store_->put(node);
 
     for (const auto& label : labels) { index_->add_label(id, label); }
     for (const auto& [k, v] : props) { index_->add_property(id, k, v); }
@@ -49,7 +49,7 @@ namespace storage {
     }
 
     node->properties[key] = val;
-    store_->put(id, *node);
+    store_->put(*node);
   }
 
   void NodeManager::add_label(NodeId id, const std::string& label) {
@@ -61,7 +61,7 @@ namespace storage {
     }
 
     node->labels.push_back(label);
-    store_->put(id, *node);
+    store_->put(*node);
 
     index_->add_label(id, label);
 
@@ -76,7 +76,7 @@ namespace storage {
     node->labels.erase(
       std::remove(node->labels.begin(), node->labels.end(), label),
       node->labels.end());
-    store_->put(id, *node);
+    store_->put(*node);
 
     index_->remove_label(id, label);
 

@@ -36,7 +36,7 @@ namespace storage {
     void set_edge_type(EdgeId id, const std::string& type);
     void delete_edge(EdgeId id);
 
-    bool save_to_file (const std::string& path) const {
+    bool save_to_file(const std::string& path) const {
       return GraphStorage::save(*this, path);
     }
     bool load_from_file(const std::string& path) {
