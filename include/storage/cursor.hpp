@@ -14,13 +14,6 @@ namespace storage {
 
   template<typename T, typename Id>
   class Cursor {
-  protected:
-    GraphDB* db_;
-    const std::vector<Id>& ids_;
-    std::function<bool(T*)> predicate_ = nullptr;
-    size_t index_ = 0;
-    size_t limit_ = 0;
-    size_t returned_ = 0;
 
   public:
     Cursor(GraphDB* db, const std::vector<Id>& ids,
@@ -33,6 +26,16 @@ namespace storage {
 
   protected:
     virtual T* get_from_db(Id id) = 0;
+
+    GraphDB* db_;
+    const std::vector<Id>& ids_;
+    std::function<bool(T*)> predicate_ = nullptr;
+    size_t index_ = 0;
+    size_t limit_ = 0;
+    size_t returned_ = 0;
+
+  public:
+    static constexpr std::vector<Id> kEmpty{};
   };
 
   class NodeCursor : public Cursor<Node, NodeId> {
@@ -50,7 +53,7 @@ namespace storage {
                std::function<bool(Edge*)> predicate = nullptr, size_t limit = 0);
 
   protected:
-    Edge* get_from_db(EdgeId id) override;
+    [[nodiscard]] Edge* get_from_db(EdgeId id) override;
   };
 
   class AllNodesCursor : public NodeCursor {
@@ -60,7 +63,7 @@ namespace storage {
                    size_t limit = 0,
                    bool disk_mode = false,
                    size_t total_slots = 0)
-      : NodeCursor(db,std::vector<NodeId>{}, predicate, limit),
+      : NodeCursor(db,kEmpty, predicate, limit),
         disk_mode_(disk_mode), total_slots_(total_slots) {}
     bool next(Node*& out) override;
 

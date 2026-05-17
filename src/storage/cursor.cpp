@@ -58,7 +58,7 @@ namespace storage {
 
     const auto& list = node_index_->by_label(label);
     if (list.empty()) {
-      return std::make_unique<NodeCursor>(db_, std::vector<NodeId>{}, predicate, limit);
+      return std::make_unique<NodeCursor>(db_, storage::NodeCursor::kEmpty, predicate, limit);
     }
     return std::make_unique<NodeCursor>(db_, list, predicate, limit);
   }
@@ -69,7 +69,7 @@ namespace storage {
 
     const auto& list = node_index_->by_property(key, val);
     if (list.empty()) {
-      return std::make_unique<NodeCursor>(db_, std::vector<NodeId>{}, predicate, limit);
+      return std::make_unique<NodeCursor>(db_, storage::NodeCursor::kEmpty, predicate, limit);
     }
     return std::make_unique<NodeCursor>(db_, list, predicate, limit);
   }
@@ -80,7 +80,7 @@ namespace storage {
 
     const auto& list = edge_index_->outgoing(node_id);
     if (list.empty()) {
-      return std::make_unique<EdgeCursor>(db_, std::vector<EdgeId>{}, predicate, limit);
+      return std::make_unique<EdgeCursor>(db_, storage::EdgeCursor::kEmpty, predicate, limit);
     }
     return std::make_unique<EdgeCursor>(db_, list, predicate, limit);
   }
@@ -91,7 +91,7 @@ namespace storage {
 
     const auto& list = edge_index_->incoming(node_id);
     if (list.empty()) {
-      return std::make_unique<EdgeCursor>(db_, std::vector<EdgeId>{}, predicate, limit);
+      return std::make_unique<EdgeCursor>(db_, storage::EdgeCursor::kEmpty, predicate, limit);
     }
     return std::make_unique<EdgeCursor>(db_, list, predicate, limit);
   }
@@ -102,7 +102,7 @@ namespace storage {
 
     const auto& list = edge_index_->by_type(type);
     if (list.empty()) {
-      return std::make_unique<EdgeCursor>(db_, std::vector<EdgeId>{}, predicate, limit);
+      return std::make_unique<EdgeCursor>(db_, storage::EdgeCursor::kEmpty, predicate, limit);
     }
     return std::make_unique<EdgeCursor>(db_, list, predicate, limit);
   }
