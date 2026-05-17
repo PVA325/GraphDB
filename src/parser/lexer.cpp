@@ -28,19 +28,6 @@ class Lexer {
   }
 
  private:
-  // Input source and output tokens.
-  const std::string& source;
-  std::vector<Token> tokens;
-
-  // Current scanning position.
-  size_t start = 0;
-  size_t current = 0;
-
-  // For error reporting.
-  size_t line = 1;
-  size_t col = 1;
-  size_t start_col = 1;
-
   // Checks if we've reached the end of the source.
   bool IsAtEnd() const {
     return current >= source.size();
@@ -231,6 +218,19 @@ class Lexer {
       tokens.push_back({TokenType::IDENTIFIER, text, line, start_col});
     }
   }
+
+  // Input source and output tokens.
+  const std::string& source;
+  std::vector<Token> tokens;
+
+  // Current scanning position.
+  size_t start = 0;
+  size_t current = 0;
+
+  // For error reporting.
+  size_t line = 1;
+  size_t col = 1;
+  size_t start_col = 1;
 };
 
 } // namespace
