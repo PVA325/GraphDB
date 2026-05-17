@@ -72,12 +72,7 @@ std::string NodePattern::DebugString() const {
 std::string MatchEdgePattern::DebugString() const {
   std::string result;
 
-  if (direction == EdgeDirection::Left) {
-    result += "<-";
-  } else {
-    result += "-";
-  }
-
+  result += (direction == EdgeDirection::Left ? "<-" : "-");
   result += "[";
 
   if (!alias.empty()) {
@@ -93,14 +88,11 @@ std::string MatchEdgePattern::DebugString() const {
 
     result += PropertyMapToString(properties);
 
-    result += "]";
-
-    if (direction == EdgeDirection::Right) {
-      result += "->";
-    } else {
-      result += "-";
-    }
   }
+
+  result += "]";
+  result += (direction == EdgeDirection::Right ? "->" : "-");
+
   return result;
 }
 
@@ -128,12 +120,7 @@ std::string CreateNodeRef::DebugString() const {
 std::string CreateEdgePattern::DebugString() const {
   std::string result = left_node.DebugString();
 
-  if (direction == EdgeDirection::Left) {
-    result += "<-";
-  } else {
-    result += "-";
-  }
-
+  result += (direction == EdgeDirection::Left ? "<-" : "-");
   result += "[";
 
   if (!alias.empty()) {
@@ -149,16 +136,12 @@ std::string CreateEdgePattern::DebugString() const {
 
     result += PropertyMapToString(properties);
 
-    result += "]";
-
-    if (direction == EdgeDirection::Right) {
-      result += "->";
-    } else {
-      result += "-";
-    }
-
-    result += right_node.DebugString();
   }
+
+  result += "]";
+  result += (direction == EdgeDirection::Right ? "->" : "-");
+  result += right_node.DebugString();
+
   return result;
 }
 
@@ -255,11 +238,7 @@ std::string SetClause::DebugString() const {
 std::string OrderItem::DebugString() const {
   std::string result = property.DebugString();
 
-  if (direction == OrderDirection::Desc) {
-    result += " DESC";
-  } else {
-    result += " ASC";
-  }
+  result += (direction == OrderDirection::Desc ? " DESC" : " ASC");
 
   return result;
 }
