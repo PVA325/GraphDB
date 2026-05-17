@@ -6,7 +6,7 @@ namespace storage {
                          std::function<bool(Node*)> predicate, size_t limit)
     : Cursor<Node, NodeId>(db, ids, predicate, limit) {}
 
-  Node* NodeCursor::get_from_db(NodeId id) {
+  [[nodiscard]] Node* NodeCursor::get_from_db(NodeId id) {
     return db_->get_node(id);
   }
 
@@ -56,7 +56,7 @@ namespace storage {
     const std::string& label,
     std::function<bool(Node*)> predicate, size_t limit) {
 
-    auto list = node_index_->by_label(label);
+    const auto& list = node_index_->by_label(label);
     if (list.empty()) {
       return std::make_unique<NodeCursor>(db_, std::vector<NodeId>{}, predicate, limit);
     }
@@ -67,7 +67,7 @@ namespace storage {
     const std::string& key, const Value& val,
     std::function<bool(Node*)> predicate, size_t limit) {
 
-    auto list = node_index_->by_property(key, val);
+    const auto& list = node_index_->by_property(key, val);
     if (list.empty()) {
       return std::make_unique<NodeCursor>(db_, std::vector<NodeId>{}, predicate, limit);
     }
@@ -78,7 +78,7 @@ namespace storage {
     NodeId node_id,
     std::function<bool(Edge*)> predicate, size_t limit) {
 
-    auto list = edge_index_->outgoing(node_id);
+    const auto& list = edge_index_->outgoing(node_id);
     if (list.empty()) {
       return std::make_unique<EdgeCursor>(db_, std::vector<EdgeId>{}, predicate, limit);
     }
@@ -89,7 +89,7 @@ namespace storage {
     NodeId node_id,
     std::function<bool(Edge*)> predicate, size_t limit) {
 
-    auto list = edge_index_->incoming(node_id);
+    const auto& list = edge_index_->incoming(node_id);
     if (list.empty()) {
       return std::make_unique<EdgeCursor>(db_, std::vector<EdgeId>{}, predicate, limit);
     }
@@ -100,7 +100,7 @@ namespace storage {
     const std::string& type,
     std::function<bool(Edge*)> predicate, size_t limit) {
 
-    auto list = edge_index_->by_type(type);
+    const auto& list = edge_index_->by_type(type);
     if (list.empty()) {
       return std::make_unique<EdgeCursor>(db_, std::vector<EdgeId>{}, predicate, limit);
     }

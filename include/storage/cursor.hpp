@@ -41,7 +41,7 @@ namespace storage {
                std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
 
   protected:
-    Node* get_from_db(NodeId id) override;
+    [[nodiscard]] Node* get_from_db(NodeId id) override;
   };
 
   class EdgeCursor : public Cursor<Edge, EdgeId> {
