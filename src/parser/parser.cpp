@@ -178,8 +178,7 @@ void Parser::ExpectEnd() const {
 
 // Consumes semicolons between queries.
 void Parser::ConsumeSemicolons() {
-  while (Match(TokenType::SEMICOLON)) {
-  }
+  while (Match(TokenType::SEMICOLON)) {}
 }
 
 // Placeholder in case of an empty or unusual request
@@ -290,6 +289,7 @@ ast::PropertyMap Parser::ParsePropertyMap() {
   }
 
   Consume(TokenType::RBRACE, "}");
+
   return properties;
 }
 
@@ -318,6 +318,7 @@ ast::NodePattern Parser::ParseNodePattern() {
   }
 
   Consume(TokenType::RPAREN, ")");
+
   return node;
 }
 
@@ -472,6 +473,7 @@ ast::ExprPtr Parser::ParseComparison() {
                : op.type == TokenType::LESS ? ast::CompareOp::Lt
                : ast::CompareOp::Le;
     node->right_expr = std::move(right);
+
     return node;
   }
 
@@ -483,18 +485,21 @@ ast::ExprPtr Parser::ParsePrimary() {
   if (Match(TokenType::LPAREN)) {
     auto expr = ParseExpression();
     Consume(TokenType::RPAREN, ")");
+
     return expr;
   }
 
   if (Check(TokenType::IDENTIFIER)) {
     auto prop = std::make_unique<ast::PropertyExpr>();
     *prop = ParsePropertyExpr();
+
     return prop;
   }
 
   if (IsLiteralToken(Peek().type)) {
     auto lit = std::make_unique<ast::LiteralExpr>();
     lit->literal = ParseLiteral();
+
     return lit;
   }
 
@@ -511,6 +516,7 @@ ast::PropertyExpr Parser::ParsePropertyExpr() {
   ast::PropertyExpr expr;
   expr.alias = alias.lexeme;
   expr.property = property.lexeme;
+
   return expr;
 }
 
@@ -518,6 +524,7 @@ ast::PropertyExpr Parser::ParsePropertyExpr() {
 std::unique_ptr<ast::WhereClause> Parser::ParseWhere() {
   auto clause = std::make_unique<ast::WhereClause>();
   clause->expression = ParseExpression();
+
   return clause;
 }
 
@@ -582,7 +589,7 @@ ast::SetItem Parser::ParseSetItem() {
     Consume(TokenType::EQUAL, "=");
     ast::Literal lit = ParseLiteral();
 
-    item.properties.emplace_back(prop, lit);
+    item.properties.emplace_back(std::move(prop), std::move(lit));
   } else if (Match(TokenType::COLON)) {
     item.labels.push_back(ConsumeIdentifier("label").lexeme);
 
@@ -633,6 +640,7 @@ std::unique_ptr<ast::LimitClause> Parser::ParseLimit() {
   }
 
   clause->limit = static_cast<size_t>(std::stoull(limit_number.lexeme));
+
   return clause;
 }
 
@@ -664,6 +672,7 @@ ast::CreateItem Parser::ParseCreateItem() {
 
   current_ = save;
   ast::CreateNodeRef left_node_ref = ParseCreateNodeRef();
+
   return ParseCreateEdgePattern(left_node_ref);
 }
 
@@ -672,10 +681,12 @@ ast::CreateNodeRef Parser::ParseCreateNodeRef() {
   const Token& lparen = Consume(TokenType::LPAREN, "(");
   const Token& alias = ConsumeIdentifier("alias");
   Consume(TokenType::RPAREN, ")");
+
   ast::CreateNodeRef reference;
   reference.alias = alias.lexeme;
   reference.line = lparen.line;
   reference.col = lparen.col;
+
   return reference;
 }
 
@@ -736,6 +747,7 @@ ast::CreateEdgePattern Parser::ParseCreateEdgePattern(const ast::CreateNodeRef& 
   }
 
   edge.right_node = ParseCreateNodeRef();
+
   return edge;
 }
 
