@@ -18,10 +18,12 @@ class Lexer {
     while (!IsAtEnd()) {
       start = current;
       start_col = col;
+
       ScanToken();
     }
 
     tokens.push_back({TokenType::END, "", line, col});
+
     return tokens;
   }
 
@@ -48,28 +50,33 @@ class Lexer {
   char Advance() {
     char c = source[current++];
     col++;
+
     return c;
   }
 
   // Peeks at the current character without consuming it.
   char Peek() const {
     if (IsAtEnd()) return '\0';
+
     return source[current];
   }
 
   // Peeks at the next character without consuming it.
   char PeekNext() const {
     if (current + 1 >= source.size()) return '\0';
+
     return source[current + 1];
   }
 
   // Matches the expected character and advances if it matches.
   bool Match(char expected) {
     if (IsAtEnd()) return false;
+
     if (source[current] != expected) return false;
 
     current++;
     col++;
+
     return true;
   }
 
@@ -166,6 +173,7 @@ class Lexer {
         line++;
         col = 1;
       }
+
       Advance();
     }
 
@@ -184,6 +192,7 @@ class Lexer {
 
     if (Peek() == '.' && std::isdigit(PeekNext())) {
       Advance();
+
       while (std::isdigit(Peek())) Advance();
     }
 
@@ -215,6 +224,7 @@ class Lexer {
     };
 
     auto iter = keywords.find(text);
+
     if (iter != keywords.end()) {
       tokens.push_back({iter->second, text, line, start_col});
     } else {
