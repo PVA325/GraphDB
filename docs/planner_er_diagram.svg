@@ -21,6 +21,7 @@
       .label { font: 12px Arial, Helvetica, sans-serif; fill: #f7fbff; background: rgba(11,16,32,.85); }
       .legend { font: 13px Arial, Helvetica, sans-serif; fill: #d6dcff; }
       .chip { fill: #0f1730; stroke: #6076ab; stroke-width: 1.5; rx: 10; ry: 10; }
+        .sig { font: 700 22px/1.2 Arial, Helvetica, sans-serif; fill: #ffd27d; opacity: 0.95; }
     </style>
     <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L8,3 L0,6 Z" fill="#cfe1ff" />
@@ -204,6 +205,9 @@
   <text class="label" x="1252" y="760">AST shapes</text>
   <path class="arrow" d="M1240 1050 C1240 1125, 1240 1125, 1240 1200" />
   <text class="label" x="1252" y="1140">becomes ops</text>
+
+  <!-- Signature -->
+  <text class="sig" x="60" y="1660" style="font-size: 45px;">Paltaratski Vladislav(PVA325)</text>
 </svg>
 
 
