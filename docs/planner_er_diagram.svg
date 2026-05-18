@@ -130,23 +130,8 @@
   <text class="text" x="652" y="958">Join may carry predicate (ast::Expr)</text>
   <text class="text" x="652" y="978">Create/Set/Delete are leaf-ish logical actions mapped to execution ops</text>
 
-  <rect class="box3" x="1360" y="800" width="960" height="250" />
-  <text class="head" x="1382" y="832">Logical plan relationships</text>
-  <text class="text" x="1382" y="858">LogicalPlan.root : LogicalOpPtr</text>
-  <text class="text" x="1382" y="878">Planner transforms QueryAST → LogicalPlan → PhysicalPlan</text>
-  <text class="text" x="1382" y="898">Logical tree shape: scan / expand / filter / join / project / limit / sort</text>
-  <text class="text" x="1382" y="918">LogicalScan and LogicalExpand are the core graph traversal nodes</text>
-  <text class="text" x="1382" y="938">LogicalJoin combines multiple patterns via shared aliases</text>
-  <text class="text" x="1382" y="958">LogicalSet / LogicalCreate / LogicalDelete mutate storage state</text>
-  <text class="text" x="1382" y="978">LogicalSort and LogicalLimit are applied mostly after RETURN</text>
-
   <!-- Logical arrows -->
-  <path class="arrow" d="M320 800 L320 712" />
-  <text class="label" x="330" y="760">inherits</text>
-  <path class="arrow" d="M1110 800 L1110 712" />
-  <text class="label" x="1120" y="760">contains</text>
-  <path class="arrow" d="M1890 800 L1890 712" />
-  <text class="label" x="1900" y="760">produced by</text>
+
 
   <!-- Physical layer -->
   <rect class="box4" x="70" y="1200" width="520" height="220" />
@@ -186,12 +171,9 @@
   <text class="text" x="1932" y="1358">RowSlot stores Node*/Edge*/Value</text>
 
   <!-- Physical arrows -->
-  <path class="arrow" d="M320 1200 L320 1110" />
-  <text class="label" x="330" y="1160">inherits</text>
-  <path class="arrow" d="M980 1200 L980 1110" />
   <text class="label" x="990" y="1160">maps to</text>
-  <path class="arrow" d="M1620 1200 L1620 1110" />
-  <text class="label" x="1630" y="1160">opens</text>
+  <path class="arrow" d="M1380 1250 L1320 1250" />
+  <text class="label" x="1335" y="1245">opens</text>
   <path class="arrow" d="M1910 1290 L1875 1290" />
   <text class="label" x="1760" y="1280">uses</text>
 
