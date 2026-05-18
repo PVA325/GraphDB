@@ -1,5 +1,7 @@
 #include "planner/query_planner.hpp"
 
+#include <cassert>
+
 namespace {
 using ast::Pattern;
 using ast::PatternElement;
@@ -62,9 +64,7 @@ void ApplyLogicalMatchImpl(LogicalPlan& plan, std::unique_ptr<ast::MatchClause> 
     }
     scans.emplace_back(std::move(cur_root));
   }
-#ifndef NDEBUG
   assert(!scans.empty());
-#endif
 
   if (scans.size() == 1) {
     plan.root = std::move(scans[0]);

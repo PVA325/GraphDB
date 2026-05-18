@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 #include "unordered_map"
-#include "storage/types.hpp"
+#include "storage/TypesStructures/types.hpp"
 
 namespace ast {
 // Edge direction.

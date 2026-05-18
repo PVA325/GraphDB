@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include "planner/query_planner.hpp"
 
 namespace graph::exec {

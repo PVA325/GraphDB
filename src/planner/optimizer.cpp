@@ -1,3 +1,4 @@
+#include <cassert>
 #include <netinet/in.h>
 
 #include "planner/query_planner.hpp"

@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cmath>
 #include <sys/stat.h>
 
@@ -352,9 +353,7 @@ double DefaultCostModel::EstimateExprSelectivity(const ast::Expr* expr, const st
     if (left->Type() == ast::ExprType::Property && right->Type() == ast::ExprType::Literal) {
       std::swap(left, right);
     }
-#ifndef NDEBUG
     assert(left->Type() == ast::ExprType::Literal && right->Type() == ast::ExprType::Property);
-#endif
 
     auto right_property_expr = dynamic_cast<const ast::PropertyExpr*>(right);
     double selectivity = GetSelectivityByNodeCount(
@@ -363,9 +362,7 @@ double DefaultCostModel::EstimateExprSelectivity(const ast::Expr* expr, const st
     return selectivity;
   }
 
-#ifndef NDEBUG
   assert(expr->Type() == ast::ExprType::Literal || expr->Type() == ast::ExprType::Property);
-#endif
 
   return 1.0;
 }
