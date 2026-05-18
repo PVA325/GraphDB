@@ -3,25 +3,27 @@
 #include <stdexcept>
 #include <filesystem>
 
-#include "storage/node_store.hpp"
-#include "storage/serialise.hpp"
+#include "storage/NodeEntity/node_store.hpp"
+#include "storage/serialize.hpp"
 
 namespace storage {
 
   using namespace serial;
 
-  static std::fstream open_file(const std::string& path) {
+  static std::fstream open_file(const std::filesystem::path& path) {
     if (!std::filesystem::exists(path)) {
       std::ofstream{path, std::ios::binary};
     }
-    std::fstream f(path, std::ios::in | std::ios::out | std::ios::binary);
-    if (!f) { throw std::runtime_error("cannot open " + path); }
-    return f;
+    std::fstream fs(path, std::ios::in | std::ios::out | std::ios::binary);
+    if (!fs) {
+      throw std::runtime_error("cannot open "  + static_cast<std::string>(path));
+    }
+    return fs;
   }
 
-  NodeStore::NodeStore(const std::string& dir)
-    : slots_file_(open_file(dir + "/nodes.dat")),
-      props_file_ (open_file(dir + "/node_props.dat")),
+  NodeStore::NodeStore(const std::filesystem::path& dir)
+    : slots_file_(open_file(dir / "nodes.dat")),
+      props_file_ (open_file(dir / "node_props.dat")),
       slots_cache_(slots_file_, kMaxSlotsPageAmount),
       props_cache_(props_file_, kMaxPropsPageAmount)
   {
@@ -34,19 +36,21 @@ namespace storage {
 
   NodeStore::~NodeStore() { flush(); }
 
-  void NodeStore::put(NodeId id, const Node& node) {
+  void NodeStore::put(const Node& node) {
+    NodeId id = node.id;
     size_t props_offset = serialise(node);
 
-    NodeSlot slot;
-    slot.alive = true;
-    slot.props_offset = props_offset;
-    slot.props_size = static_cast<uint32_t>(props_end_ - props_offset);
+    NodeSlot slot{
+    .props_offset = props_offset,
+    .props_size = static_cast<uint32_t>(props_end_ - props_offset),
+    .alive = true};
+
     write_slot(id, slot);
 
-    if (obj_cache_.size() >= kMaxNodeAmount) { evict_obj_cache(); }
+    if (obj_cache_.size() >= kMaxNodeAmount) {
+      evict_obj_cache();
+    }
     obj_cache_[id] = node;
-    obj_cache_[id].id = id;
-    obj_cache_[id].alive = true;
   }
 
   Node* NodeStore::get(NodeId id) {
@@ -61,7 +65,7 @@ namespace storage {
     if (!slot.alive) { return nullptr; }
 
     if (obj_cache_.size() >= kMaxNodeAmount) { evict_obj_cache(); }
-    obj_cache_[id] = deserialise(id, slot);
+    obj_cache_[id] = deserialize(id, slot);
     return &obj_cache_[id];
   }
 
@@ -78,27 +82,33 @@ namespace storage {
     props_cache_.flush();
   }
 
-  NodeSlot NodeStore::read_slot(NodeId id) {
+  [[nodiscard]] NodeSlot NodeStore::read_slot(NodeId id) {
     NodeSlot slot;
     size_t   offset = id * NodeSlot::kSize;
-    slots_cache_.read(offset,     &slot.props_offset, 8);
+
+    slots_cache_.read(offset,&slot.props_offset, 8);
+
     slots_cache_.read(offset + 8, &slot.props_size,   4);
+
     uint8_t alive = 0;
     slots_cache_.read(offset + 12, &alive, 1);
+
     slot.alive = alive != 0;
     return slot;
   }
 
   void NodeStore::write_slot(NodeId id, const NodeSlot& slot) {
     size_t  offset = id * NodeSlot::kSize;
-    uint8_t alive  = slot.alive ? 1 : 0;
-    slots_cache_.write(offset,      &slot.props_offset, 8);
-    slots_cache_.write(offset +  8, &slot.props_size,   4);
+    uint8_t alive = static_cast<uint8_t>(slot.alive);
+    slots_cache_.write(offset, &slot.props_offset, 8);
+    slots_cache_.write(offset + 8, &slot.props_size,   4);
     slots_cache_.write(offset + 12, &alive,             1);
-    if (id >= slot_count_) { slot_count_ = id + 1; }
+    if (id >= slot_count_) {
+      slot_count_ = id + 1;
+    }
   }
 
-  size_t NodeStore::serialise(const Node& node) {
+  [[nodiscard]] size_t NodeStore::serialise(const Node& node) {
     std::ostringstream buf(std::ios::binary);
     write<uint32_t>(buf, static_cast<uint32_t>(node.labels.size()));
     for (const auto& label : node.labels) { write_str(buf, label); }
@@ -111,7 +121,7 @@ namespace storage {
     return offset;
   }
 
-  Node NodeStore::deserialise(NodeId id, const NodeSlot& slot) {
+  [[nodiscard]] Node NodeStore::deserialize(NodeId id, const NodeSlot& slot) {
     std::string buf(slot.props_size, '\0');
     props_cache_.read(slot.props_offset, buf.data(), slot.props_size);
     std::istringstream is(buf, std::ios::binary);
@@ -122,13 +132,17 @@ namespace storage {
 
     uint32_t label_count = read<uint32_t>(is);
     node.labels.resize(label_count);
-    for (uint32_t i = 0; i < label_count; ++i) { node.labels[i] = read_str(is); }
+    for (uint32_t i = 0; i < label_count; ++i) {
+      node.labels[i] = read_str(is);
+    }
     node.properties = read_properties(is);
     return node;
   }
 
   void NodeStore::evict_obj_cache() {
-    if (!obj_cache_.empty()) { obj_cache_.erase(obj_cache_.begin()); }
+    if (!obj_cache_.empty()) {
+      obj_cache_.erase(obj_cache_.begin());
+    }
   }
 
 } // namespace storage

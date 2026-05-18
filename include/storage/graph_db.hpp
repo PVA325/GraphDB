@@ -1,23 +1,24 @@
 #pragma once
 
 #include <deque>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 
 #include "cursor.hpp"
-#include "edge_manager.hpp"
+#include "EdgeEntity/edge_manager.hpp"
 #include "graph_storage.hpp"
 #include "free_list.hpp"
 #include "metrics_store.hpp"
-#include "node_manager.hpp"
-#include "types.hpp"
+#include "NodeEntity/node_manager.hpp"
+#include "storage/TypesStructures/types.hpp"
 
 namespace storage {
   class GraphDB {
   public:
-    explicit GraphDB(const std::string& dir = "");
+    explicit GraphDB(const std::filesystem::path& dir = "");
     ~GraphDB();
 
     NodeId create_node(const std::vector<std::string>& labels,
@@ -35,7 +36,7 @@ namespace storage {
     void set_edge_type(EdgeId id, const std::string& type);
     void delete_edge(EdgeId id);
 
-    bool save_to_file (const std::string& path) const {
+    bool save_to_file(const std::string& path) const {
       return GraphStorage::save(*this, path);
     }
     bool load_from_file(const std::string& path) {
@@ -43,47 +44,48 @@ namespace storage {
     }
     void flush();
 
-    std::unique_ptr<NodeCursor> all_nodes(
+    [[nodiscard]] std::unique_ptr<NodeCursor> all_nodes(
       std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<NodeCursor> nodes_with_label(
+    [[nodiscard]] std::unique_ptr<NodeCursor> nodes_with_label(
       const std::string& label,
       std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<NodeCursor> nodes_with_property(
+    [[nodiscard]] std::unique_ptr<NodeCursor> nodes_with_property(
       const std::string& key, const Value& val,
       std::function<bool(Node*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<EdgeCursor> outgoing_edges(
+    [[nodiscard]] std::unique_ptr<EdgeCursor> outgoing_edges(
       NodeId node_id,
       std::function<bool(Edge*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<EdgeCursor> incoming_edges(
+    [[nodiscard]] std::unique_ptr<EdgeCursor> incoming_edges(
       NodeId node_id,
       std::function<bool(Edge*)> predicate = nullptr, size_t limit = 0);
 
-    std::unique_ptr<EdgeCursor> edges_by_type(
+    [[nodiscard]] std::unique_ptr<EdgeCursor> edges_by_type(
       const std::string& type,
       std::function<bool(Edge*)> predicate = nullptr, size_t limit = 0);
 
-    size_t node_count() const;
-    size_t edge_count_with_type  (const std::string& type) const;
-    size_t node_count_with_label (const std::string& label) const;
-    std::optional<size_t> property_distinct_count(
-      const std::string& property, const std::string& label) const;
-    double avg_out_degree(const std::string& label) const;
-    bool has_property_index(const std::string& label,
-                              const std::string& property) const;
-    size_t property_count(const std::string& property,
-                                  const Value& value,
-                                  const std::string& label) const;
+    [[nodiscard]] size_t node_count() const;
+    [[nodiscard]] size_t edge_count_with_type  (const std::string& type) const;
+    [[nodiscard]] size_t node_count_with_label (const std::string& label) const;
+    [[nodiscard]] std::optional<size_t> property_distinct_count(
+                        const std::string& property, const std::string& label) const;
+    [[nodiscard]] double avg_out_degree(const std::string& label) const;
+    [[nodiscard]] bool has_property_index(const std::string& label,
+                                          const std::string& property) const;
+    [[nodiscard]] size_t property_count(const std::string& property,
+                                        const Value& value,
+                                        const std::string& label) const;
 
     friend class GraphStorage;
     friend class AllNodesCursor;
 
   private:
-    std::string dir_;
-    bool disk_mode() const { return !dir_.empty(); }
+    [[nodiscard]] bool disk_mode() const { return !dir_.empty(); }
+
+    std::filesystem::path dir_;
 
     std::unique_ptr<NodeStore> node_store_;
     std::unique_ptr<EdgeStore> edge_store_;
@@ -98,7 +100,7 @@ namespace storage {
     std::unique_ptr<MetricsStore> metrics_;
     std::unique_ptr<NodeManager> node_manager_;
     std::unique_ptr<EdgeManager> edge_manager_;
-    std::unique_ptr<CursorFactory> cursor_factory_;
+    std::unique_ptr<CursorBase> cursor_factory_;
 
     Node* node_ptr(NodeId id);
     Edge* edge_ptr(EdgeId id);

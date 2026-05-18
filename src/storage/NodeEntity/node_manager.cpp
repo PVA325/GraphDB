@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include "storage/node_manager.hpp"
+#include "storage/NodeEntity/node_manager.hpp"
 
 namespace storage {
 
@@ -17,16 +17,20 @@ namespace storage {
                              const Properties& props) {
     NodeId id = free_ids_->next(store_->slot_count());
 
-    Node node;
-    node.id = id;
-    node.alive = true;
-    node.labels = labels;
-    node.properties = props;
+    Node node{
+    .id = id,
+    .alive = true,
+    .labels = labels,
+    .properties = props};
 
-    store_->put(id, node);
+    store_->put(node);
 
-    for (const auto& label : labels) { index_->add_label(id, label); }
-    for (const auto& [k, v] : props) { index_->add_property(id, k, v); }
+    for (const auto& label : labels) {
+      index_->add_label(id, label);
+    }
+    for (const auto& [k, v] : props) {
+      index_->add_property(id, k, v);
+    }
 
     metrics_->on_node_created(labels, props);
 
@@ -49,7 +53,7 @@ namespace storage {
     }
 
     node->properties[key] = val;
-    store_->put(id, *node);
+    store_->put(*node);
   }
 
   void NodeManager::add_label(NodeId id, const std::string& label) {
@@ -61,7 +65,7 @@ namespace storage {
     }
 
     node->labels.push_back(label);
-    store_->put(id, *node);
+    store_->put(*node);
 
     index_->add_label(id, label);
 
@@ -76,7 +80,7 @@ namespace storage {
     node->labels.erase(
       std::remove(node->labels.begin(), node->labels.end(), label),
       node->labels.end());
-    store_->put(id, *node);
+    store_->put(*node);
 
     index_->remove_label(id, label);
 

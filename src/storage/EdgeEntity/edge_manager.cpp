@@ -1,12 +1,12 @@
 #include <cassert>
 
-#include "storage/edge_manager.hpp"
+#include "storage/EdgeEntity/edge_manager.hpp"
 
 namespace storage {
 
-  EdgeManager::EdgeManager(EdgeStore*    store,
-                           EdgeIndex*    index,
-                           NodeStore*    node_store,
+  EdgeManager::EdgeManager(EdgeStore* store,
+                           EdgeIndex* index,
+                           NodeStore* node_store,
                            MetricsStore* metrics,
                            FreeList*  free_ids)
     : store_(store), index_(index), node_store_(node_store),
@@ -17,15 +17,15 @@ namespace storage {
                              const Properties& props) {
     EdgeId id = free_ids_->next(store_->slot_count());
 
-    Edge edge;
-    edge.id = id;
-    edge.alive = true;
-    edge.src = src;
-    edge.dst = dst;
-    edge.type = type;
-    edge.properties = props;
+    Edge edge{
+    .id = id,
+    .alive = true,
+    .src = src,
+    .dst = dst,
+    .type = type,
+    .properties = props};
 
-    store_->put(id, edge);
+    store_->put(edge);
     index_->add_edge(id, src, dst, type);
 
     std::vector<std::string> src_labels;
@@ -45,7 +45,7 @@ namespace storage {
     Edge* edge = store_->get(id);
     assert(edge && edge->alive);
     edge->properties[key] = val;
-    store_->put(id, *edge);
+    store_->put(*edge);
   }
 
   void EdgeManager::set_type(EdgeId id, const std::string& new_type) {
@@ -54,7 +54,7 @@ namespace storage {
 
     index_->retype_edge(id, edge->type, new_type);
     edge->type = new_type;
-    store_->put(id, *edge);
+    store_->put(*edge);
   }
 
   void EdgeManager::remove(EdgeId id) {

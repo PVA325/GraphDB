@@ -1,21 +1,21 @@
 #include <cassert>
 #include <fstream>
-#include <sstream>
 #include <stdexcept>
 
 #include "storage/metrics_store.hpp"
-#include "storage/serialise.hpp"
+#include "storage/serialize.hpp"
 
 namespace storage {
-  size_t LPVKeyHash::operator()(const LPVKey& k) const {
-    size_t h = std::hash<uint32_t>{}(k.label_id);
-    h ^= std::hash<uint32_t>{}(k.prop_id) + 0x9e3779b9 + (h << 6) + (h >> 2);
-    h ^= std::hash<Value>{}(k.value) + 0x9e3779b9 + (h << 6) + (h >> 2);
-    return h;
-  }
 
-  MetricsStore::MetricsStore(const std::string& dir)
-    : dir_(dir) {}
+  static const std::filesystem::path kSnapshotFile = "metrics.dat";
+  static const std::filesystem::path kDeltaFile = "metrics_delta.log";
+
+  MetricsStore::MetricsStore(const std::filesystem::path& dir)
+    : dir_(dir) {
+    if (!dir_.empty()) {
+      load();
+    }
+  }
 
   MetricsStore::~MetricsStore() {
     flush();
@@ -26,17 +26,12 @@ namespace storage {
     ++total_nodes_;
     for (const auto& label : labels) {
       ++label_node_count_[label];
-      for (const auto& [prop, val] : props) {
-        LPVKey lpv = make_lpv(label, prop, val);
-        ++delta_.count_delta[lpv];
-        delta_.new_distinct[make_lp(label, prop)].insert(val);
-        ++delta_.write_count;
-      }
     }
-
     for (const auto& [prop, val] : props) {
       property_distinct_[prop].insert(val);
     }
+
+    delta_.push_back({ DeltaEvent::Type::NodeCreated, labels, props, 0 });
     maybe_flush();
   }
 
@@ -49,13 +44,9 @@ namespace storage {
       if (it != label_node_count_.end() && it->second > 0) {
         --it->second;
       }
-
-      for (const auto& [prop, val] : props) {
-        LPVKey lpv = make_lpv(label, prop, val);
-        --delta_.count_delta[lpv];
-        ++delta_.write_count;
-      }
     }
+
+    delta_.push_back({ DeltaEvent::Type::NodeDeleted, labels, props, 0 });
     maybe_flush();
   }
 
@@ -65,12 +56,7 @@ namespace storage {
     ++label_node_count_[label];
     label_total_out_degree_[label] += out_degree;
 
-    for (const auto& [prop, val] : node_props) {
-      LPVKey lpv = make_lpv(label, prop, val);
-      delta_.count_delta[lpv]++;
-      delta_.new_distinct[make_lp(label, prop)].insert(val);
-      ++delta_.write_count;
-    }
+    delta_.push_back({ DeltaEvent::Type::LabelAdded, {label}, node_props, out_degree });
     maybe_flush();
   }
 
@@ -84,12 +70,18 @@ namespace storage {
     if (oit != label_total_out_degree_.end() && oit->second >= out_degree) {
       oit->second -= out_degree;
     }
+
+    delta_.push_back({ DeltaEvent::Type::LabelRemoved, {label}, {}, out_degree });
+    maybe_flush();
   }
 
   void MetricsStore::on_edge_created(const std::vector<std::string>& src_labels) {
     for (const auto& label : src_labels) {
       ++label_total_out_degree_[label];
     }
+
+    delta_.push_back({ DeltaEvent::Type::EdgeCreated, src_labels, {}, 0 });
+    maybe_flush();
   }
 
   void MetricsStore::on_edge_deleted(const std::vector<std::string>& src_labels) {
@@ -99,6 +91,9 @@ namespace storage {
         --it->second;
       }
     }
+
+    delta_.push_back({ DeltaEvent::Type::EdgeDeleted, src_labels, {}, 0 });
+    maybe_flush();
   }
 
   size_t MetricsStore::node_count() const {
@@ -112,93 +107,29 @@ namespace storage {
 
   std::optional<size_t> MetricsStore::property_distinct_count(
     const std::string& prop, const std::string& label) const {
-
-    if (label.empty()) {
-      auto it = property_distinct_.find(prop);
-      if (it == property_distinct_.end()) {
-        return 0;
-      }
-      return it->second.size();
-    }
-
-    uint32_t lid = label_interner_.find(label);
-    uint32_t pid = prop_interner_.find(prop);
-    if (lid == StringInterner::kUnvalidID || pid == StringInterner::kUnvalidID) {
-      return 0;
-    }
-
-    LPKey lp{lid, pid};
-
-    size_t delta_distinct = 0;
-    auto dit = delta_.new_distinct.find(lp);
-    if (dit != delta_.new_distinct.end()) {
-      delta_distinct = dit->second.size();
-    }
-
-    auto it = lp_distinct_.find(lp);
-    if (it == lp_distinct_.end()) {
-      return delta_distinct;
-    }
-    return it->second.size() + delta_distinct;
+    auto it = property_distinct_.find(prop);
+    return it != property_distinct_.end() ? it->second.size() : 0;
   }
 
   double MetricsStore::avg_out_degree(const std::string& label) const {
-    auto cnt_it = label_node_count_.find(label);
-    if (cnt_it == label_node_count_.end() || cnt_it->second == 0) {
+    auto count_it = label_node_count_.find(label);
+    if (count_it == label_node_count_.end() || count_it->second == 0) {
       return 0.0;
     }
     auto deg_it = label_total_out_degree_.find(label);
     if (deg_it == label_total_out_degree_.end()) {
       return 0.0;
     }
-    return static_cast<double>(deg_it->second) / cnt_it->second;
-  }
-
-  bool MetricsStore::has_property_index(const std::string& label,
-                                        const std::string& prop) const {
-    uint32_t lid = label_interner_.find(label);
-    uint32_t pid = prop_interner_.find(prop);
-    if (lid == StringInterner::kUnvalidID || pid == StringInterner::kUnvalidID) {
-      return false;
-    }
-    LPKey lp{lid, pid};
-    return lp_distinct_.count(lp) > 0 || delta_.new_distinct.count(lp) > 0;
-  }
-
-  size_t MetricsStore::property_count(const std::string& prop,
-                                      const Value& value,
-                                      const std::string& label) const {
-    if (label.empty()) {
-      return 0;
-    }
-
-    uint32_t lid = label_interner_.find(label);
-    uint32_t pid = prop_interner_.find(prop);
-    if (lid == StringInterner::kUnvalidID || pid == StringInterner::kUnvalidID) {
-      return 0;
-    }
-
-    LPVKey lpv{lid, pid, value};
-
-    size_t base = 0;
-    auto it = lpv_count_.find(lpv);
-    if (it != lpv_count_.end()) {
-      base = it->second;
-    }
-
-    auto dit = delta_.count_delta.find(lpv);
-    if (dit != delta_.count_delta.end()) {
-      int64_t total = static_cast<int64_t>(base) + dit->second;
-      return total > 0 ? static_cast<size_t>(total) : 0;
-    }
-    return base;
+    return static_cast<double>(deg_it->second) / count_it->second;
   }
 
   void MetricsStore::flush() {
-    if (delta_.empty()) { return; }
-    apply_delta();
-    if (!dir_.empty()) { persist_delta(); }
+    if (!dir_.empty()) {
+      persist_delta();
+      write_snapshot();
+    }
     delta_.clear();
+    write_count_ = 0;
   }
 
   void MetricsStore::clear() {
@@ -206,60 +137,177 @@ namespace storage {
     label_node_count_.clear();
     label_total_out_degree_.clear();
     property_distinct_.clear();
-    lpv_count_.clear();
-    lp_distinct_.clear();
     delta_.clear();
+    write_count_ = 0;
   }
 
-  LPVKey MetricsStore::make_lpv(const std::string& label,
-                                const std::string& prop,
-                                const Value& val) {
-    return LPVKey{
-      label_interner_.intern(label),
-      prop_interner_.intern(prop),
-      val
-    };
-  }
-
-  LPKey MetricsStore::make_lp(const std::string& label, const std::string& prop) {
-    return LPKey{
-      label_interner_.intern(label),
-      prop_interner_.intern(prop)
-    };
-  }
-
-  void MetricsStore::apply_delta() {
-    for (const auto& [key, delta] : delta_.count_delta) {
-      int64_t cur = static_cast<int64_t>(lpv_count_[key]);
-      cur += delta;
-      lpv_count_[key] = cur > 0 ? static_cast<size_t>(cur) : 0;
-    }
-    for (const auto& [lp, vals] : delta_.new_distinct) {
-      for (const auto& v : vals) {
-        lp_distinct_[lp].insert(v);
+  void MetricsStore::maybe_flush() {
+    if (++write_count_ >= kMaxMetricPageAmount) {
+      if (!dir_.empty()) {
+        persist_delta();
       }
+      delta_.clear();
+      write_count_ = 0;
     }
   }
 
   void MetricsStore::persist_delta() {
-    if (dir_.empty()) return;
+    std::ofstream os(dir_ / kDeltaFile, std::ios::binary | std::ios::app);
+    if (!os) {
+      return;
+    }
 
-    std::string path = dir_ + "/metrics_delta.log";
-    std::ofstream os(path, std::ios::binary | std::ios::app);
-    if (!os) return;
+    for (const auto& event : delta_) {
+      serial::write<uint8_t>(os, static_cast<uint8_t>(event.type));
 
-    for (const auto& [key, delta] : delta_.count_delta) {
-      serial::write<uint32_t>(os, key.label_id);
-      serial::write<uint32_t>(os, key.prop_id);
-      serial::write_value    (os, key.value);
-      serial::write<int32_t> (os, delta);
+      serial::write<uint32_t>(os, static_cast<uint32_t>(event.labels.size()));
+      for (const auto& l : event.labels) {
+        serial::write_str(os, l);
+      }
+
+      serial::write_properties(os, event.props);
+      serial::write<uint64_t>(os, static_cast<uint64_t>(event.out_degree));
     }
   }
 
-  void MetricsStore::maybe_flush() {
-    if (delta_.write_count >= kMaxMetricPageAmount) {
-      flush();
+  void MetricsStore::write_snapshot() {
+    if (dir_.empty()) {
+      return;
     }
+
+    std::ofstream os(dir_ / kSnapshotFile, std::ios::binary | std::ios::trunc);
+    if (!os) {
+      return;
+    }
+
+    serial::write<uint64_t>(os, total_nodes_);
+
+    serial::write<uint32_t>(os, static_cast<uint32_t>(label_node_count_.size()));
+    for (const auto& [label, count] : label_node_count_) {
+      serial::write_str(os, label);
+      serial::write<uint64_t>(os, count);
+    }
+
+    serial::write<uint32_t>(os, static_cast<uint32_t>(label_total_out_degree_.size()));
+    for (const auto& [label, deg] : label_total_out_degree_) {
+      serial::write_str(os, label);
+      serial::write<uint64_t>(os, deg);
+    }
+
+    serial::write<uint32_t>(os, static_cast<uint32_t>(property_distinct_.size()));
+    for (const auto& [prop, vals] : property_distinct_) {
+      serial::write_str(os, prop);
+      serial::write<uint32_t>(os, static_cast<uint32_t>(vals.size()));
+      for (const auto& v : vals) {
+        serial::write_value(os, v);
+      }
+    }
+
+    std::filesystem::remove(dir_ / kDeltaFile);
+  }
+
+  void MetricsStore::replay_log() {
+    std::ifstream is(dir_ / kDeltaFile, std::ios::binary);
+    if (!is) {
+      return;
+    }
+
+    while (is) {
+      auto type = static_cast<DeltaEvent::Type>(serial::read<uint8_t>(is));
+
+      uint32_t label_count = serial::read<uint32_t>(is);
+      std::vector<std::string> labels(label_count);
+      for (auto& l : labels) {
+        l = serial::read_str(is);
+      }
+
+      Properties props = serial::read_properties(is);
+      size_t out_degree = static_cast<size_t>(serial::read<uint64_t>(is));
+
+      switch (type) {
+        case DeltaEvent::Type::NodeCreated:
+          ++total_nodes_;
+          for (const auto& label : labels) {
+            ++label_node_count_[label];
+          }
+          for (const auto& [prop, val] : props) {
+            property_distinct_[prop].insert(val);
+          }
+          break;
+
+        case DeltaEvent::Type::NodeDeleted:
+          if (total_nodes_ > 0) --total_nodes_;
+          for (const auto& label : labels) {
+            auto it = label_node_count_.find(label);
+            if (it != label_node_count_.end() && it->second > 0) {
+              --it->second;
+            }
+          }
+          break;
+
+        case DeltaEvent::Type::LabelAdded:
+          ++label_node_count_[labels[0]];
+          label_total_out_degree_[labels[0]] += out_degree;
+          break;
+
+        case DeltaEvent::Type::LabelRemoved: {
+          auto it = label_node_count_.find(labels[0]);
+          if (it != label_node_count_.end() && it->second > 0) {
+            --it->second;
+          }
+          auto oit = label_total_out_degree_.find(labels[0]);
+          if (oit != label_total_out_degree_.end() && oit->second >= out_degree) {
+            oit->second -= out_degree;
+          }
+        }
+          break;
+
+        case DeltaEvent::Type::EdgeCreated:
+          for (const auto& label : labels) {
+            ++label_total_out_degree_[label];
+          }
+          break;
+
+        case DeltaEvent::Type::EdgeDeleted:
+          for (const auto& label : labels) {
+            auto it = label_total_out_degree_.find(label);
+            if (it != label_total_out_degree_.end() && it->second > 0) {
+              --it->second;
+            }
+          }
+          break;
+      }
+    }
+  }
+
+  void MetricsStore::load() {
+    std::ifstream is(dir_ / kSnapshotFile, std::ios::binary);
+    if (is) {
+      total_nodes_ = static_cast<size_t>(serial::read<uint64_t>(is));
+
+      uint32_t num = serial::read<uint32_t>(is);
+      for (uint32_t i = 0; i < num; ++i) {
+        auto label = serial::read_str(is);
+        label_node_count_[label] = static_cast<size_t>(serial::read<uint64_t>(is));
+      }
+
+      num = serial::read<uint32_t>(is);
+      for (uint32_t i = 0; i < num; ++i) {
+        auto label = serial::read_str(is);
+        label_total_out_degree_[label] = static_cast<size_t>(serial::read<uint64_t>(is));
+      }
+
+      num = serial::read<uint32_t>(is);
+      for (uint32_t i = 0; i < num; ++i) {
+        auto prop = serial::read_str(is);
+        uint32_t val_count = serial::read<uint32_t>(is);
+        for (uint32_t j = 0; j < val_count; ++j) {
+          property_distinct_[prop].insert(serial::read_value(is));
+        }
+      }
+    }
+
+    replay_log();
   }
 
 } // namespace storage
