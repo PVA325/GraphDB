@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1800" viewBox="0 0 2400 1800" role="img" aria-labelledby="title desc">
+  <title id="title">GraphDB storage ER-style diagram</title>
+  <desc id="desc">Overview of GraphDB storage headers, including core data types, GraphDB orchestration, managers, indexes, stores, persistence and cursor access.</desc>
+  <defs>
+    <style>
+      .bg { fill: #0b1020; }
+      .panel { fill: #11182f; stroke: #41507a; stroke-width: 2; rx: 18; ry: 18; }
+      .box { fill: #18233f; stroke: #7ea1ff; stroke-width: 2; rx: 14; ry: 14; }
+      .box2 { fill: #15263a; stroke: #79d3ff; stroke-width: 2; rx: 14; ry: 14; }
+      .box3 { fill: #1c2f27; stroke: #82e0aa; stroke-width: 2; rx: 14; ry: 14; }
+      .box4 { fill: #2a1b2c; stroke: #f29fd7; stroke-width: 2; rx: 14; ry: 14; }
+      .box5 { fill: #2b2417; stroke: #ffd27d; stroke-width: 2; rx: 14; ry: 14; }
+      .title { font: 700 30px/1.2 Arial, Helvetica, sans-serif; fill: #f5f7ff; }
+      .subtitle { font: 600 18px/1.2 Arial, Helvetica, sans-serif; fill: #d6dcff; }
+      .head { font: 700 18px/1.2 Arial, Helvetica, sans-serif; fill: #ffffff; }
+      .text { font: 14px/1.35 "Fira Code", "Cascadia Code", monospace; fill: #e8edff; }
+      .small { font: 12px/1.35 "Fira Code", "Cascadia Code", monospace; fill: #d1dcff; }
+      .muted { font: 12px/1.35 Arial, Helvetica, sans-serif; fill: #b4bfdc; }
+      .arrow { stroke: #cfe1ff; stroke-width: 2.4; fill: none; marker-end: url(#arrowhead); }
+      .dashed { stroke-dasharray: 8 6; }
+      .label { font: 12px Arial, Helvetica, swritesans-serif; fill: #f7fbff; background: rgba(11,16,32,.85); }
+      .legend { font: 13px Arial, Helvetica, sans-serif; fill: #d6dcff; }
+      .chip { fill: #0f1730; stroke: #6076ab; stroke-width: 1.5; rx: 10; ry: 10; }
+      .sig { font: 700 20px/1.2 Arial, Helvetica, sans-serif; fill: #ffd27d; opacity: 0.95; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#cfe1ff" />
+    </marker>
+    <marker id="arrowheadGreen" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#82e0aa" />
+    </marker>
+    <marker id="arrowheadPink" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#f29fd7" />
+    </marker>
+    <marker id="arrowheadGold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#ffd27d" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="2400" height="1800" />
+
+  <text class="title" x="60" y="58">GraphDB storage subsystem</text>
+
+  <!-- Panels -->
+  <rect class="panel" x="40" y="110" width="2320" height="210" />
+  <rect class="panel" x="40" y="340" width="2320" height="360" />
+  <rect class="panel" x="40" y="720" width="2320" height="390" />
+  <rect class="panel" x="40" y="1130" width="2320" height="600" />
+
+  <text class="subtitle" x="60" y="145">1) Core data model</text>
+  <text class="subtitle" x="60" y="375">2) GraphDB orchestration</text>
+  <text class="subtitle" x="60" y="755">3) Managers and indexes</text>
+
+  <!-- Core model -->
+  <rect class="box5" x="70" y="170" width="1040" height="130" />
+  <text class="head" x="92" y="202">storage/TypesStructures/types.hpp</text>
+  <text class="text" x="92" y="228">• NodeId, EdgeId, Value, Properties</text>
+  <text class="text" x="92" y="248">• Node, Edge, FileHeader, DeltaEvent</text>
+  <text class="text" x="92" y="268">• Page, LruList, LruIt, PageMap</text>
+
+  <rect class="box5" x="1140" y="170" width="1140" height="130" />
+  <text class="head" x="1162" y="202">Umbrella and serialization helpers</text>
+  <text class="text" x="1162" y="228">• storage/storage.hpp</text>
+  <text class="text" x="1162" y="248">• storage/serialize.hpp: binary read and write helpers for values and properties</text>
+
+  <!-- Orchestration -->
+  <rect class="box" x="70" y="410" width="860" height="240" />
+  <text class="head" x="92" y="442">storage::GraphDB</text>
+  <text class="text" x="92" y="468">dir_ : filesystem path</text>
+  <text class="text" x="92" y="488">node_store_, edge_store_, metrics_</text>
+  <text class="text" x="92" y="508">node_manager_, edge_manager_, cursor_factory_</text>
+  <text class="text" x="92" y="528">node_index_, edge_index_, free lists</text>
+  <text class="text" x="92" y="548">nodes_ram_, edges_ram_</text>
+  <text class="text" x="92" y="574">create / get / set / delete / save / load / flush</text>
+  <text class="text" x="92" y="594">count, index and cursor access helpers</text>
+
+  <rect class="box2" x="970" y="410" width="570" height="240" />
+  <text class="head" x="992" y="442">GraphStorage</text>
+  <text class="text" x="992" y="468">save(GraphDB, path)</text>
+  <text class="text" x="992" y="488">load(GraphDB, path)</text>
+  <text class="text" x="992" y="508">serialize_value, deserialize_value</text>
+  <text class="text" x="992" y="528">serialize_properties, deserialize_properties</text>
+  <text class="text" x="992" y="548">binary snapshot format for disk mode</text>
+
+  <rect class="box2" x="1580" y="410" width="500" height="240" />
+  <text class="head" x="1602" y="442">MetricsStore</text>
+  <text class="text" x="1602" y="468">node_count and label statistics</text>
+  <text class="text" x="1602" y="488">property distinct counts</text>
+  <text class="text" x="1602" y="508">avg_out_degree per label</text>
+  <text class="text" x="1602" y="528">flush, clear, replay log</text>
+  <text class="text" x="1602" y="548">delta events track node and edge changes</text>
+
+
+  <!-- Managers and indexes -->
+  <rect class="box3" x="70" y="800" width="700" height="250" />
+  <text class="head" x="92" y="832">NodeManager</text>
+  <text class="text" x="92" y="858">create, get, set_property, add_label</text>
+  <text class="text" x="92" y="878">remove_label, remove</text>
+  <text class="text" x="92" y="898">uses NodeStore, NodeIndex, EdgeIndex</text>
+  <text class="text" x="92" y="918">updates MetricsStore and FreeList</text>
+  <text class="text" x="92" y="938">coordinates node lifecycle and index updates</text>
+
+  <rect class="box3" x="820" y="800" width="700" height="250" />
+  <text class="head" x="842" y="832">EdgeManager</text>
+  <text class="text" x="842" y="858">create, get, set_property, set_type</text>
+  <text class="text" x="842" y="878">remove</text>
+  <text class="text" x="842" y="898">uses EdgeStore, EdgeIndex, NodeStore</text>
+  <text class="text" x="842" y="918">updates MetricsStore and FreeList</text>
+  <text class="text" x="842" y="938">coordinates edge lifecycle and adjacency maintenance</text>
+
+  <rect class="box3" x="1560" y="800" width="330" height="250" />
+  <text class="head" x="1582" y="832">NodeIndex</text>
+  <text class="text" x="1582" y="858">label_index_</text>
+  <text class="text" x="1582" y="878">property_index_</text>
+  <text class="text" x="1582" y="898">by_label, by_property</text>
+  <text class="text" x="1582" y="918">add / remove / update</text>
+
+  <rect class="box3" x="1930" y="800" width="330" height="250" />
+  <text class="head" x="1952" y="832">EdgeIndex</text>
+  <text class="text" x="1952" y="858">outgoing_, incoming_</text>
+  <text class="text" x="1952" y="878">type_index_</text>
+  <text class="text" x="1952" y="898">outgoing, incoming, by_type</text>
+  <text class="text" x="1952" y="918">count and degree helpers</text>
+
+  <rect class="box4" x="70" y="1200" width="560" height="220" />
+  <text class="head" x="92" y="1232">NodeStore</text>
+  <text class="text" x="92" y="1258">put, get, remove, flush</text>
+  <text class="text" x="92" y="1278">slots_file_, props_file_, slot_count_, props_end_</text>
+  <text class="text" x="92" y="1298">obj_cache_ for Node objects</text>
+  <text class="text" x="92" y="1318">NodeSlot layout and object deserialization</text>
+
+  <rect class="box4" x="670" y="1200" width="560" height="220" />
+  <text class="head" x="692" y="1232">EdgeStore</text>
+  <text class="text" x="692" y="1258">put, get, remove, flush</text>
+  <text class="text" x="692" y="1278">slots_file_, props_file_, slot_count_, props_end_</text>
+  <text class="text" x="692" y="1298">obj_cache_ for Edge objects</text>
+  <text class="text" x="692" y="1318">EdgeSlot layout and object deserialization</text>
+
+  <rect class="box4" x="1270" y="1200" width="470" height="220" />
+  <text class="head" x="1292" y="1232">PageCache</text>
+  <text class="text" x="1292" y="1258">read, write, flush, invalidate</text>
+  <text class="text" x="1292" y="1278">LRU eviction over pages</text>
+  <text class="text" x="1292" y="1298">PageMap and LruList</text>
+  <text class="text" x="1292" y="1318">used by NodeStore and EdgeStore</text>
+
+  <rect class="box4" x="1780" y="1200" width="560" height="220" />
+  <text class="head" x="1802" y="1232">Cursor layer</text>
+  <text class="text" x="1802" y="1258">Cursor&lt;T, Id&gt; base template</text>
+  <text class="text" x="1802" y="1278">NodeCursor, EdgeCursor</text>
+  <text class="text" x="1802" y="1298">AllNodesCursor</text>
+  <text class="text" x="1802" y="1318">CursorBase creates typed cursors from indexes</text>
+
+
+
+  <!-- Signature -->
+  <text class="sig" x="60" y="1760">PALTARATSKI STANISLAV</text>
+</svg>
+
