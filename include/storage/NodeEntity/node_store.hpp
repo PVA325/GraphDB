@@ -7,7 +7,7 @@
 #include <unordered_map>
 
 #include "storage/page_cache.hpp"
-#include "storage/types.hpp"
+#include "storage/TypesStructures/types.hpp"
 
 namespace storage {
   struct NodeSlot {

@@ -268,8 +268,24 @@ namespace storage {
 
   [[nodiscard]] std::optional<size_t> GraphDB::property_distinct_count(
     const std::string& property, const std::string& label) const {
-    return metrics_->property_distinct_count(property, label);
+    if (label.empty()) {
+      return metrics_->property_distinct_count(property, label);
+    }
+    const auto& list = node_index_.by_label(label);
+    std::unordered_set<Value> distinct;
+    for (NodeId id : list) {
+      const Node* node = const_cast<GraphDB*>(this)->node_ptr(id);
+      if (!node) {
+        continue;
+      }
+      auto it = node->properties.find(property);
+      if (it != node->properties.end()) {
+        distinct.insert(it->second);
+      }
+    }
+    return distinct.size();
   }
+
 
   [[nodiscard]] double GraphDB::avg_out_degree(const std::string& label) const {
     return metrics_->avg_out_degree(label);
@@ -277,16 +293,33 @@ namespace storage {
 
   [[nodiscard]] bool GraphDB::has_property_index(const std::string& label,
                                                  const std::string& property) const {
-    return metrics_->has_property_index(label, property);
+    const auto& list = node_index_.by_label(label);
+    for (NodeId id : list) {
+      const Node* node = const_cast<GraphDB*>(this)->node_ptr(id);
+      if (node && node->properties.count(property)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   [[nodiscard]] size_t GraphDB::property_count(const std::string& property,
                                                const Value& value,
                                                const std::string& label) const {
+    const auto& list = node_index_.by_property(property, value);
     if (label.empty()) {
-      return node_index_.by_property(property, value).size();
+      return list.size();
     }
-    return metrics_->property_count(property, value, label);
+
+    size_t count = 0;
+    for (NodeId id : list) {
+      const Node* node = const_cast<GraphDB*>(this)->node_ptr(id);
+      if (node && std::find(node->labels.begin(), node->labels.end(), label) != node->labels.end()) {
+        ++count;
+      }
+    }
+    return count;
   }
+
 
 } // namespace storage

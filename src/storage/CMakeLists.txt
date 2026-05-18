@@ -4,7 +4,7 @@ add_library(storage SHARED
         EdgeEntity/edge_manager.cpp
         EdgeEntity/edge_store.cpp
         graph_storage.cpp
-        GraphDb.cpp
+        graph_db.cpp
         free_list.cpp
         metrics_store.cpp
         NodeEntity/node_index.cpp

@@ -6,7 +6,7 @@
 
 #include "EdgeEntity/edge_index.hpp"
 #include "NodeEntity/node_index.hpp"
-#include "types.hpp"
+#include "storage/TypesStructures/types.hpp"
 
 namespace storage {
 

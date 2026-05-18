@@ -7,7 +7,7 @@
 #include "storage/free_list.hpp"
 #include "storage/metrics_store.hpp"
 #include "storage/NodeEntity/node_store.hpp"
-#include "storage/types.hpp"
+#include "storage/TypesStructures/types.hpp"
 
 namespace storage {
   class EdgeManager {

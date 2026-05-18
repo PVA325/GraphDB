@@ -4,7 +4,7 @@
 #include <fstream>
 #include <string>
 
-#include "types.hpp"
+#include "storage/TypesStructures/types.hpp"
 
 namespace storage {
   class GraphDB;

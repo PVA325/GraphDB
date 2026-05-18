@@ -8,7 +8,7 @@
 #include "storage/metrics_store.hpp"
 #include "node_index.hpp"
 #include "node_store.hpp"
-#include "storage/types.hpp"
+#include "storage/TypesStructures/types.hpp"
 
 namespace storage {
 

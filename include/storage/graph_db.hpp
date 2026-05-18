@@ -13,7 +13,7 @@
 #include "free_list.hpp"
 #include "metrics_store.hpp"
 #include "NodeEntity/node_manager.hpp"
-#include "types.hpp"
+#include "storage/TypesStructures/types.hpp"
 
 namespace storage {
   class GraphDB {

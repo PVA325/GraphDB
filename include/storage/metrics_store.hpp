@@ -7,14 +7,12 @@
 #include <unordered_set>
 #include <vector>
 
-#include "types.hpp"
+#include "storage/TypesStructures/types.hpp"
 
 namespace storage {
 
   class MetricsStore {
   public:
-    static constexpr size_t kMaxMetricPageAmount = 1024;
-
     explicit MetricsStore(const std::filesystem::path& dir);
     ~MetricsStore();
 
@@ -37,6 +35,12 @@ namespace storage {
     void clear();
 
   private:
+    void persist_delta();
+    void maybe_flush();
+    void load();
+    void write_snapshot();
+    void replay_log();
+
     const std::filesystem::path dir_;
 
     size_t total_nodes_ = 0;
@@ -47,11 +51,8 @@ namespace storage {
     std::vector<DeltaEvent> delta_;
     size_t write_count_ = 0;
 
-    void persist_delta();
-    void maybe_flush();
-    void load();
-    void write_snapshot();
-    void replay_log();
+  public:
+    static constexpr size_t kMaxMetricPageAmount = 1024;
   };
 
 } // namespace storage
