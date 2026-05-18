@@ -47,10 +47,10 @@ enum class TokenType {
 };
 
 struct Token {
-  TokenType type;
-  std::string lexeme;
-  size_t line;
-  size_t col;
+  TokenType type_;
+  std::string lexeme_;
+  size_t line_;
+  size_t col_;
 };
 
 } // namespace lexer

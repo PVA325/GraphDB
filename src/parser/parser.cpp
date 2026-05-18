@@ -115,12 +115,12 @@ const Token& Parser::Previous() const {
 
 // Checks if the current token matches the expected type.
 bool Parser::Check(TokenType type) const {
-  return Peek().type == type;
+  return Peek().type_ == type;
 }
 
 // Checks if we've reached the end of the token stream.
 bool Parser::IsAtEnd() const {
-  return Peek().type == TokenType::END;
+  return Peek().type_ == TokenType::END;
 }
 
 // Consumes the current token with promotion.
@@ -160,7 +160,7 @@ const Token& Parser::Consume(TokenType type, const char* expected) {
   }
 
   const Token& got = Peek();
-  throw ParseError(got.line, got.col, "expected " + std::string(expected) + " but got " + TokenName(got.type));
+  throw ParseError(got.line_, got.col_, "expected " + std::string(expected) + " but got " + TokenName(got.type_));
 }
 
 // Consumes the current token if it's an identifier, otherwise throws an error.
@@ -172,7 +172,7 @@ const Token& Parser::ConsumeIdentifier(const char* expected) {
 void Parser::ExpectEnd() const {
   if (!Check(TokenType::END)) {
     const Token& got = Peek();
-    throw ParseError(got.line, got.col, "unexpected token " + TokenName(got.type));
+    throw ParseError(got.line_, got.col_, "unexpected token " + TokenName(got.type_));
   }
 }
 
@@ -205,11 +205,11 @@ ast::QueryAST Parser::ParseQuery() {
     if (Check(TokenType::WHERE) || Check(TokenType::RETURN) || Check(TokenType::DELETE) ||
         Check(TokenType::SET) || Check(TokenType::ORDER) || Check(TokenType::LIMIT)) {
       const Token& got = Peek();
-      throw ParseError(got.line, got.col, "unexpected clause after CREATE");
+      throw ParseError(got.line_, got.col_, "unexpected clause after CREATE");
     }
   } else {
     const Token& got = Peek();
-    throw ParseError(got.line, got.col, "expected MATCH or CREATE but got " + TokenName(got.type));
+    throw ParseError(got.line_, got.col_, "expected MATCH or CREATE but got " + TokenName(got.type_));
   }
 
   return query;
@@ -236,13 +236,13 @@ void Parser::ParseMatchTail(ast::QueryAST& query) {
     }
   } else if (Check(TokenType::ORDER) || Check(TokenType::LIMIT)) {
     const Token& got = Peek();
-    throw ParseError(got.line, got.col, "ORDER BY and LIMIT are only allowed with RETURN");
+    throw ParseError(got.line_, got.col_, "ORDER BY and LIMIT are only allowed with RETURN");
   }
 
   if (Check(TokenType::RETURN) || Check(TokenType::DELETE) || Check(TokenType::SET) ||
       Check(TokenType::WHERE) || Check(TokenType::ORDER) || Check(TokenType::LIMIT)) {
     const Token& got = Peek();
-    throw ParseError(got.line, got.col, "unexpected token " + TokenName(got.type));
+    throw ParseError(got.line_, got.col_, "unexpected token " + TokenName(got.type_));
   }
 }
 
@@ -280,7 +280,7 @@ ast::PropertyMap Parser::ParsePropertyMap() {
     while (true) {
       const Token& key = ConsumeIdentifier("property key");
       Consume(TokenType::COLON, ":");
-      properties.emplace_back(key.lexeme, ParseLiteral());
+      properties.emplace_back(key.lexeme_, ParseLiteral());
 
       if (!Match(TokenType::COMMA)) {
         break;
@@ -297,16 +297,16 @@ ast::PropertyMap Parser::ParsePropertyMap() {
 ast::NodePattern Parser::ParseNodePattern() {
   const Token& lparen = Consume(TokenType::LPAREN, "(");
   ast::NodePattern node;
-  node.line = lparen.line;
-  node.col = lparen.col;
+  node.line = lparen.line_;
+  node.col = lparen.col_;
 
   if (Check(TokenType::IDENTIFIER)) {
-    node.alias = Advance().lexeme;
+    node.alias = Advance().lexeme_;
   }
 
   if (Match(TokenType::COLON)) {
     while (Check(TokenType::IDENTIFIER)) {
-      node.labels.push_back(Advance().lexeme);
+      node.labels.push_back(Advance().lexeme_);
       if (!Match(TokenType::COLON)) {
         break;
       }
@@ -325,8 +325,8 @@ ast::NodePattern Parser::ParseNodePattern() {
 // Parses edge pattern.
 ast::MatchEdgePattern Parser::ParseMatchEdgePattern() {
   ast::MatchEdgePattern edge;
-  edge.line = Peek().line;
-  edge.col = Peek().col;
+  edge.line = Peek().line_;
+  edge.col = Peek().col_;
   bool started_with_arrow = false;
 
   if (Match(TokenType::ARROW_LEFT)) {
@@ -340,7 +340,7 @@ ast::MatchEdgePattern Parser::ParseMatchEdgePattern() {
   Consume(TokenType::LBRACKET, "[");
 
   if (Check(TokenType::IDENTIFIER)) {
-    edge.alias = Advance().lexeme;
+    edge.alias = Advance().lexeme_;
   }
 
   if (Match(TokenType::COLON)) {
@@ -349,7 +349,7 @@ ast::MatchEdgePattern Parser::ParseMatchEdgePattern() {
         edge.label += ":";
       }
 
-      edge.label += Advance().lexeme;
+      edge.label += Advance().lexeme_;
 
       if (!Match(TokenType::COLON)) {
         break;
@@ -370,11 +370,11 @@ ast::MatchEdgePattern Parser::ParseMatchEdgePattern() {
   } else if (Match(TokenType::DASH)) {
     if (!started_with_arrow) {
       const Token& got = Previous();
-      throw ParseError(got.line, got.col, "Edge must be directed (missing '>' at the end)");
+      throw ParseError(got.line_, got.col_, "Edge must be directed (missing '>' at the end)");
     }
   } else {
     const Token& got = Peek();
-    throw ParseError(got.line, got.col, "Expected '-' or '->' at the end of edge");    
+    throw ParseError(got.line_, got.col_, "Expected '-' or '->' at the end of edge");
   }
 
   return edge;
@@ -384,15 +384,15 @@ ast::MatchEdgePattern Parser::ParseMatchEdgePattern() {
 ast::Literal Parser::ParseLiteral() {
   Token token = Peek();
 
-  switch (token.type) {
+  switch (token.type_) {
     case TokenType::NUMBER: {
       Advance();
       ast::Literal literal;
 
-      if (token.lexeme.find_first_of(".eE") != std::string::npos) {
-        literal.value = std::stod(token.lexeme);
+      if (token.lexeme_.find_first_of(".eE") != std::string::npos) {
+        literal.value = std::stod(token.lexeme_);
       } else {
-        literal.value = static_cast<int64_t>(std::stoll(token.lexeme));
+        literal.value = static_cast<int64_t>(std::stoll(token.lexeme_));
       }
 
       return literal;
@@ -400,7 +400,7 @@ ast::Literal Parser::ParseLiteral() {
 
     case TokenType::STRING: {
       Advance();
-      return ast::Literal{StripQuotes(token.lexeme)};
+      return ast::Literal{StripQuotes(token.lexeme_)};
     }
 
     case TokenType::TRUE: {
@@ -414,7 +414,7 @@ ast::Literal Parser::ParseLiteral() {
     }
 
     default:
-      throw ParseError(token.line, token.col, "expected literal, but got " + TokenName(token.type));
+      throw ParseError(token.line_, token.col_, "expected literal, but got " + TokenName(token.type_));
   }
 }
 
@@ -466,11 +466,11 @@ ast::ExprPtr Parser::ParseComparison() {
     ast::ExprPtr right = ParsePrimary();
     auto node = std::make_unique<ast::ComparisonExpr>();
     node->left_expr = std::move(left);
-    node->op = op.type == TokenType::EQUAL ? ast::CompareOp::Eq
-               : op.type == TokenType::NOT_EQUAL ? ast::CompareOp::NotEqual
-               : op.type == TokenType::GREATER ? ast::CompareOp::Gt
-               : op.type == TokenType::GREATER_EQUAL ? ast::CompareOp::Ge
-               : op.type == TokenType::LESS ? ast::CompareOp::Lt
+    node->op = op.type_ == TokenType::EQUAL ? ast::CompareOp::Eq
+               : op.type_ == TokenType::NOT_EQUAL ? ast::CompareOp::NotEqual
+               : op.type_ == TokenType::GREATER ? ast::CompareOp::Gt
+               : op.type_ == TokenType::GREATER_EQUAL ? ast::CompareOp::Ge
+               : op.type_ == TokenType::LESS ? ast::CompareOp::Lt
                : ast::CompareOp::Le;
     node->right_expr = std::move(right);
 
@@ -496,7 +496,7 @@ ast::ExprPtr Parser::ParsePrimary() {
     return prop;
   }
 
-  if (IsLiteralToken(Peek().type)) {
+  if (IsLiteralToken(Peek().type_)) {
     auto lit = std::make_unique<ast::LiteralExpr>();
     lit->literal = ParseLiteral();
 
@@ -504,7 +504,7 @@ ast::ExprPtr Parser::ParsePrimary() {
   }
 
   const Token& got = Peek();
-  throw ParseError(got.line, got.col, "expected expression but got " + TokenName(got.type));
+  throw ParseError(got.line_, got.col_, "expected expression but got " + TokenName(got.type_));
 }
 
 // Parse Property Expression;
@@ -514,8 +514,8 @@ ast::PropertyExpr Parser::ParsePropertyExpr() {
   const Token& property = ConsumeIdentifier("property name");
 
   ast::PropertyExpr expr;
-  expr.alias = alias.lexeme;
-  expr.property = property.lexeme;
+  expr.alias = alias.lexeme_;
+  expr.property = property.lexeme_;
 
   return expr;
 }
@@ -546,10 +546,10 @@ ast::ReturnItem Parser::ParseReturnItem() {
 
   if (Check(TokenType::IDENTIFIER) &&
       current_ + 1 < tokens_.size() &&
-      tokens_[current_ + 1].type == TokenType::DOT) {
+      tokens_[current_ + 1].type_ == TokenType::DOT) {
     item.return_item = ParsePropertyExpr();
   } else {
-    item.return_item = ConsumeIdentifier("return item").lexeme;
+    item.return_item = ConsumeIdentifier("return item").lexeme_;
   }
 
   return item;
@@ -558,10 +558,10 @@ ast::ReturnItem Parser::ParseReturnItem() {
 // Parses Delete Clause.
 std::unique_ptr<ast::DeleteClause> Parser::ParseDelete() {
   auto clause = std::make_unique<ast::DeleteClause>();
-  clause->aliases.push_back(ConsumeIdentifier("alias").lexeme);
+  clause->aliases.push_back(ConsumeIdentifier("alias").lexeme_);
 
   while (Match(TokenType::COMMA)) {
-    clause->aliases.push_back(ConsumeIdentifier("alias").lexeme);
+    clause->aliases.push_back(ConsumeIdentifier("alias").lexeme_);
   }
 
   return clause;
@@ -582,23 +582,23 @@ std::unique_ptr<ast::SetClause> Parser::ParseSet() {
 // Parses Set Item.
 ast::SetItem Parser::ParseSetItem() {
   ast::SetItem item;
-  item.alias = ConsumeIdentifier("set item alias").lexeme;
+  item.alias = ConsumeIdentifier("set item alias").lexeme_;
 
   if (Match(TokenType::DOT)) {
-    std::string prop = ConsumeIdentifier("property").lexeme;
+    std::string prop = ConsumeIdentifier("property").lexeme_;
     Consume(TokenType::EQUAL, "=");
     ast::Literal lit = ParseLiteral();
 
     item.properties.emplace_back(std::move(prop), std::move(lit));
   } else if (Match(TokenType::COLON)) {
-    item.labels.push_back(ConsumeIdentifier("label").lexeme);
+    item.labels.push_back(ConsumeIdentifier("label").lexeme_);
 
     while (Match(TokenType::COLON)) {
-      item.labels.push_back(ConsumeIdentifier("label").lexeme);
+      item.labels.push_back(ConsumeIdentifier("label").lexeme_);
     }
   } else {
     const Token& got = Peek();
-    throw ParseError(got.line, got.col, "expected property or label but got " + TokenName(got.type));
+    throw ParseError(got.line_, got.col_, "expected property or label but got " + TokenName(got.type_));
   }
 
   return item;
@@ -635,11 +635,11 @@ std::unique_ptr<ast::LimitClause> Parser::ParseLimit() {
   auto clause = std::make_unique<ast::LimitClause>();
   const Token& limit_number = Consume(TokenType::NUMBER, "number");
 
-  if (limit_number.lexeme.find_first_of(".eE")  != std::string::npos) {
-    throw ParseError(limit_number.line, limit_number.col, "LIMIT expects an integer");
+  if (limit_number.lexeme_.find_first_of(".eE")  != std::string::npos) {
+    throw ParseError(limit_number.line_, limit_number.col_, "LIMIT expects an integer");
   }
 
-  clause->limit = static_cast<size_t>(std::stoull(limit_number.lexeme));
+  clause->limit = static_cast<size_t>(std::stoull(limit_number.lexeme_));
 
   return clause;
 }
@@ -660,7 +660,7 @@ std::unique_ptr<ast::CreateClause> Parser::ParseCreate() {
 ast::CreateItem Parser::ParseCreateItem() {
   if (!Check(TokenType::LPAREN)) {
     const Token& got = Peek();
-    throw ParseError(got.line, got.col, "expected CREATE item but got " + TokenName(got.type));
+    throw ParseError(got.line_, got.col_, "expected CREATE item but got " + TokenName(got.type_));
   }
 
   size_t save = current_;
@@ -683,9 +683,9 @@ ast::CreateNodeRef Parser::ParseCreateNodeRef() {
   Consume(TokenType::RPAREN, ")");
 
   ast::CreateNodeRef reference;
-  reference.alias = alias.lexeme;
-  reference.line = lparen.line;
-  reference.col = lparen.col;
+  reference.alias = alias.lexeme_;
+  reference.line = lparen.line_;
+  reference.col = lparen.col_;
 
   return reference;
 }
@@ -694,8 +694,8 @@ ast::CreateNodeRef Parser::ParseCreateNodeRef() {
 ast::CreateEdgePattern Parser::ParseCreateEdgePattern(const ast::CreateNodeRef& left_node_ref) {
   ast::CreateEdgePattern edge;
   edge.left_node = left_node_ref;
-  edge.line = Peek().line;
-  edge.col = Peek().col;
+  edge.line = Peek().line_;
+  edge.col = Peek().col_;
   bool started_with_arrow = false;
 
   if (Match(TokenType::ARROW_LEFT)) {
@@ -709,7 +709,7 @@ ast::CreateEdgePattern Parser::ParseCreateEdgePattern(const ast::CreateNodeRef& 
   Consume(TokenType::LBRACKET, "[");
 
   if (Check(TokenType::IDENTIFIER)) {
-    edge.alias = Advance().lexeme;
+    edge.alias = Advance().lexeme_;
   }
 
   if (Match(TokenType::COLON)) {
@@ -718,7 +718,7 @@ ast::CreateEdgePattern Parser::ParseCreateEdgePattern(const ast::CreateNodeRef& 
         edge.label += ":";
       }
 
-      edge.label += Advance().lexeme;
+      edge.label += Advance().lexeme_;
 
       if (!Match(TokenType::COLON)) {
         break;
@@ -739,11 +739,11 @@ ast::CreateEdgePattern Parser::ParseCreateEdgePattern(const ast::CreateNodeRef& 
   } else if (Match(TokenType::DASH)) {
     if (!started_with_arrow) {
       const Token& got = Previous();
-      throw ParseError(got.line, got.col, "Edge must be directed (missing '>' at the end)");
+      throw ParseError(got.line_, got.col_, "Edge must be directed (missing '>' at the end)");
     }
   } else {
     const Token& got = Peek();
-    throw ParseError(got.line, got.col, "Expected '-' or '->' at the end of edge");    
+    throw ParseError(got.line_, got.col_, "Expected '-' or '->' at the end of edge");
   }
 
   edge.right_node = ParseCreateNodeRef();

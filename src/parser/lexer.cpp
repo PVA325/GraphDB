@@ -11,32 +11,32 @@ namespace {
 class Lexer {
  public:
   explicit Lexer(const std::string& src)
-      : source(src) {}
+      : source_(src) {}
 
   // Scans the entire source and returns the list of tokens.
   std::vector<Token> Run() {
     while (!IsAtEnd()) {
-      start = current;
-      start_col = col;
+      start = current_;
+      start_col_ = col_;
 
       ScanToken();
     }
 
-    tokens.push_back({TokenType::END, "", line, col});
+    tokens_.push_back({TokenType::END, "", line_, col_});
 
-    return tokens;
+    return tokens_;
   }
 
  private:
   // Checks if we've reached the end of the source.
   bool IsAtEnd() const {
-    return current >= source.size();
+    return current_ >= source_.size();
   }
 
   // Advances and returns the next character.
   char Advance() {
-    char c = source[current++];
-    col++;
+    char c = source_[current_++];
+    col_++;
 
     return c;
   }
@@ -45,35 +45,35 @@ class Lexer {
   char Peek() const {
     if (IsAtEnd()) return '\0';
 
-    return source[current];
+    return source_[current_];
   }
 
   // Peeks at the next character without consuming it.
   char PeekNext() const {
-    if (current + 1 >= source.size()) return '\0';
+    if (current_ + 1 >= source_.size()) return '\0';
 
-    return source[current + 1];
+    return source_[current_ + 1];
   }
 
   // Matches the expected character and advances if it matches.
   bool Match(char expected) {
     if (IsAtEnd()) return false;
 
-    if (source[current] != expected) return false;
+    if (source_[current_] != expected) return false;
 
-    current++;
-    col++;
+    current_++;
+    col_++;
 
     return true;
   }
 
   // Adds a token of the given type with the current lexeme.
   void AddToken(TokenType type) {
-    tokens.push_back({
+    tokens_.push_back({
       type,
-      source.substr(start, current - start),
-      line,
-      start_col
+      source_.substr(start, current_ - start),
+      line_,
+      start_col_
     });
   }
 
@@ -98,7 +98,7 @@ class Lexer {
         if (Match('=')) {
           AddToken(TokenType::NOT_EQUAL);
         } else {
-          throw LexError(line, col, "Unexpected character '!' without '='");
+          throw LexError(line_, col_, "Unexpected character '!' without '='");
         }
         break;
 
@@ -138,8 +138,8 @@ class Lexer {
         break;
 
       case '\n':
-        line++;
-        col = 1;
+        line_++;
+        col_ = 1;
         break;
 
       default:
@@ -148,7 +148,7 @@ class Lexer {
         } else if (std::isalpha(c) || c == '_') {
           Identifier();
         } else {
-          throw LexError(line, col, "Unexpected character");
+          throw LexError(line_, col_, "Unexpected character");
         }
     }
   }
@@ -157,15 +157,15 @@ class Lexer {
   void String() {
     while (Peek() != '"' && !IsAtEnd()) {
       if (Peek() == '\n') {
-        line++;
-        col = 1;
+        line_++;
+        col_ = 1;
       }
 
       Advance();
     }
 
     if (IsAtEnd()) {
-      throw LexError(line, col, "Unterminated string");
+      throw LexError(line_, col_, "Unterminated string");
     }
 
     Advance();
@@ -190,7 +190,7 @@ class Lexer {
   void Identifier() {
     while (std::isalnum(Peek()) || Peek() == '_') Advance();
 
-    std::string text = source.substr(start, current - start);
+    std::string text = source_.substr(start, current_ - start);
 
     static const std::unordered_map<std::string, TokenType> keywords = {
         {"MATCH", TokenType::MATCH},
@@ -213,31 +213,31 @@ class Lexer {
     auto iter = keywords.find(text);
 
     if (iter != keywords.end()) {
-      tokens.push_back({iter->second, text, line, start_col});
+      tokens_.push_back({iter->second, text, line_, start_col_});
     } else {
-      tokens.push_back({TokenType::IDENTIFIER, text, line, start_col});
+      tokens_.push_back({TokenType::IDENTIFIER, text, line_, start_col_});
     }
   }
 
   // Input source and output tokens.
-  const std::string& source;
-  std::vector<Token> tokens;
+  const std::string& source_;
+  std::vector<Token> tokens_;
 
   // Current scanning position.
   size_t start = 0;
-  size_t current = 0;
+  size_t current_ = 0;
 
   // For error reporting.
-  size_t line = 1;
-  size_t col = 1;
-  size_t start_col = 1;
+  size_t line_ = 1;
+  size_t col_ = 1;
+  size_t start_col_ = 1;
 };
 
 } // namespace
 
 // Public API function to lex the input source code.
-std::vector<Token> Lex(const std::string& source) {
-  return Lexer(source).Run();
+std::vector<Token> Lex(const std::string& source_) {
+  return Lexer(source_).Run();
 }
 
 } // namespace lexer

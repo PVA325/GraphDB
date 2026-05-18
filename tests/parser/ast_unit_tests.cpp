@@ -328,8 +328,8 @@ TEST(LexerTest, LexSimpleQuery) {
   const auto tokens = lexer::Lex("MATCH (n) RETURN n;");
   ASSERT_FALSE(tokens.empty());
 
-  EXPECT_EQ(tokens.front().type, lexer::TokenType::MATCH);
-  EXPECT_EQ(tokens.back().type, lexer::TokenType::END);
+  EXPECT_EQ(tokens.front().type_, lexer::TokenType::MATCH);
+  EXPECT_EQ(tokens.back().type_, lexer::TokenType::END);
 }
 
 TEST(ParserTest, ParseSingleSimpleQuery) {
