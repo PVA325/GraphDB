@@ -1,0 +1,58 @@
+#pragma once
+
+#include "logical_op_unary_child.hpp"
+
+namespace graph::logical {
+
+struct CreateNodeSpec {
+  [[nodiscard]] String DebugString() const;
+
+  CreateNodeSpec() = delete;
+
+  explicit CreateNodeSpec(const ast::NodePattern& pattern);
+
+  explicit CreateNodeSpec(ast::NodePattern&& pattern);
+
+public:
+  String dst_alias;
+  std::vector<String> labels;
+  std::vector<std::pair<String, Value>> properties;
+};
+
+struct CreateEdgeSpec {
+  [[nodiscard]] String DebugString() const;
+
+  CreateEdgeSpec() = delete;
+
+  explicit CreateEdgeSpec(const ast::CreateEdgePattern& pattern);
+
+  explicit CreateEdgeSpec(ast::CreateEdgePattern&& pattern);
+public:
+  String src_alias;
+  String dst_node_alias;
+  String edge_alias;
+  String edge_type;
+  std::vector<std::pair<String, Value>> properties;
+  ast::EdgeDirection direction;
+};
+
+struct LogicalCreate : LogicalOpUnaryChild {
+  LogicalCreate() = delete;
+
+  LogicalCreate(LogicalOpPtr child, const std::vector<ast::CreateItem>& items);
+
+  BuildPhysicalType BuildPhysical(exec::ExecContext& ctx, optimizer::CostModel* cost_model,
+                                  storage::GraphDB* db) const override;
+
+  [[nodiscard]] LogicalOpType Type() const final { return LogicalOpType::kCreateType; }
+
+  [[nodiscard]] std::vector<String> GetSubtreeAliases() const final { return child->GetSubtreeAliases(); }
+
+  [[nodiscard]] String DebugString() const override;
+
+public:
+  std::vector<std::variant<CreateNodeSpec, CreateEdgeSpec>> items;
+};
+
+} // namespace graph::logical
+

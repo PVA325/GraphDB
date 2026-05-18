@@ -1,0 +1,21 @@
+#pragma once
+
+#include "physical_op_unary_child.hpp"
+#include "planner/logical/logical_create.hpp"
+
+namespace graph::exec {
+struct PhysicalCreateOp : PhysicalOpUnaryChild {
+  PhysicalCreateOp(std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items);
+  PhysicalCreateOp(std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items,
+                   PhysicalOpPtr child);
+  RowCursorPtr open(ExecContext& ctx) override;
+
+  [[nodiscard]] String DebugString() const override;
+
+  ~PhysicalCreateOp() override = default;
+
+public:
+  std::vector<std::variant<logical::CreateNodeSpec, logical::CreateEdgeSpec>> items;
+};
+
+}

@@ -1,5 +1,9 @@
+build/*
+cmake-build-debug/**
+
 # Prerequisites
 *.d
+.idea/*
 
 # Compiled Object files
 *.slo
@@ -39,3 +43,5 @@
 
 # debug information files
 *.dwo
+
+.DS_Store

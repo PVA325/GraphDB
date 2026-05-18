@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1800" viewBox="0 0 2400 1800" role="img" aria-labelledby="title desc">
+  <title id="title">GraphDB planner ER-style diagram</title>
+  <desc id="desc">Overview of common, planner, logical, physical, cursor, AST, and storage relationships in the GraphDB planner subsystem.</desc>
+  <defs>
+    <style>
+      .bg { fill: #0b1020; }
+      .panel { fill: #11182f; stroke: #41507a; stroke-width: 2; rx: 18; ry: 18; }
+      .box { fill: #18233f; stroke: #7ea1ff; stroke-width: 2; rx: 14; ry: 14; }
+      .box2 { fill: #15263a; stroke: #79d3ff; stroke-width: 2; rx: 14; ry: 14; }
+      .box3 { fill: #1c2f27; stroke: #82e0aa; stroke-width: 2; rx: 14; ry: 14; }
+      .box4 { fill: #2a1b2c; stroke: #f29fd7; stroke-width: 2; rx: 14; ry: 14; }
+      .box5 { fill: #2b2417; stroke: #ffd27d; stroke-width: 2; rx: 14; ry: 14; }
+      .title { font: 700 30px/1.2 Arial, Helvetica, sans-serif; fill: #f5f7ff; }
+      .subtitle { font: 600 18px/1.2 Arial, Helvetica, sans-serif; fill: #d6dcff; }
+      .head { font: 700 18px/1.2 Arial, Helvetica, sans-serif; fill: #ffffff; }
+      .text { font: 14px/1.35 "Fira Code", "Cascadia Code", monospace; fill: #e8edff; }
+      .small { font: 12px/1.35 "Fira Code", "Cascadia Code", monospace; fill: #d1dcff; }
+      .muted { font: 12px/1.35 Arial, Helvetica, sans-serif; fill: #b4bfdc; }
+      .arrow { stroke: #cfe1ff; stroke-width: 2.4; fill: none; marker-end: url(#arrowhead); }
+      .dashed { stroke-dasharray: 8 6; }
+      .label { font: 12px Arial, Helvetica, sans-serif; fill: #f7fbff; background: rgba(11,16,32,.85); }
+      .legend { font: 13px Arial, Helvetica, sans-serif; fill: #d6dcff; }
+      .chip { fill: #0f1730; stroke: #6076ab; stroke-width: 1.5; rx: 10; ry: 10; }
+        .sig { font: 700 22px/1.2 Arial, Helvetica, sans-serif; fill: #ffd27d; opacity: 0.95; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#cfe1ff" />
+    </marker>
+    <marker id="arrowheadGreen" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#82e0aa" />
+    </marker>
+    <marker id="arrowheadPink" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#f29fd7" />
+    </marker>
+    <marker id="arrowheadGold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#ffd27d" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="2400" height="1800" />
+
+  <text class="title" x="60" y="58">GraphDB planner subsystem</text>
+
+  <!-- Panels -->
+  <rect class="panel" x="40" y="110" width="2320" height="210" />
+  <rect class="panel" x="40" y="340" width="2320" height="360" />
+  <rect class="panel" x="40" y="720" width="2320" height="390" />
+  <rect class="panel" x="40" y="1130" width="2320" height="600" />
+
+  <text class="subtitle" x="60" y="145">1) Common foundation</text>
+  <text class="subtitle" x="60" y="375">2) Orchestrator + AST dependencies</text>
+  <text class="subtitle" x="60" y="755">3) Logical planning layer</text>
+  <text class="subtitle" x="60" y="1165">4) Physical execution layer + cursors</text>
+
+  <!-- Common box -->
+  <rect class="box5" x="70" y="170" width="980" height="130" />
+  <text class="head" x="92" y="202">common/common_value.hpp</text>
+  <text class="text" x="92" y="228">• ast::EdgeDirection { Left, Right, Undirected }</text>
+  <text class="text" x="92" y="248">• graph::Value = variant&lt;LongInt, Double, String, Bool&gt;</text>
+  <text class="text" x="92" y="268">• exec::RowSlot(value = Node* | Edge* | Value, out_name, source_alias_name, property_name)</text>
+  <text class="text" x="92" y="288">• logical::LogicalOpType, logical::LogicalOpPtr, logical::BuildPhysicalType, optimizer::CostEstimate</text>
+
+  <rect class="box5" x="1090" y="170" width="1220" height="130" />
+  <text class="head" x="1112" y="202">Shared planner/runtime aliases</text>
+  <text class="text" x="1112" y="228">• exec::PhysicalOpPtr, exec::RowCursorPtr, logical::LogicalOpPtr</text>
+  <text class="text" x="1112" y="248">• ast forward refs: Expr, ReturnItem, OrderItem, NodePattern, CreateEdgePattern</text>
+  <text class="text" x="1112" y="268">• storage forward refs: Node, Edge, GraphDB</text>
+  <text class="text" x="1112" y="288">• planner::Planner consumes AST and emits logical + physical plans</text>
+
+  <!-- Planner + AST -->
+  <rect class="box" x="70" y="410" width="720" height="240" />
+  <text class="head" x="92" y="442">graph::planner::Planner</text>
+  <text class="text" x="92" y="468">ctx_ : exec::ExecContext</text>
+  <text class="text" x="92" y="488">ast_plan_ : ast::QueryAST</text>
+  <text class="text" x="92" y="508">logical_plan_ : logical::LogicalPlan</text>
+  <text class="text" x="92" y="528">physical_plan_ : exec::PhysicalPlan</text>
+  <text class="text" x="92" y="548">cost_model_ : optimizer::CostModel</text>
+  <text class="text" x="92" y="574">build_logical_plan()</text>
+  <text class="text" x="92" y="594">build_physical_plan()</text>
+  <text class="text" x="92" y="614">optimize_logical_plan(), map_logical_to_physical(), finalize_physical_plan()</text>
+
+  <rect class="box2" x="840" y="410" width="610" height="240" />
+  <text class="head" x="862" y="442">ast::QueryAST</text>
+  <text class="text" x="862" y="468">match_clause : MatchClause</text>
+  <text class="text" x="862" y="488">where_clause : WhereClause</text>
+  <text class="text" x="862" y="508">return_clause : ReturnClause</text>
+  <text class="text" x="862" y="528">delete_clause : DeleteClause</text>
+  <text class="text" x="862" y="548">set_clause : SetClause</text>
+  <text class="text" x="862" y="568">order_clause : OrderClause</text>
+  <text class="text" x="862" y="588">limit_clause : LimitClause</text>
+  <text class="text" x="862" y="608">create_clause : CreateClause</text>
+
+  <rect class="box2" x="1490" y="410" width="520" height="240" />
+  <text class="head" x="1512" y="442">AST expression / pattern models</text>
+  <text class="text" x="1512" y="468">Expr → PropertyExpr | LiteralExpr | ComparisonExpr | LogicalExpr</text>
+  <text class="text" x="1512" y="488">Pattern = NodePattern → EdgePattern → NodePattern</text>
+  <text class="text" x="1512" y="508">ReturnItem, SetItem, OrderItem, CreateItem</text>
+  <text class="text" x="1512" y="528">CreateEdgePattern, CreateNodeRef, SetLabelItem</text>
+  <text class="text" x="1512" y="548">OrderDirection, CompareOp, LogicalOp, EdgeDirection</text>
+  <text class="text" x="1512" y="568">Semantic rules live above parser and feed planner validation</text>
+
+  <!-- Arrows planner/ast -->
+  <path class="arrow" d="M790 530 L835 530" />
+  <text class="label" x="798" y="520">reads</text>
+  <path class="arrow" d="M420 410 L420 332" />
+  <text class="label" x="430" y="360">uses</text>
+  <path class="arrow" d="M420 650 L420 735" />
+  <text class="label" x="430" y="705">builds</text>
+  <path class="arrow" d="M1345 530 L1485 530" />
+  <text class="label" x="1392" y="520">AST shapes</text>
+
+  <!-- Logical layer -->
+  <rect class="box3" x="70" y="800" width="520" height="250" />
+  <text class="head" x="92" y="832">logical::LogicalOp family</text>
+  <text class="text" x="92" y="858">Base: LogicalOp</text>
+  <text class="text" x="92" y="878">Zero-child: LogicalOpZeroChild, LogicalPlan</text>
+  <text class="text" x="92" y="898">Unary: LogicalOpUnaryChild</text>
+  <text class="text" x="92" y="918">Many-children: LogicalOpManyChildren</text>
+  <text class="text" x="92" y="938">Aliased: AliasedLogicalOp</text>
+  <text class="text" x="92" y="958">Type() returns LogicalOpType enum</text>
+  <text class="text" x="92" y="978">GetChildren(), GetSubtreeAliases(), BuildPhysical()</text>
+
+  <rect class="box3" x="630" y="800" width="690" height="250" />
+  <text class="head" x="652" y="832">Concrete logical operators</text>
+  <text class="text" x="652" y="858">LogicalScan  • LogicalExpand  • LogicalFilter  • LogicalProject</text>
+  <text class="text" x="652" y="878">LogicalLimit  • LogicalSort  • LogicalJoin</text>
+  <text class="text" x="652" y="898">LogicalSet    • LogicalCreate  • LogicalDelete</text>
+  <text class="text" x="652" y="918">Scan aliases and label/property filters</text>
+  <text class="text" x="652" y="938">Expand holds src_alias, edge_alias, dst_alias, edge_type, labels, properties</text>
+  <text class="text" x="652" y="958">Join may carry predicate (ast::Expr)</text>
+  <text class="text" x="652" y="978">Create/Set/Delete are leaf-ish logical actions mapped to execution ops</text>
+
+  <!-- Logical arrows -->
+
+
+  <!-- Physical layer -->
+  <rect class="box4" x="70" y="1200" width="520" height="220" />
+  <text class="head" x="92" y="1232">exec::PhysicalOp family</text>
+  <text class="text" x="92" y="1258">Base: PhysicalOp</text>
+  <text class="text" x="92" y="1278">Zero-child: PhysicalOpNoChild</text>
+  <text class="text" x="92" y="1298">Unary: PhysicalOpUnaryChild</text>
+  <text class="text" x="92" y="1318">Binary: PhysicalOpBinaryChild</text>
+  <text class="text" x="92" y="1338">PhysicalPlan.root : PhysicalOpPtr</text>
+  <text class="text" x="92" y="1358">open(ExecContext) → RowCursorPtr</text>
+
+  <rect class="box4" x="630" y="1200" width="700" height="220" />
+  <text class="head" x="652" y="1232">Concrete physical operators</text>
+  <text class="text" x="652" y="1258">NodeScanOp • LabelIndexSeekOp • ExpandOp&lt;true/false&gt; • FilterOp</text>
+  <text class="text" x="652" y="1278">ProjectOp  • LimitOp • PhysicalSortOp</text>
+  <text class="text" x="652" y="1298">NestedLoopJoinOp • HashJoinOp</text>
+  <text class="text" x="652" y="1318">PhysicalSetOp • PhysicalCreateOp • PhysicalDeleteOp</text>
+  <text class="text" x="652" y="1338">NodePropertyFilterOp</text>
+  <text class="text" x="652" y="1358">Most ops own child/op pointers via unique_ptr</text>
+
+  <rect class="box4" x="1370" y="1200" width="500" height="220" />
+  <text class="head" x="1392" y="1232">RowCursor family</text>
+  <text class="text" x="1392" y="1258">Base: RowCursor</text>
+  <text class="text" x="1392" y="1278">NodeScanCursor • ExpandNodeCursorPhysical</text>
+  <text class="text" x="1392" y="1298">FilterCursor • ProjectCursor • LimitCursor</text>
+  <text class="text" x="1392" y="1318">NestedLoopJoinCursor • HashJoinCursor</text>
+  <text class="text" x="1392" y="1338">SetCursor • CreateCursor • DeleteCursor • SortCursor</text>
+  <text class="text" x="1392" y="1358">NodePropertyFilterCursor</text>
+
+  <rect class="box4" x="1910" y="1200" width="390" height="220" />
+  <text class="head" x="1932" y="1232">Execution dependencies</text>
+  <text class="text" x="1932" y="1258">exec::ExecContext</text>
+  <text class="text" x="1932" y="1278">storage::GraphDB</text>
+  <text class="text" x="1932" y="1298">storage::Node / Edge</text>
+  <text class="text" x="1932" y="1318">ast::Expr, ReturnItem, OrderItem</text>
+  <text class="text" x="1932" y="1338">planner maps logical tree to cursor pipeline</text>
+  <text class="text" x="1932" y="1358">RowSlot stores Node*/Edge*/Value</text>
+
+  <!-- Physical arrows -->
+  <text class="label" x="990" y="1160">maps to</text>
+  <path class="arrow" d="M1380 1250 L1320 1250" />
+  <text class="label" x="1335" y="1245">opens</text>
+  <path class="arrow" d="M1910 1290 L1875 1290" />
+  <text class="label" x="1760" y="1280">uses</text>
+
+  <!-- Cross-layer arrows -->
+  <path class="arrow" d="M500 650 C500 760, 500 760, 500 800" />
+  <text class="label" x="512" y="760">translates into</text>
+  <path class="arrow" d="M500 1050 C500 1125, 500 1125, 500 1200" />
+  <text class="label" x="512" y="1140">compiles down to</text>
+
+  <path class="arrow" d="M1240 650 C1240 760, 1240 760, 1240 800" />
+  <text class="label" x="1252" y="760">AST shapes</text>
+  <path class="arrow" d="M1240 1050 C1240 1125, 1240 1125, 1240 1200" />
+  <text class="label" x="1252" y="1140">becomes ops</text>
+
+  <!-- Signature -->
+  <text class="sig" x="60" y="1660" style="font-size: 45px;">Paltaratski Vladislav(PVA325)</text>
+</svg>
+
+

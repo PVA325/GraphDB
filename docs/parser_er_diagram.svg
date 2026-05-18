@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<svg width="2400" height="1600" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">
+ <title id="title">GraphDB parser ER-style diagram</title>
+ <desc id="desc">Overview of lexer, parser, AST and semantic validation components for GraphDB.</desc>
+ <defs>
+  <style>.bg { fill: #0b1020; }
+      .panel { fill: #0f1724; stroke: #31445f; stroke-width: 2; rx: 14; ry: 14; }
+      .boxA { fill: rgba(255,205,102,0.06); stroke: #ffd27d; stroke-width: 2; rx:12; ry:12; }
+      .boxB { fill: rgba(130,224,170,0.06); stroke: #82e0aa; stroke-width: 2; rx:12; ry:12; }
+      .boxC { fill: rgba(242,159,215,0.05); stroke: #f29fd7; stroke-width: 2; rx:12; ry:12; }
+      .title { font: 700 28px/1.2 Arial, Helvetica, sans-serif; fill: #f5f7ff; }
+      .head { font: 700 18px/1.2 Arial, Helvetica, sans-serif; fill: #fff9e6; }
+      .text { font: 13px/1.35 &quot;Fira Code&quot;, monospace; fill: #dce8ff; }
+      .muted { font: 12px Arial, sans-serif; fill: #9fb0d6; }
+      .arrow { stroke: #9fc9ff; stroke-width: 2; fill: none; marker-end: url(#ah); }
+      .sig { font: 700 20px/1.2 Arial, Helvetica, sans-serif; fill: #ffd27d; opacity: 0.95; }</style>
+ </defs>
+ <!-- Panels -->
+ <!-- Common -->
+ <!-- Lexer -->
+ <!-- Parser & AST -->
+ <!-- Semantic validation & API -->
+ <!-- Arrows -->
+ <!-- Signature small -->
+ <g class="layer">
+  <title>Layer 1</title>
+  <rect class="bg" height="1600" id="svg_2" width="2400" x="0" y="0"/>
+  <text class="title" id="svg_3" x="60" y="54">GraphDB parser subsystem — ER-style diagram</text>
+  <rect class="panel" height="220" id="svg_4" width="2320" x="40" y="100"/>
+  <rect class="panel" height="260" id="svg_5" width="2320" x="40" y="340"/>
+  <rect class="panel" height="260" id="svg_6" width="2320" x="40" y="620"/>
+  <rect class="panel" height="560" id="svg_7" width="2320" x="40" y="900"/>
+  <text class="muted" id="svg_8" x="60" y="130">1) Common foundation</text>
+  <text class="muted" id="svg_9" x="60" y="370">2) Lexer</text>
+  <text class="muted" id="svg_10" x="60" y="650">3) Parser &amp; AST</text>
+  <text class="muted" id="svg_11" x="60" y="930">4) Semantic validation &amp; API</text>
+  <rect class="boxA" height="160" id="svg_12" transform="matrix(1 0 0 1 0 0)" width="1100" x="70" y="150"/>
+  <text class="head" id="svg_13" x="92" y="185">common/common_value.hpp</text>
+  <text class="text" id="svg_14" style="cursor: move;" transform="matrix(1 0 0 1 0 0)" x="92" y="210">• Value (variant), EdgeDirection</text>
+  <text class="text" id="svg_15" x="92" y="235">• shared aliases used by parser/planner/storage</text>
+  <rect class="boxA" height="160" id="svg_16" width="1140" x="1200" y="150"/>
+  <text class="head" id="svg_17" x="1220" y="185">Tooling &amp; build</text>
+  <text class="text" id="svg_18" x="1220" y="210">• gtest harness, cmake test integration</text>
+  <text class="text" id="svg_19" x="1220" y="235">• parser unit tests &amp; fuzz targets</text>
+  <rect class="boxB" height="200" id="svg_20" width="1100" x="70" y="390"/>
+  <text class="head" id="svg_21" x="92" y="430">Lexer</text>
+  <text class="text" id="svg_22" x="92" y="455">• Token types: IDENTIFIER, STRING, NUMBER, KEYWORDS</text>
+  <text class="text" id="svg_23" x="92" y="480">• Handles whitespace, strings, numbers, comments</text>
+  <text class="text" id="svg_24" x="92" y="505">• API: std::vector Token Lex(const std::string&amp;)</text>
+  <rect class="boxB" height="200" id="svg_25" width="1140" x="1200" y="390"/>
+  <text class="head" id="svg_26" x="1220" y="430">Lexer internals</text>
+  <text class="text" id="svg_27" x="1220" y="455">• Token struct (type, lexeme, line, col)</text>
+  <text class="text" id="svg_28" x="1220" y="480">• Error reporting: LexError with line/col</text>
+  <rect class="boxC" height="220" id="svg_29" width="1100" x="70" y="660"/>
+  <text class="head" id="svg_30" x="92" y="700">Parser (recursive-descent)</text>
+  <text class="text" id="svg_31" x="92" y="725">• Parses tokens → AST (QueryAST, MatchClause, CreateClause, ...)</text>
+  <text class="text" id="svg_32" x="92" y="750">• Multi-query support (separated by &#x27;;&#x27;)</text>
+  <text class="text" id="svg_33" x="92" y="775">• API: Parse / ParseSingle</text>
+  <rect class="boxC" height="220" id="svg_34" width="1140" x="1200" y="660"/>
+  <text class="head" id="svg_35" x="1220" y="700">AST model</text>
+  <text class="text" id="svg_36" x="1220" y="725">• Expr: LiteralExpr, PropertyExpr, ComparisonExpr, LogicalExpr</text>
+  <text class="text" id="svg_37" x="1220" y="750">• Pattern: NodePattern, EdgePattern, CreateEdgePattern</text>
+  <text class="text" id="svg_38" x="1220" y="775">• Clauses: Match, Where, Return, Set, Delete, Order, Limit</text>
+  <rect class="boxA" height="480" id="svg_39" width="1100" x="70" y="940"/>
+  <text class="head" id="svg_40" x="92" y="980">Semantic validation</text>
+  <text class="text" id="svg_41" x="92" y="1005">• Checks: declared aliases, duplicate aliases, correct clause order</text>
+  <text class="text" id="svg_42" x="92" y="1030">• Expression type checks &amp; property existence (where possible)</text>
+  <text class="text" id="svg_43" x="92" y="1055">• Produces QueryAST ready for planner consumption</text>
+  <text class="text" id="svg_44" x="92" y="1085">• Error types: ParseError, SemanticError (with line/col messages)</text>
+  <rect class="boxB" height="480" id="svg_45" width="1140" x="1200" y="940"/>
+  <text class="head" id="svg_46" x="1220" y="980">Public API / Tests</text>
+  <text class="text" id="svg_47" x="1220" y="1005">• Parse, ParseSingle, Lexer::Lex</text>
+  <text class="text" id="svg_48" x="1220" y="1030">• Unit tests: lexer, parser, semantic, fuzz</text>
+  <text class="text" id="svg_49" x="1220" y="1055">• Integration: planner uses QueryAST</text>
+  <path class="arrow" d="m440,350l0,40" id="svg_50"/>
+  <path class="arrow" d="m440,590l0,70" id="svg_51"/>
+  <path class="arrow" d="m440,900l0,40" id="svg_52"/>
+  <text class="sig" font-size="1" id="svg_53" style="cursor: move;" x="60" y="1550">Assatryan Artyom</text>
+ </g>
+</svg>
