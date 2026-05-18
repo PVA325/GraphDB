@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "filesystem"
 #include <fstream>
 #include <string>
 #include <unordered_map>
@@ -23,7 +24,7 @@ namespace storage {
     static constexpr size_t kMaxPropsPageAmount = 1024;
     static constexpr size_t kMaxNodeAmount = 4096;
 
-    explicit NodeStore(const std::string& dir);
+    explicit NodeStore(const std::filesystem::path& dir);
     ~NodeStore();
 
     void put(const Node& node);
@@ -36,7 +37,7 @@ namespace storage {
   private:
     [[nodiscard]] NodeSlot read_slot(NodeId id);
     void write_slot(NodeId id, const NodeSlot& slot);
-    [[nodiscard]] Node deserialise(NodeId id, const NodeSlot& slot);
+    [[nodiscard]] Node deserialize(NodeId id, const NodeSlot& slot);
     [[nodiscard]] size_t serialise(const Node& node);
     void evict_obj_cache();
 

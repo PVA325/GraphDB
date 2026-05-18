@@ -1,7 +1,6 @@
 #include <cassert>
 #include <sstream>
 #include <stdexcept>
-#include <filesystem>
 
 #include "storage/EdgeEntity/edge_store.hpp"
 #include "storage/serialize.hpp"
@@ -10,18 +9,20 @@ namespace storage {
 
   using namespace serial;
 
-  static std::fstream open_file(const std::string& path) {
+  static std::fstream open_file(const std::filesystem::path& path) {
     if (!std::filesystem::exists(path)) {
       std::ofstream{path, std::ios::binary};
     }
-    std::fstream f(path, std::ios::in | std::ios::out | std::ios::binary);
-    if (!f) { throw std::runtime_error("cannot open " + path); }
-    return f;
+    std::fstream fs(path, std::ios::in | std::ios::out | std::ios::binary);
+    if (!fs) {
+      throw std::runtime_error("cannot open "  + static_cast<std::string>(path));
+    }
+    return fs;
   }
 
-  EdgeStore::EdgeStore(const std::string& dir)
-    : slots_file_(open_file(dir + "/edges.dat")),
-      props_file_ (open_file(dir + "/edge_props.dat")),
+  EdgeStore::EdgeStore(const std::filesystem::path& dir)
+    : slots_file_(open_file(dir / "edges.dat")),
+      props_file_ (open_file(dir / "edge_props.dat")),
       slots_cache_(slots_file_, kMaxSlotsPageAmount),
       props_cache_(props_file_, kMaxPropsPageAmount) {
     slots_file_.seekg(0, std::ios::end);
@@ -65,9 +66,14 @@ namespace storage {
     }
 
     EdgeSlot slot = read_slot(id);
-    if (!slot.alive) {return nullptr;}
+    if (!slot.alive) {
+      return nullptr;
+    }
 
-    if (obj_cache_.size() >= kMaxEdgeAmount) {evict_obj_cache();}
+    if (obj_cache_.size() >= kMaxEdgeAmount) {
+      evict_obj_cache();
+    }
+
     obj_cache_[id] = deserialize(id, slot);
     return &obj_cache_[id];
   }
@@ -89,12 +95,18 @@ namespace storage {
   [[nodiscard]] EdgeSlot EdgeStore::read_slot(EdgeId id) {
     EdgeSlot slot;
     size_t offset = id * EdgeSlot::kSize;
+
     slots_cache_.read(offset,&slot.props_offset, 8);
-    slots_cache_.read(offset +  8, &slot.src,          8);
-    slots_cache_.read(offset + 16, &slot.dst,          8);
-    slots_cache_.read(offset + 24, &slot.props_size,   4);
+
+    slots_cache_.read(offset + 8, &slot.src, 8);
+
+    slots_cache_.read(offset + 16, &slot.dst, 8);
+
+    slots_cache_.read(offset + 24, &slot.props_size, 4);
+
     uint8_t alive = 0;
     slots_cache_.read(offset + 28, &alive, 1);
+
     slot.alive = alive != 0;
     return slot;
   }
@@ -102,11 +114,17 @@ namespace storage {
   void EdgeStore::write_slot(EdgeId id, const EdgeSlot& slot) {
     size_t offset = id * EdgeSlot::kSize;
     uint8_t alive = static_cast<uint8_t>(slot.alive);
+
     slots_cache_.write(offset, &slot.props_offset, 8);
+
     slots_cache_.write(offset + 8, &slot.src, 8);
+
     slots_cache_.write(offset + 16, &slot.dst, 8);
+
     slots_cache_.write(offset + 24, &slot.props_size, 4);
+
     slots_cache_.write(offset + 28, &alive, 1);
+
     if (id >= slot_count_) {
       slot_count_ = id + 1;
     }
@@ -129,13 +147,13 @@ namespace storage {
     props_cache_.read(slot.props_offset, buf.data(), slot.props_size);
     std::istringstream is(buf, std::ios::binary);
 
-    Edge edge;
-    edge.id = id;
-    edge.alive = true;
-    edge.src = slot.src;
-    edge.dst = slot.dst;
-    edge.type = read_str(is);
-    edge.properties = read_properties(is);
+    Edge edge{
+    .id = id,
+    .alive = true,
+    .src = slot.src,
+    .dst = slot.dst,
+    .type = read_str(is),
+    .properties = read_properties(is)};
     return edge;
   }
 

@@ -40,45 +40,21 @@ namespace storage {
     uint64_t edge_count = 0;
   };
 
-  struct LabelPropertyValueKey {
-    uint32_t label_id;
-    uint32_t prop_id;
-    Value value;
-    bool operator==(const LabelPropertyValueKey& item) const {
-      return label_id == item.label_id &&
-             prop_id == item.prop_id &&
-             value == item.value;
-    }
-  };
-  struct LPVKeyHash { inline size_t operator()(const LabelPropertyValueKey& k) const; };
 
-  struct LabelPropertyKey {
-    uint32_t label_id;
-    uint32_t prop_id;
-    bool operator==(const LabelPropertyKey& o) const {
-      return label_id == o.label_id && prop_id == o.prop_id;
-    }
-  };
+  struct DeltaEvent {
+    enum class Type {
+      NodeCreated,
+      NodeDeleted,
+      LabelAdded,
+      LabelRemoved,
+      EdgeCreated,
+      EdgeDeleted
+    };
 
-  struct LPKeyHash {
-    size_t operator()(const LabelPropertyKey& key) const {
-      return std::hash<uint64_t>{}((uint64_t)key.label_id << 32 | key.prop_id);
-    }
-  };
-
-  inline size_t LPVKeyHash::operator()(const LabelPropertyValueKey& k) const {
-    size_t h = std::hash<uint32_t>{}(k.label_id);
-    h ^= std::hash<uint32_t>{}(k.prop_id) + 0x9e3779b9 + (h << 6) + (h >> 2);
-    h ^= std::hash<Value>{}(k.value) + 0x9e3779b9 + (h << 6) + (h >> 2);
-    return h;
-  }
-
-  struct Delta {
-    std::unordered_map<LabelPropertyValueKey, int32_t, LPVKeyHash> count_delta;
-    std::unordered_map<LabelPropertyKey, std::unordered_set<Value>, LPKeyHash> new_distinct;
-    size_t write_count = 0;
-    bool empty() const { return write_count == 0; }
-    void clear() { count_delta.clear(); new_distinct.clear(); write_count = 0; }
+    Type type;
+    std::vector<std::string> labels;
+    Properties props;
+    size_t out_degree = 0;
   };
 
   struct Page {

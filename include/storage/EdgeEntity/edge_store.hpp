@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <fstream>
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 
@@ -22,7 +23,7 @@ namespace storage {
 
   class EdgeStore {
   public:
-    explicit EdgeStore(const std::string& dir);
+    explicit EdgeStore(const std::filesystem::path& dir);
     ~EdgeStore();
 
     void put(const Edge& edge);

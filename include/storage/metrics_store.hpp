@@ -1,13 +1,12 @@
 #pragma once
 
-#include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-#include "string_interner.hpp"
 #include "types.hpp"
 
 namespace storage {
@@ -16,7 +15,7 @@ namespace storage {
   public:
     static constexpr size_t kMaxMetricPageAmount = 1024;
 
-    explicit MetricsStore(const std::string& dir);
+    explicit MetricsStore(const std::filesystem::path& dir);
     ~MetricsStore();
 
     void on_node_created(const std::vector<std::string>& labels, const Properties& props);
@@ -33,35 +32,26 @@ namespace storage {
     std::optional<size_t> property_distinct_count(const std::string& prop,
                                                   const std::string& label) const;
     double avg_out_degree(const std::string& label) const;
-    bool has_property_index(const std::string& label,
-                              const std::string& prop) const;
-    size_t property_count(const std::string& prop, const Value& value,
-                          const std::string& label) const;
 
     void flush();
     void clear();
 
   private:
-    std::string dir_;
-    StringInterner label_interner_;
-    StringInterner prop_interner_;
+    const std::filesystem::path dir_;
 
     size_t total_nodes_ = 0;
     std::unordered_map<std::string, size_t> label_node_count_;
     std::unordered_map<std::string, size_t> label_total_out_degree_;
-
     std::unordered_map<std::string, std::unordered_set<Value>> property_distinct_;
 
-    std::unordered_map<LabelPropertyValueKey, size_t, LPVKeyHash> lpv_count_;
-    std::unordered_map<LabelPropertyKey, std::unordered_set<Value>, LPKeyHash> lp_distinct_;
+    std::vector<DeltaEvent> delta_;
+    size_t write_count_ = 0;
 
-    Delta delta_;
-
-    LabelPropertyValueKey make_lpv(const std::string& label, const std::string& prop, const Value& val);
-    LabelPropertyKey make_lp(const std::string& label, const std::string& prop);
-
-    void apply_delta();
     void persist_delta();
     void maybe_flush();
+    void load();
+    void write_snapshot();
+    void replay_log();
   };
+
 } // namespace storage
