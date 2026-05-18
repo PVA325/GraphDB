@@ -11,6 +11,5 @@ add_library(storage SHARED
         NodeEntity/node_manager.cpp
         NodeEntity/node_store.cpp
         page_cache.cpp
-        string_interner.cpp
 )
 target_include_directories(storage PUBLIC "${CMAKE_SOURCE_DIR}/include")

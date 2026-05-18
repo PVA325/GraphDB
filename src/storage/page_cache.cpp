@@ -60,7 +60,7 @@ namespace storage {
     auto it = pages_.find(page_id);
     if (it != pages_.end()) {
       lru_.erase(it->second.second);
-      lru_.push_back(page_id);
+      lru_.emplace_back(page_id);
       it->second.second = std::prev(lru_.end());
       return it->second.first;
     }
@@ -74,13 +74,13 @@ namespace storage {
   }
 
   void PageCache::load_page(size_t page_id) {
-    Page page;
-    page.page_id = page_id;
+    Page page{
+    .page_id = page_id,
+    .dirty = false};
     page.data.resize(KPageSize, 0);
-    page.dirty = false;
 
     size_t file_offset = page_id * KPageSize;
-    file_.seekg(static_cast<std::streamoff>(file_offset), std::ios::beg);
+    file_.seekg(file_offset, std::ios::beg);
     if (file_) {
       file_.read(page.data.data(), KPageSize);
     }
@@ -107,7 +107,7 @@ namespace storage {
     }
 
     size_t file_offset = page.page_id * KPageSize;
-    file_.seekp(static_cast<std::streamoff>(file_offset), std::ios::beg);
+    file_.seekp(file_offset, std::ios::beg);
     file_.write(page.data.data(), KPageSize);
     file_.flush();
     page.dirty = false;

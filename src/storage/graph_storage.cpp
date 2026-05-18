@@ -6,7 +6,9 @@
 namespace storage {
   bool GraphStorage::save(const GraphDB& db, const std::string& path) {
     std::ofstream os(path, std::ios::binary);
-    if (!os) { return false; }
+    if (!os) {
+      return false;
+    }
 
     bool dm = db.disk_mode();
 
@@ -19,8 +21,12 @@ namespace storage {
     os.write(reinterpret_cast<const char*>(&header), sizeof(header));
 
     for (size_t i = 0; i < node_count; ++i) {
-      Node* node = dm ? db.node_store_->get(i)
-                      : (i < db.nodes_ram_.size() ? const_cast<Node*>(&db.nodes_ram_[i]) : nullptr);
+      Node* node;
+      if (dm) {
+        node = db.node_store_->get(i);
+      } else {
+        node = i < db.nodes_ram_.size() ? const_cast<Node*>(&db.nodes_ram_[i]) : nullptr;
+      }
 
       bool alive = node && node->alive;
       NodeId nid = i;
@@ -52,10 +58,10 @@ namespace storage {
       NodeId src  = alive ? edge->src : 0;
       NodeId dst  = alive ? edge->dst : 0;
 
-      os.write(reinterpret_cast<const char*>(&eid),   sizeof(eid));
-      os.write(reinterpret_cast<const char*>(&alive),  sizeof(alive));
-      os.write(reinterpret_cast<const char*>(&src),    sizeof(src));
-      os.write(reinterpret_cast<const char*>(&dst),    sizeof(dst));
+      os.write(reinterpret_cast<const char*>(&eid), sizeof(eid));
+      os.write(reinterpret_cast<const char*>(&alive), sizeof(alive));
+      os.write(reinterpret_cast<const char*>(&src), sizeof(src));
+      os.write(reinterpret_cast<const char*>(&dst), sizeof(dst));
 
       std::string type = alive ? edge->type : "";
       size_t len = type.size();
@@ -102,27 +108,37 @@ namespace storage {
     db.node_index_.clear();
     db.edge_index_.clear();
     db.metrics_->clear();
-    if (!dm) { db.nodes_ram_.clear(); db.edges_ram_.clear(); }
-    if (!dm) {db.nodes_ram_.resize(header.node_count);}
+    if (!dm) {
+      db.nodes_ram_.clear(); db.edges_ram_.clear();
+    }
+    if (!dm) {
+      db.nodes_ram_.resize(header.node_count);
+    }
 
     for (size_t i = 0; i < header.node_count; ++i) {
       NodeId nid; bool alive;
-      is.read(reinterpret_cast<char*>(&nid),   sizeof(nid));
-      is.read(reinterpret_cast<char*>(&alive),  sizeof(alive));
+      is.read(reinterpret_cast<char*>(&nid), sizeof(nid));
+      is.read(reinterpret_cast<char*>(&alive), sizeof(alive));
 
       size_t label_count;
       is.read(reinterpret_cast<char*>(&label_count), sizeof(label_count));
-      if (!is) { return false; }
+      if (!is) {
+        return false;
+      }
 
-      Node node;
-      node.id = nid;
-      node.alive = alive;
+      Node node{
+        .id = nid,
+        .alive = alive
+      };
+
       node.labels.resize(label_count);
 
       for (size_t j = 0; j < label_count; ++j) {
         size_t len;
         is.read(reinterpret_cast<char*>(&len), sizeof(len));
-        if (!is) { return false; }
+        if (!is) {
+          return false;
+        }
         std::string label(len, '\0');
         is.read(label.data(), len);
         node.labels[j] = label;
@@ -131,15 +147,21 @@ namespace storage {
       node.properties = deserialize_properties(is);
 
       if (alive) {
-        for (const auto& label : node.labels)    db.node_index_.add_label(nid, label);
-        for (const auto& [k, v] : node.properties) db.node_index_.add_property(nid, k, v);
+        for (const auto& label : node.labels) {
+          db.node_index_.add_label(nid, label);
+        }
+        for (const auto& [k, v] : node.properties) {
+          db.node_index_.add_property(nid, k, v);
+        }
         db.metrics_->on_node_created(node.labels, node.properties);
       }
 
       if (dm) {
         db.node_store_->put(node);
       }
-      else    db.nodes_ram_[i] = std::move(node);
+      else {
+        db.nodes_ram_[i] = std::move(node);
+      }
     }
 
     if (!dm) {
@@ -148,10 +170,10 @@ namespace storage {
 
     for (size_t i = 0; i < header.edge_count; ++i) {
       EdgeId eid; bool alive; NodeId src, dst;
-      is.read(reinterpret_cast<char*>(&eid),   sizeof(eid));
-      is.read(reinterpret_cast<char*>(&alive),  sizeof(alive));
-      is.read(reinterpret_cast<char*>(&src),    sizeof(src));
-      is.read(reinterpret_cast<char*>(&dst),    sizeof(dst));
+      is.read(reinterpret_cast<char*>(&eid), sizeof(eid));
+      is.read(reinterpret_cast<char*>(&alive), sizeof(alive));
+      is.read(reinterpret_cast<char*>(&src), sizeof(src));
+      is.read(reinterpret_cast<char*>(&dst),  sizeof(dst));
 
       size_t len;
       is.read(reinterpret_cast<char*>(&len), sizeof(len));
@@ -196,6 +218,7 @@ namespace storage {
     if (!is) {
       return false;
     }
+
     {
       size_t len;
       is.read(reinterpret_cast<char*>(&len), sizeof(len));

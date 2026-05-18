@@ -44,15 +44,15 @@ namespace storage {
     return false;
   }
 
-  CursorFactory::CursorFactory(GraphDB* db, NodeIndex* node_index, EdgeIndex* edge_index)
+  CursorBase::CursorBase(GraphDB* db, NodeIndex* node_index, EdgeIndex* edge_index)
     : db_(db), node_index_(node_index), edge_index_(edge_index) {}
 
-  std::unique_ptr<NodeCursor> CursorFactory::all_nodes(
+  std::unique_ptr<NodeCursor> CursorBase::all_nodes(
     std::function<bool(Node*)> predicate, size_t limit) {
     return std::unique_ptr<NodeCursor>(new AllNodesCursor(db_, predicate, limit));
   }
 
-  std::unique_ptr<NodeCursor> CursorFactory::nodes_with_label(
+  std::unique_ptr<NodeCursor> CursorBase::nodes_with_label(
     const std::string& label,
     std::function<bool(Node*)> predicate, size_t limit) {
 
@@ -63,7 +63,7 @@ namespace storage {
     return std::make_unique<NodeCursor>(db_, list, predicate, limit);
   }
 
-  std::unique_ptr<NodeCursor> CursorFactory::nodes_with_property(
+  std::unique_ptr<NodeCursor> CursorBase::nodes_with_property(
     const std::string& key, const Value& val,
     std::function<bool(Node*)> predicate, size_t limit) {
 
@@ -74,7 +74,7 @@ namespace storage {
     return std::make_unique<NodeCursor>(db_, list, predicate, limit);
   }
 
-  std::unique_ptr<EdgeCursor> CursorFactory::outgoing_edges(
+  std::unique_ptr<EdgeCursor> CursorBase::outgoing_edges(
     NodeId node_id,
     std::function<bool(Edge*)> predicate, size_t limit) {
 
@@ -85,7 +85,7 @@ namespace storage {
     return std::make_unique<EdgeCursor>(db_, list, predicate, limit);
   }
 
-  std::unique_ptr<EdgeCursor> CursorFactory::incoming_edges(
+  std::unique_ptr<EdgeCursor> CursorBase::incoming_edges(
     NodeId node_id,
     std::function<bool(Edge*)> predicate, size_t limit) {
 
@@ -96,7 +96,7 @@ namespace storage {
     return std::make_unique<EdgeCursor>(db_, list, predicate, limit);
   }
 
-  std::unique_ptr<EdgeCursor> CursorFactory::edges_by_type(
+  std::unique_ptr<EdgeCursor> CursorBase::edges_by_type(
     const std::string& type,
     std::function<bool(Edge*)> predicate, size_t limit) {
 

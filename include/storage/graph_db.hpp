@@ -100,7 +100,7 @@ namespace storage {
     std::unique_ptr<MetricsStore> metrics_;
     std::unique_ptr<NodeManager> node_manager_;
     std::unique_ptr<EdgeManager> edge_manager_;
-    std::unique_ptr<CursorFactory> cursor_factory_;
+    std::unique_ptr<CursorBase> cursor_factory_;
 
     Node* node_ptr(NodeId id);
     Edge* edge_ptr(EdgeId id);

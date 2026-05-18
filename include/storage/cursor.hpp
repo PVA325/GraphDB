@@ -13,6 +13,7 @@ namespace storage {
   class GraphDB;
 
   template<typename T, typename Id>
+    requires std::is_convertible_v<Id, size_t>
   class Cursor {
 
   public:
@@ -72,9 +73,9 @@ namespace storage {
     size_t total_slots_ = 0;
   };
 
-  class CursorFactory {
+  class CursorBase {
   public:
-    CursorFactory(GraphDB* db, NodeIndex* node_index, EdgeIndex* edge_index);
+    CursorBase(GraphDB* db, NodeIndex* node_index, EdgeIndex* edge_index);
 
     std::unique_ptr<NodeCursor> all_nodes(
       std::function<bool(Node*)> predicate, size_t limit);

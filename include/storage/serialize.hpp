@@ -10,6 +10,7 @@
 
 namespace storage::serial {
   template<typename T>
+    requires std::is_trivially_copyable_v<T>
   void write(std::ostream& os, T v) {
     os.write(reinterpret_cast<const char*>(&v), sizeof(T));
   }
@@ -27,12 +28,16 @@ namespace storage::serial {
 
   inline void write_value(std::ostream& os, const Value& val) {
     write<uint8_t>(os, static_cast<uint8_t>(val.index()));
-    switch (val.index()) {
-      case 0: write<int64_t>(os, std::get<int64_t>(val)); break;
-      case 1: write<double> (os, std::get<double>(val)); break;
-      case 2: write_str (os, std::get<std::string>(val)); break;
-      case 3: write<bool> (os, std::get<bool>(val)); break;
-    }
+
+    std::visit([&os](const auto& v) {
+      using T = std::decay_t<decltype(v)>;
+
+      if constexpr (std::is_same_v<T, std::string>) {
+        write_str(os, v);
+      } else {
+        write<T>(os, v);
+      }
+    }, val);
   }
 
   inline void write_properties(std::ostream& os, const Properties& props) {
@@ -44,6 +49,7 @@ namespace storage::serial {
   }
 
   template<typename T>
+    requires std::is_trivially_copyable_v<T>
   T read(std::istream& is) {
     T v;
     is.read(reinterpret_cast<char*>(&v), sizeof(T));
@@ -67,8 +73,8 @@ namespace storage::serial {
     switch (read<uint8_t>(is)) {
       case 0: return read<int64_t>(is);
       case 1: return read<double> (is);
-      case 2: return read_str     (is);
-      case 3: return read<bool>   (is);
+      case 2: return read_str (is);
+      case 3: return read<bool> (is);
       default: throw std::runtime_error("unknown value type");
     }
   }

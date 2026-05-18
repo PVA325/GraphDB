@@ -12,7 +12,9 @@ namespace storage {
 
   MetricsStore::MetricsStore(const std::filesystem::path& dir)
     : dir_(dir) {
-    if (!dir_.empty()) load();
+    if (!dir_.empty()) {
+      load();
+    }
   }
 
   MetricsStore::~MetricsStore() {
@@ -210,12 +212,14 @@ namespace storage {
       return;
     }
 
-    while (is.peek() != EOF) {
+    while (is) {
       auto type = static_cast<DeltaEvent::Type>(serial::read<uint8_t>(is));
 
       uint32_t label_count = serial::read<uint32_t>(is);
       std::vector<std::string> labels(label_count);
-      for (auto& l : labels) l = serial::read_str(is);
+      for (auto& l : labels) {
+        l = serial::read_str(is);
+      }
 
       Properties props = serial::read_properties(is);
       size_t out_degree = static_cast<size_t>(serial::read<uint64_t>(is));
@@ -223,36 +227,53 @@ namespace storage {
       switch (type) {
         case DeltaEvent::Type::NodeCreated:
           ++total_nodes_;
-          for (const auto& label : labels) ++label_node_count_[label];
-          for (const auto& [prop, val] : props) property_distinct_[prop].insert(val);
+          for (const auto& label : labels) {
+            ++label_node_count_[label];
+          }
+          for (const auto& [prop, val] : props) {
+            property_distinct_[prop].insert(val);
+          }
           break;
+
         case DeltaEvent::Type::NodeDeleted:
           if (total_nodes_ > 0) --total_nodes_;
           for (const auto& label : labels) {
             auto it = label_node_count_.find(label);
-            if (it != label_node_count_.end() && it->second > 0) --it->second;
+            if (it != label_node_count_.end() && it->second > 0) {
+              --it->second;
+            }
           }
           break;
+
         case DeltaEvent::Type::LabelAdded:
           ++label_node_count_[labels[0]];
           label_total_out_degree_[labels[0]] += out_degree;
           break;
-        case DeltaEvent::Type::LabelRemoved:
-        {
+
+        case DeltaEvent::Type::LabelRemoved: {
           auto it = label_node_count_.find(labels[0]);
-          if (it != label_node_count_.end() && it->second > 0) --it->second;
+          if (it != label_node_count_.end() && it->second > 0) {
+            --it->second;
+          }
           auto oit = label_total_out_degree_.find(labels[0]);
-          if (oit != label_total_out_degree_.end() && oit->second >= out_degree)
+          if (oit != label_total_out_degree_.end() && oit->second >= out_degree) {
             oit->second -= out_degree;
+          }
         }
           break;
+
         case DeltaEvent::Type::EdgeCreated:
-          for (const auto& label : labels) ++label_total_out_degree_[label];
+          for (const auto& label : labels) {
+            ++label_total_out_degree_[label];
+          }
           break;
+
         case DeltaEvent::Type::EdgeDeleted:
           for (const auto& label : labels) {
             auto it = label_total_out_degree_.find(label);
-            if (it != label_total_out_degree_.end() && it->second > 0) --it->second;
+            if (it != label_total_out_degree_.end() && it->second > 0) {
+              --it->second;
+            }
           }
           break;
       }
@@ -264,24 +285,25 @@ namespace storage {
     if (is) {
       total_nodes_ = static_cast<size_t>(serial::read<uint64_t>(is));
 
-      uint32_t n = serial::read<uint32_t>(is);
-      for (uint32_t i = 0; i < n; ++i) {
+      uint32_t num = serial::read<uint32_t>(is);
+      for (uint32_t i = 0; i < num; ++i) {
         auto label = serial::read_str(is);
         label_node_count_[label] = static_cast<size_t>(serial::read<uint64_t>(is));
       }
 
-      n = serial::read<uint32_t>(is);
-      for (uint32_t i = 0; i < n; ++i) {
+      num = serial::read<uint32_t>(is);
+      for (uint32_t i = 0; i < num; ++i) {
         auto label = serial::read_str(is);
         label_total_out_degree_[label] = static_cast<size_t>(serial::read<uint64_t>(is));
       }
 
-      n = serial::read<uint32_t>(is);
-      for (uint32_t i = 0; i < n; ++i) {
+      num = serial::read<uint32_t>(is);
+      for (uint32_t i = 0; i < num; ++i) {
         auto prop = serial::read_str(is);
         uint32_t val_count = serial::read<uint32_t>(is);
-        for (uint32_t j = 0; j < val_count; ++j)
+        for (uint32_t j = 0; j < val_count; ++j) {
           property_distinct_[prop].insert(serial::read_value(is));
+        }
       }
     }
 

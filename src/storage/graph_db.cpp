@@ -20,7 +20,7 @@ namespace storage {
     edge_manager_ = std::make_unique<EdgeManager>(
       edge_store_.get(), &edge_index_, node_store_.get(), metrics_.get(), &edge_id_free_);
 
-    cursor_factory_ = std::make_unique<CursorFactory>(this, &node_index_, &edge_index_);
+    cursor_factory_ = std::make_unique<CursorBase>(this, &node_index_, &edge_index_);
   }
 
   GraphDB::~GraphDB() {
@@ -36,14 +36,22 @@ namespace storage {
   }
 
   Node* GraphDB::node_ptr(NodeId id) {
-    if (disk_mode()) { return node_store_->get(id); }
-    if (id >= nodes_ram_.size() || !nodes_ram_[id].alive) { return nullptr; }
+    if (disk_mode()) {
+      return node_store_->get(id);
+    }
+    if (id >= nodes_ram_.size() || !nodes_ram_[id].alive) {
+      return nullptr;
+    }
     return &nodes_ram_[id];
   }
 
   Edge* GraphDB::edge_ptr(EdgeId id) {
-    if (disk_mode()) { return edge_store_->get(id); }
-    if (id >= edges_ram_.size() || !edges_ram_[id].alive) { return nullptr; }
+    if (disk_mode()) {
+      return edge_store_->get(id);
+    }
+    if (id >= edges_ram_.size() || !edges_ram_[id].alive) {
+      return nullptr;
+    }
     return &edges_ram_[id];
   }
 
@@ -87,8 +95,11 @@ namespace storage {
     assert(node && node->alive);
 
     auto it = node->properties.find(key);
-    if (it != node->properties.end()) node_index_.update_property(id, key, it->second, val);
-    else                               node_index_.add_property(id, key, val);
+    if (it != node->properties.end()) {
+      node_index_.update_property(id, key, it->second, val);
+    } else {
+      node_index_.add_property(id, key, val);
+    }
 
     node->properties[key] = val;
   }
@@ -102,8 +113,10 @@ namespace storage {
     Node* node = node_ptr(id);
     assert(node && node->alive);
 
-    if (std::find(node->labels.begin(), node->labels.end(), label) != node->labels.end())
+    if (std::find(node->labels.begin(), node->labels.end(), label) != node->labels.end()) {
       return;
+    }
+
 
     node->labels.push_back(label);
     node_index_.add_label(id, label);
@@ -129,11 +142,14 @@ namespace storage {
 
   void GraphDB::delete_node(NodeId id) {
     if (disk_mode()) {
-      // копируем вектор — remove будет менять индекс во время итерации
       const std::vector<EdgeId> out(edge_index_.outgoing(id));
-      for (EdgeId eid : out) edge_manager_->remove(eid);
+      for (EdgeId eid : out) {
+        edge_manager_->remove(eid);
+      }
       const std::vector<EdgeId> in(edge_index_.incoming(id));
-      for (EdgeId eid : in) edge_manager_->remove(eid);
+      for (EdgeId eid : in) {
+        edge_manager_->remove(eid);
+      }
       node_manager_->remove(id);
       return;
     }
@@ -142,12 +158,20 @@ namespace storage {
     assert(node && node->alive);
 
     const std::vector<EdgeId> out(edge_index_.outgoing(id));
-    for (EdgeId eid : out) delete_edge(eid);
+    for (EdgeId eid : out) {
+      delete_edge(eid);
+    }
     const std::vector<EdgeId> in(edge_index_.incoming(id));
-    for (EdgeId eid : in) delete_edge(eid);
+    for (EdgeId eid : in) {
+      delete_edge(eid);
+    }
 
-    for (const auto& label : node->labels)      node_index_.remove_label(id, label);
-    for (const auto& [k, v] : node->properties) node_index_.remove_property(id, k, v);
+    for (const auto& label : node->labels) {
+      node_index_.remove_label(id, label);
+    }
+    for (const auto& [k, v] : node->properties) {
+      node_index_.remove_property(id, k, v);
+    }
 
     metrics_->on_node_deleted(node->labels, node->properties);
 
@@ -166,14 +190,18 @@ namespace storage {
     EdgeId id = edge_id_free_.next(edges_ram_.size());
     Edge edge{ id, true, src, dst, type, props };
 
-    if (id == edges_ram_.size()) edges_ram_.push_back(std::move(edge));
-    else                         edges_ram_[id] = std::move(edge);
+    if (id == edges_ram_.size()) {
+      edges_ram_.push_back(std::move(edge));
+    } else {
+      edges_ram_[id] = std::move(edge);
+    }
 
     edge_index_.add_edge(id, src, dst, type);
 
     std::vector<std::string> src_labels;
-    if (src < nodes_ram_.size() && nodes_ram_[src].alive)
+    if (src < nodes_ram_.size() && nodes_ram_[src].alive) {
       src_labels = nodes_ram_[src].labels;
+    }
     metrics_->on_edge_created(src_labels);
 
     return id;
@@ -184,14 +212,19 @@ namespace storage {
   }
 
   void GraphDB::set_edge_property(EdgeId id, const std::string& key, const Value& val) {
-    if (disk_mode()) { edge_manager_->set_property(id, key, val); return; }
+    if (disk_mode()) {
+      edge_manager_->set_property(id, key, val); return;
+    }
     Edge* edge = edge_ptr(id);
     assert(edge && edge->alive);
     edge->properties[key] = val;
   }
 
   void GraphDB::set_edge_type(EdgeId id, const std::string& type) {
-    if (disk_mode()) { edge_manager_->set_type(id, type); return; }
+    if (disk_mode()) {
+      edge_manager_->set_type(id, type);
+      return;
+    }
     Edge* edge = edge_ptr(id);
     assert(edge && edge->alive);
     edge_index_.retype_edge(id, edge->type, type);
@@ -199,14 +232,18 @@ namespace storage {
   }
 
   void GraphDB::delete_edge(EdgeId id) {
-    if (disk_mode()) { edge_manager_->remove(id); return; }
+    if (disk_mode()) {
+      edge_manager_->remove(id);
+      return;
+    }
 
     Edge* edge = edge_ptr(id);
     assert(edge && edge->alive);
 
     std::vector<std::string> src_labels;
-    if (edge->src < nodes_ram_.size() && nodes_ram_[edge->src].alive)
+    if (edge->src < nodes_ram_.size() && nodes_ram_[edge->src].alive) {
       src_labels = nodes_ram_[edge->src].labels;
+    }
 
     edge_index_.remove_edge(id, edge->src, edge->dst, edge->type);
     metrics_->on_edge_deleted(src_labels);
